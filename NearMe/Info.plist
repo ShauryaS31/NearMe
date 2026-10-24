@@ -24,6 +24,8 @@
     <string>$(ELEVENLABS_API_KEY)</string>
     <key>ELEVENLABS_VOICE_ID</key>
     <string>$(ELEVENLABS_VOICE_ID)</string>
+    <key>NEARME_DEMO_FAMILY_VOICE</key>
+    <string>$(NEARME_DEMO_FAMILY_VOICE)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSSupportsLiveActivities</key>

@@ -3,6 +3,15 @@
 import Foundation
 
 nonisolated enum APIKeys {
+    /// Only an explicit private demo build enables cloud speech, never an old preference.
+    static var demoFamilyVoiceEnabled: Bool {
+        isDemoFamilyVoiceEnabled(configuredValue("NEARME_DEMO_FAMILY_VOICE"))
+    }
+
+    static func isDemoFamilyVoiceEnabled(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() == "YES"
+    }
+
     /// The build fills this Info.plist value from the optional Secrets.xcconfig.
     /// Empty or unresolved build settings select the system voice.
     static let elevenLabsAPIKey: String =

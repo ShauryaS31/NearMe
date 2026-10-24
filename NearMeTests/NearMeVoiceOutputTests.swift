@@ -17,17 +17,17 @@ final class NearMeVoiceOutputTests: XCTestCase {
         for enabled in [true, false] {
             defaults.set(enabled, forKey: "naturalVoiceEnabled")
             XCTAssertEqual(VoiceSettings().naturalVoiceEnabled, enabled)
-            let output = NearMeVoiceOutput.make()
+            let output = NearMeVoiceOutput.make(demoFamilyVoice: false)
             XCTAssertTrue(output is SystemVoiceOutputService,
                           "Ordinary speech must stay local regardless of legacy preferences or build credentials")
             output.stop()
         }
         defaults.removeObject(forKey: "naturalVoiceEnabled")
-        XCTAssertTrue(NearMeVoiceOutput.make() is SystemVoiceOutputService)
+        XCTAssertTrue(NearMeVoiceOutput.make(demoFamilyVoice: false) is SystemVoiceOutputService)
     }
 
     func testOrdinaryPrefetchDoesNotStartPlayback() async {
-        let output = NearMeVoiceOutput.make()
+        let output = NearMeVoiceOutput.make(demoFamilyVoice: false)
         XCTAssertTrue(output is SystemVoiceOutputService)
         var playbackStarted = false
         output.onPlaybackStarted = { playbackStarted = true }
@@ -40,5 +40,18 @@ final class NearMeVoiceOutputTests: XCTestCase {
         output.stop()
         // No HTTP session, credentials or cloud provider exists in this output.
         // Device offline/audio and network inspection are separate Mac gates.
+    }
+
+    func testOnlyExplicitDemoBuildFlagSelectsFamilyVoice() {
+        for disabled in ["", "NO", "true", "1", "$(NEARME_DEMO_FAMILY_VOICE)"] {
+            XCTAssertFalse(APIKeys.isDemoFamilyVoiceEnabled(disabled))
+        }
+        XCTAssertTrue(APIKeys.isDemoFamilyVoiceEnabled(" YES "))
+        let demo = NearMeVoiceOutput.make(demoFamilyVoice: true)
+        XCTAssertTrue(demo is ElevenLabsVoiceOutput)
+        demo.stop()
+        let configured = NearMeVoiceOutput.make()
+        XCTAssertEqual(configured is ElevenLabsVoiceOutput, APIKeys.demoFamilyVoiceEnabled)
+        configured.stop()
     }
 }

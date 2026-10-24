@@ -4,6 +4,84 @@ import XCTest
 
 @MainActor
 final class ElevenLabsVoiceOutputTests: XCTestCase {
+    func testDemoUsesApprovedProfileForGreetingAcknowledgementAndRepliesDespiteLegacyPreference() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        fixture.settings.naturalVoiceEnabled = false
+        let output = fixture.output(demoFamilyVoice: true)
+        await output.speakGreeting("Hello.")
+        await output.speakAcknowledgement("I can help.")
+        await output.speakSessionOnly("Type the song name.")
+        await output.speak("Tap Search.")
+        XCTAssertEqual(fixture.session.requests.count, 4)
+        XCTAssertEqual(fixture.player.playCount, 4)
+        XCTAssertTrue(fixture.system.lines.isEmpty)
+        XCTAssertEqual(output.lastVoice, "Family voice (cloud)")
+        for request in fixture.session.requests {
+            XCTAssertEqual(request.url?.lastPathComponent, "test-voice")
+            let data = try XCTUnwrap(request.httpBody)
+            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+            XCTAssertEqual(body["model_id"] as? String, "eleven_multilingual_v2")
+            let settings = try XCTUnwrap(body["voice_settings"] as? [String: Any])
+            XCTAssertEqual(settings["speed"] as? Double, 0.92)
+            XCTAssertEqual(settings["stability"] as? Double, 0.5)
+            XCTAssertEqual(settings["similarity_boost"] as? Double, 0.75)
+            let text = try XCTUnwrap(body["text"] as? String)
+            let key = VoiceAudioCache.key(voiceID: "test-voice", modelID: ElevenLabsVoiceOutput.demoModelID, text: text)
+            XCTAssertNil(fixture.cache.audio(for: key), "Demo reply audio must not persist locally")
+        }
+    }
+
+    func testDemoPrefetchDoesNotSendTextAndCachedAudioDoesNotMasqueradeAsLiveClone() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        let text = "Tap Search."
+        let key = VoiceAudioCache.key(voiceID: "test-voice", modelID: ElevenLabsVoiceOutput.demoModelID, text: text)
+        fixture.cache.store(Data("old audio".utf8), for: key)
+        let output = fixture.output(demoFamilyVoice: true)
+        output.prefetch(text)
+        for _ in 0..<10 { await Task.yield() }
+        XCTAssertTrue(fixture.session.requests.isEmpty)
+        await output.speak(text)
+        XCTAssertEqual(fixture.session.requests.count, 1)
+        XCTAssertEqual(fixture.player.prepared, [fixture.session.data])
+        XCTAssertEqual(fixture.cache.audio(for: key), Data("old audio".utf8))
+    }
+
+    func testDemoFailuresExplicitlyAnnounceDeviceVoice() async throws {
+        for failure in ["offline", "key", "http", "decode", "playback"] {
+            let fixture = try VoiceFixture()
+            defer { fixture.cleanUp() }
+            if failure == "http" { fixture.session.status = 503 }
+            if failure == "decode" { fixture.player.rejectData = true }
+            if failure == "playback" { fixture.player.playSucceeds = false }
+            let output = fixture.output(key: failure == "key" ? "" : "test-key",
+                offline: failure == "offline", demoFamilyVoice: true)
+            await output.speakGreeting("Hello.")
+            XCTAssertEqual(fixture.system.lines, ["Family voice is unavailable. This is the device voice. Hello."])
+            XCTAssertEqual(output.lastVoice, "System voice")
+            XCTAssertNotNil(output.lastFallbackReason)
+        }
+    }
+
+    func testDemoTimeoutAndStopDiscardLateCloudAudio() async throws {
+        for stop in [false, true] {
+            let fixture = try VoiceFixture()
+            defer { fixture.cleanUp() }
+            fixture.session.suspend = true
+            let output = fixture.output(deadline: stop ? 10 : 0.01, demoFamilyVoice: true)
+            let speaking = Task { await output.speak("Hello.") }
+            await eventually { fixture.session.pending != nil }
+            if stop { output.stop() }
+            await speaking.value
+            fixture.session.release()
+            for _ in 0..<20 { await Task.yield() }
+            XCTAssertEqual(fixture.player.playCount, 0)
+            XCTAssertEqual(fixture.system.lines.count, stop ? 0 : 1)
+            if !stop { XCTAssertEqual(fixture.system.lines.first?.hasPrefix("Family voice is unavailable."), true) }
+        }
+    }
+
     func testSessionOnlySongSpeechDoesNotRequestOrCacheAudio() async throws {
         let fixture = try VoiceFixture()
         defer { fixture.cleanUp() }
@@ -319,10 +397,10 @@ private final class VoiceFixture {
     }
 
     func output(key: String = "test-key", voiceID: String = "test-voice", offline: Bool = false,
-                deadline: TimeInterval = ElevenLabsVoiceOutput.playableAudioDeadline, cache: VoiceAudioCache? = nil) -> ElevenLabsVoiceOutput {
+                deadline: TimeInterval? = nil, cache: VoiceAudioCache? = nil, demoFamilyVoice: Bool = false) -> ElevenLabsVoiceOutput {
         ElevenLabsVoiceOutput(key: key, voiceID: voiceID, settings: settings, session: session,
                              cache: cache ?? self.cache, player: player, fallback: system,
-                             isOffline: { offline }, deadline: deadline)
+                             isOffline: { offline }, deadline: deadline, demoFamilyVoice: demoFamilyVoice)
     }
 
     func cacheKey(_ text: String) -> String {
