@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo |
+| Status | in_progress (P09 lane worker, worktree ../NearMe-p09) |
 | Window | Sat 24 Oct evening, after P07b, before P10 |
 | Depends on | P07b |
 | Assignee | codex |
@@ -52,6 +52,7 @@ Out of scope: the practice screens' own content (they imitate a trip planner app
 
 ### 7. Scope guard
 - [ ] No changes under `NearMe/Services/`, `NearMe/Models/` or the guide JSON resources. `NearMe/ViewModels/` changes only for presentation state (no routing, speech or timing logic). Under `NearMe/Views/TripPlannerPractice/` only `TripPlannerChrome.swift` may change, and only to use Theme tokens for NearMe's own chrome
+- [ ] P11 runs in parallel: do not touch `project.yml`, `NearMe/Info.plist`, `Shared/`, `NearMe/ViewModels/TaskPlannerEngine.swift`, `NearMe/Models/CoachSession.swift` or any coach engine or progress store file. Views may read existing engine properties. If an item cannot be done without one of these files, leave that item undone, explain it in the Dev Report and stop
 - [ ] The Dev Report pastes the exact grep commands for 1.1 and their output (zero hits), and `git diff --stat main` for the scope guard
 
 ### 8. Tests and checks (default run)
@@ -66,3 +67,6 @@ bash scripts/mac-run.sh quick
 Mac checks on the simulator: screenshots of Home, conversation (listening and speaking), coach card and onboarding at default size and Accessibility XXXL, light and dark; nothing clipped; one blue accent; Reduce Motion, Reduce Transparency, Bold Text and Button Shapes on: still readable and every control looks tappable; VoiceOver reads Home in order heading, example, Talk, Type instead, Practise.
 
 <!-- Dev Reports and Reviews appended below. -->
+
+## Lane log
+- 2026-10-24 18:24 AEDT | P09 | claude (P09 lane) | dispatch r1 | worktree ../NearMe-p09, branch task/P09-ui-polish from origin/main e02d9ce; P11 files excluded in scope guard
