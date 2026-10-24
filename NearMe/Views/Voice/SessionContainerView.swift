@@ -5,6 +5,7 @@ import SwiftUI
 struct SessionContainerView: View {
     @StateObject private var engine: TaskPlannerEngine
     @Environment(\.scenePhase) private var scenePhase
+    @EnvironmentObject private var coordinator: AppCoordinator
     @State private var didRestore = false
     @MainActor
     init(userName: String) {
@@ -19,17 +20,7 @@ struct SessionContainerView: View {
     }
 
     var body: some View {
-        Group {
-            if CoachPresentation.showsCoachCard(session: engine.coach, error: engine.lastErrorMessage) {
-                CoachView(engine: engine)
-            } else if let simulation = engine.tripPlannerPracticeViewModel {
-                TripPlannerPracticeView(viewModel: simulation, engine: engine)
-            } else if engine.plannerState == .openingApp {
-                OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
-            } else {
-                HelpHomeView(engine: engine)
-            }
-        }
+        sessionContent
         .preferredColorScheme(nil)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
@@ -39,15 +30,52 @@ struct SessionContainerView: View {
         }
         #endif
         .onAppear {
-            guard !didRestore else { return }
-            didRestore = true
-            PlannerModelAccess().prewarm()
-            engine.restoreCoach()
+            if scenePhase == .active { activateSession() }
+        }
+        .onChange(of: coordinator.pendingCoachURL) { _, _ in
+            if scenePhase == .active { activateSession() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { engine.appEnteredBackground() }
-            if phase == .active { engine.appBecameActive() }
+            if phase == .inactive { engine.appBecameInactive() }
+            if phase == .active { activateSession() }
         }
+    }
+
+    @ViewBuilder private var sessionContent: some View {
+        // Behaviour from P11 (deep links land on Home first); layout from P09.
+        if engine.isHome {
+            HelpHomeView(engine: engine)
+        } else if CoachPresentation.showsCoachCard(session: engine.coach, error: engine.lastErrorMessage) {
+            CoachView(engine: engine)
+        } else if let simulation = engine.tripPlannerPracticeViewModel {
+            TripPlannerPracticeView(viewModel: simulation, engine: engine)
+        } else if engine.plannerState == .openingApp {
+            OpeningPracticeView(confirmationText: openingConfirmation)
+        } else {
+            HelpHomeView(engine: engine)
+        }
+    }
+
+    private var openingConfirmation: String {
+        engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey."
+    }
+
+    private func handlePendingCoachURL() -> Bool {
+        guard scenePhase == .active, let request = coordinator.pendingCoachURL else { return false }
+        didRestore = true
+        coordinator.pendingCoachURL = nil
+        engine.openCoachURL(request.url)
+        return true
+    }
+
+    private func activateSession() {
+        engine.appBecameActive()
+        if handlePendingCoachURL() { return }
+        guard !didRestore else { return }
+        didRestore = true
+        PlannerModelAccess().prewarm()
+        engine.restoreCoach()
     }
 
 }

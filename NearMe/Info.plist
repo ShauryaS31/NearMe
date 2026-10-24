@@ -26,6 +26,17 @@
     <string>$(ELEVENLABS_VOICE_ID)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSSupportsLiveActivities</key>
+    <true/>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>au.nearme.ios</string>
+            <key>CFBundleURLSchemes</key>
+            <array><string>nearme</string></array>
+        </dict>
+    </array>
     <key>LSApplicationQueriesSchemes</key>
     <array>
         <string>whatsapp</string>

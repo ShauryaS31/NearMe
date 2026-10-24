@@ -16,32 +16,38 @@
   "steps": [
     {
       "instruction": "Open \"WhatsApp\".",
-      "ui_label_hint": "WhatsApp"
+      "ui_label_hint": "WhatsApp",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap \"Chats\".",
-      "ui_label_hint": "Chats"
+      "ui_label_hint": "Chats",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap the chat with the person you want to message.",
       "ui_label_hint": "Chats",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "person"
     },
     {
       "instruction": "Slide your finger up from the microphone icon to the padlock to keep recording without holding it.",
       "ui_label_hint": "microphone icon",
-      "verify": true
+      "verify": true,
+      "icon": "mic"
     },
     {
       "instruction": "Say your message while the recording timer is moving.",
       "ui_label_hint": "recording timer",
       "verify": true,
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "mic"
     },
     {
       "instruction": "Tap the paper plane icon to send your voice message.",
       "ui_label_hint": "paper plane icon",
-      "verify": true
+      "verify": true,
+      "icon": "paperplane"
     }
   ],
   "source_note": "WhatsApp for iPhone, October 2026 layout on iOS 26/27, English. Assumes an existing individual chat, an empty message box and microphone access already allowed. Uses locked recording so the user need not hold a button between coach steps. The current iPhone recording article could not be retrieved; confirm the upward gesture, timer and send control on the installed version. Not checked on a phone. Reference: https://faq.whatsapp.com/657157755756612/?cms_platform=iphone",

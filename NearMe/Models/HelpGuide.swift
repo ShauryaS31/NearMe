@@ -20,9 +20,10 @@ nonisolated struct HelpGuide: Codable, Sendable, Equatable, Identifiable {
         let uiLabelHint: String
         var verify: Bool? = nil
         var labelIsNearby: Bool? = nil
+        var icon: String? = nil
 
         nonisolated enum CodingKeys: String, CodingKey {
-            case instruction, verify
+            case instruction, verify, icon
             case uiLabelHint = "ui_label_hint", labelIsNearby = "label_is_nearby"
         }
     }
@@ -57,36 +58,43 @@ nonisolated enum CoachText {
         if step.labelIsNearby == true {
             let label = NSRegularExpression.escapedPattern(for: step.uiLabelHint)
             guard !matches(text, "(?i)\\btap\\s+(?:on\\s+)?(?:the\\s+)?\"\(label)\""),
-                  text.localizedCaseInsensitiveContains("Look near \"\(step.uiLabelHint)\"") else { return false }
+                  !matches(text, #"(?i)\blook\s+near\b"#) else { return false }
         }
         return true
     }
 
     static func validGeneral(_ steps: [String]) -> Bool {
-        !steps.isEmpty && steps.count <= 6 && steps.allSatisfy {
-            !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && $0.count <= 200 &&
-            (1...2).contains(sentences($0).count) &&
-            !matches($0, #"(?i)\b(always|definitely|certainly|guaranteed|exactly|must|will)\b"#) &&
-            !matches($0, #"(?i)(?:\bthen\b|\band\b|;)\s+(tap|open|type|swipe|drag|press|turn|choose)\b"#)
+        generalRejection(steps) == nil
+    }
+
+    /// Fixed rule names only: never log generated text. These are the existing validator rules.
+    static func generalRejection(_ steps: [String]) -> String? {
+        guard !steps.isEmpty && steps.count <= 6 else { return "step count" }
+        for text in steps {
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "empty step" }
+            guard text.count <= 200 else { return "step length" }
+            guard (1...2).contains(sentences(text).count) else { return "sentence count" }
+            if matches(text, #"(?i)\b(always|definitely|certainly|guaranteed|exactly|must|will)\b"#) { return "certainty word" }
+            if matches(text, #"(?i)(?:\bthen\b|\band\b|;)\s+(tap|open|type|swipe|drag|press|turn|choose)\b"#) { return "multiple actions" }
         }
+        return nil
     }
 
     static func fallback(step: HelpGuide.Step, person: String?, stuck: Bool = false) -> String {
         var text = step.instruction
+        if step.labelIsNearby == true, step.uiLabelHint == "Chats" {
+            let target = PersonNormalization.normalize(person) ?? "the person"
+            return "In your \"Chats\" list, tap \(target)'s name."
+        }
         if let person = PersonNormalization.normalize(person) {
-            if text.hasPrefix("Tap the chat with the person") {
-                text = "Open your chat with \(person)."
-            } else {
-                text = text.replacingOccurrences(of: "the person's", with: "\(person)'s")
-                    .replacingOccurrences(of: #"the person(?! or number)\b"#, with: person, options: .regularExpression)
-                    .replacingOccurrences(of: "the matching person", with: person)
-            }
+            text = text.replacingOccurrences(of: "the person's", with: "\(person)'s")
+                .replacingOccurrences(of: #"the person(?! or number)\b"#, with: person, options: .regularExpression)
+                .replacingOccurrences(of: "the matching person", with: person)
         }
         if step.labelIsNearby == true {
-            // Keep the original second sentence (for example the 24-hour note).
-            // A colon makes orientation part of the action's sentence.
-            let separator = sentences(text).count > 1 ? ": " : ". "
-            return "Look near \"\(step.uiLabelHint)\"\(separator)\(text)"
+            if text.contains("\"\(step.uiLabelHint)\"") { return text }
+            // Locate the actual target beside a landmark, preserving the action and any second sentence.
+            return "By \"\(step.uiLabelHint)\", \(text.prefix(1).lowercased())\(text.dropFirst())"
         }
         return stuck ? "\(text) Look for \"\(step.uiLabelHint)\"." : text
     }

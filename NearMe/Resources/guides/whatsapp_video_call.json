@@ -16,21 +16,25 @@
   "steps": [
     {
       "instruction": "Open \"WhatsApp\".",
-      "ui_label_hint": "WhatsApp"
+      "ui_label_hint": "WhatsApp",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap \"Chats\".",
-      "ui_label_hint": "Chats"
+      "ui_label_hint": "Chats",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap the chat with the person you want to call.",
       "ui_label_hint": "Chats",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "person"
     },
     {
       "instruction": "Tap the video camera icon at the top of the chat to start the call.",
       "ui_label_hint": "video camera icon",
-      "verify": true
+      "verify": true,
+      "icon": "video"
     }
   ],
   "source_note": "WhatsApp for iPhone, October 2026 layout on iOS 26/27, English. Assumes an existing individual chat, internet access, and camera and microphone access already allowed. Group calls use a different path. The current iPhone help article could not be retrieved; confirm the call icon, position and any confirmation screen on the installed version. Not checked on a phone. Reference: https://faq.whatsapp.com/iphone/voice-and-video-calls/how-to-make-a-video-call/",

@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+import UIKit
 @testable import NearMe
 
 @MainActor
@@ -26,6 +27,89 @@ struct PracticeOnlyTestRouter: HelpRouting {
 
 @MainActor
 final class GuidedCoachTests: XCTestCase {
+    func testGeneralAndRejectedPicksUseStrongMatchButPreserveModelGuideAndPracticeChoices() async throws {
+        let guides = try GuideLibrary.load()
+        let brain = CoachTestBrain()
+        let service = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
+        let router = HelpRouter(guides: guides, service: service, useEmbeddings: false)
+        for (request, expected) in RouterAcceptance.cases {
+            guard case .guide = expected else { continue }
+            for choice in [HelpRoute.general, .guide("outside_shortlist")] {
+                brain.choice = HelpChoice(route: choice, person: "Someone")
+                let answer = await router.route(request)
+                XCTAssertEqual(answer.value.route, expected, request)
+                XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+                XCTAssertNotNil(answer.latencyMilliseconds)
+            }
+        }
+        let request = "can you help me send an image to my mom"
+        let candidates = GuidePrefilter.rank(request: request, guides: guides)
+        let other = try XCTUnwrap(candidates.dropFirst().first)
+        for choice in [HelpRoute.guide(other.id), .practiceTripPlanner] {
+            brain.choice = HelpChoice(route: choice)
+            let answer = await router.route(request)
+            XCTAssertEqual(answer.value.route, choice)
+            XCTAssertEqual(answer.source, .onDeviceModel)
+        }
+        let ringtone = "how do I change my ringtone"
+        XCTAssertLessThan(try XCTUnwrap(GuidePrefilter.rank(request: ringtone, guides: guides).first).score,
+                          GuidePrefilter.fallbackThreshold)
+        brain.choice = HelpChoice(route: .general)
+        let general = await router.route(ringtone)
+        XCTAssertEqual(general.value.route, .general)
+        XCTAssertEqual(general.source, .onDeviceModel)
+        brain.choice = HelpChoice(route: .guide("outside_shortlist"))
+        let rejected = await router.route(ringtone)
+        XCTAssertEqual(rejected.value.route, .general)
+        XCTAssertEqual(rejected.source, .keywordFallback)
+        XCTAssertEqual(rejected.fallbackReason, .rejected)
+    }
+
+    func testMomRequestRetainsPersonThroughOverrideFallbackAndStepThreeRewrite() async throws {
+        let guides = try GuideLibrary.load()
+        let photo = try guide("whatsapp_send_photo")
+        let request = "can you help me send an image to my mom"
+        let brain = CoachTestBrain()
+        brain.choice = HelpChoice(route: .general, person: "Someone")
+        let model = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
+        let fallback = CoachModelService(brain: nil, modelAccess: PlannerModelAccess(availability: { .available }))
+        for service in [model, fallback] {
+            let answer = await HelpRouter(guides: guides, service: service, useEmbeddings: false).route(request)
+            XCTAssertEqual(answer.value.route, .guide(photo.id))
+            XCTAssertEqual(answer.value.person, "Mum")
+            for stuck in [false, true] {
+                let step = await service.rewrite(request: request, guide: photo, index: 2, person: answer.value.person, stuck: stuck)
+                XCTAssertEqual(step.value, "In your \"Chats\" list, tap Mum's name.")
+            }
+        }
+        brain.text = "In your \"Chats\" list, tap Mum's name."
+        let rewrite = await model.rewrite(request: request, guide: photo, index: 2, person: nil)
+        XCTAssertEqual(rewrite.source, .onDeviceModel)
+        XCTAssertTrue(rewrite.value.contains("Mum"))
+        brain.text = "In your \"Chats\" list, tap the person's name."
+        let rejected = await model.rewrite(request: request, guide: photo, index: 2, person: "Mum")
+        XCTAssertEqual(rejected.source, .keywordFallback)
+        XCTAssertTrue(rejected.value.contains("Mum"))
+    }
+
+    func testStepIconsDecodeAndExistOnTheTargetOS() throws {
+        for guide in try GuideLibrary.load() {
+            for step in guide.steps {
+                let icon = try XCTUnwrap(step.icon, guide.id)
+                XCTAssertNotNil(UIImage(systemName: icon), "\(guide.id): \(icon)")
+            }
+        }
+        let step = try JSONDecoder().decode(HelpGuide.Step.self,
+            from: Data(#"{"instruction":"Tap Photos.","ui_label_hint":"Photos"}"#.utf8))
+        XCTAssertNil(step.icon)
+        let directory = try XCTUnwrap(Bundle.main.url(forResource: "guides", withExtension: nil))
+        let text = try String(contentsOf: directory.appendingPathComponent("connect_wifi.json"), encoding: .utf8)
+        for value in ["null", "true", "[]", "{}", "\"\"", "\"   \""] {
+            let invalid = text.replacingOccurrences(of: "\"icon\": \"wifi\"", with: "\"icon\": \(value)")
+            XCTAssertThrowsError(try GuideLibrary.decode(Data(invalid.utf8), filename: "connect_wifi"))
+        }
+    }
+
     func testAllBundledGuidesPassTheContentValidator() throws {
         let guides = try GuideLibrary.load()
         XCTAssertEqual(guides.count, 15)
@@ -116,8 +200,8 @@ final class GuidedCoachTests: XCTestCase {
         brain.choice = HelpChoice(route: .guide("invented_id"))
         var answer = await router.route("send a photo")
         XCTAssertEqual(answer.value.route, .guide("whatsapp_send_photo"))
-        XCTAssertEqual(answer.source, .keywordFallback)
-        XCTAssertEqual(answer.fallbackReason, .rejected)
+        XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+        XCTAssertNil(answer.fallbackReason)
         brain.choice = HelpChoice(route: .guide("whatsapp_send_photo"), person: "none")
         answer = await router.route("send a photo on whatsapp")
         XCTAssertNil(answer.value.person)
@@ -128,7 +212,8 @@ final class GuidedCoachTests: XCTestCase {
         answer = await router.route("send a photo on whatsapp")
         XCTAssertFalse(brain.candidateIDs.contains("set_alarm"))
         XCTAssertEqual(answer.value.route, .guide("whatsapp_send_photo"))
-        XCTAssertEqual(answer.fallbackReason, .rejected)
+        XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+        XCTAssertNil(answer.fallbackReason)
         brain.shouldThrow = true
         answer = await router.route("send pictures to my son on whatsapp")
         XCTAssertEqual(answer.value, HelpChoice(route: .guide("whatsapp_send_photo"), person: "your son"))
@@ -153,10 +238,12 @@ final class GuidedCoachTests: XCTestCase {
         let photo = try guide("whatsapp_send_photo")
         let step = photo.steps[2]
         let personalised = CoachText.fallback(step: step, person: "mom")
-        XCTAssertEqual(personalised, "Look near \"Chats\". Open your chat with Mum.")
+        XCTAssertEqual(personalised, "In your \"Chats\" list, tap Mum's name.")
         XCTAssertTrue(CoachText.validRewrite(personalised, guide: photo, step: step))
         XCTAssertTrue(CoachText.fallback(step: step, person: nil).contains("the person"))
-        for bad in ["Tap \"Chats\".", "Look near \"Chats\". TAP \"Chats\".", "Look near \"Chats\". TAP \"cHaTs\".", "Tap \"Camera Roll\".",
+        XCTAssertEqual(CoachText.fallback(step: step, person: nil), "In your \"Chats\" list, tap the person's name.")
+        for bad in ["Look near \"Chats\" and tap it.", "look near \"Chats\", then tap it.",
+                    "In your list, tap \"Chats\".", "Tap \"Chats\".", "Look near \"Chats\". TAP \"Chats\".", "Look near \"Chats\". TAP \"cHaTs\".", "Tap \"Camera Roll\".",
                     "Look near \"Chats\". Open Mum. Send the photo.", "Look near \"Chats\". " + String(repeating: "x", count: 200),
                     "Look near \"Chats.", "Tap “Chats”.", "Tap \"chats\"."] {
             XCTAssertFalse(CoachText.validRewrite(bad, guide: photo, step: step), bad)
@@ -164,11 +251,26 @@ final class GuidedCoachTests: XCTestCase {
         XCTAssertTrue(CoachText.validRewrite("Tap \"Chats\".", guide: photo, step: photo.steps[1]))
         XCTAssertEqual(CoachText.fallback(step: photo.steps[1], person: nil, stuck: true), "Tap \"Chats\". Look for \"Chats\".")
         let wifi = try guide("connect_wifi")
-        XCTAssertTrue(CoachText.fallback(step: wifi.steps[3], person: nil).hasPrefix("Look near \"Wi-Fi\"."))
+        XCTAssertTrue(CoachText.fallback(step: wifi.steps[3], person: nil).hasPrefix("By \"Wi-Fi\", tap"))
         XCTAssertFalse(CoachText.validRewrite("Look near \"Wi-Fi\". Tap on \"Wi-Fi\".", guide: wifi, step: wifi.steps[3]))
+        for guide in try GuideLibrary.load() {
+            for step in guide.steps where step.labelIsNearby == true {
+                for person in [Optional<String>.none, "Mum"] {
+                    let text = CoachText.fallback(step: step, person: person)
+                    XCTAssertFalse(text.localizedCaseInsensitiveContains("look near"))
+                    XCTAssertTrue(CoachText.validRewrite(text, guide: guide, step: step), "\(guide.id): \(text)")
+                }
+            }
+        }
     }
 
     func testGeneralValidationAndCommandParsing() {
+        XCTAssertEqual(CoachText.generalRejection([]), "step count")
+        XCTAssertEqual(CoachText.generalRejection([""]), "empty step")
+        XCTAssertEqual(CoachText.generalRejection([String(repeating: "a", count: 201)]), "step length")
+        XCTAssertEqual(CoachText.generalRejection(["One. Two. Three."]), "sentence count")
+        XCTAssertEqual(CoachText.generalRejection(["You will find it here."]), "certainty word")
+        XCTAssertEqual(CoachText.generalRejection(["Tap then open the app."]), "multiple actions")
         XCTAssertTrue(CoachText.validGeneral(["Try opening the app.", "Look for a sound option."]))
         for invalid in [[], Array(repeating: "Look for an option.", count: 7), ["One. Two. Three."], [""],
                         ["You will find it here."], ["Tap then open the app."]] {
@@ -192,7 +294,7 @@ final class GuidedCoachTests: XCTestCase {
         for stuck in [false, true] {
             let answer = await service.rewrite(request: "send a photo", guide: photo, index: 2, person: "Mum", stuck: stuck)
             XCTAssertEqual(answer.source, .keywordFallback)
-            XCTAssertEqual(answer.value, "Look near \"Chats\". Open your chat with Mum.")
+            XCTAssertEqual(answer.value, "In your \"Chats\" list, tap Mum's name.")
             XCTAssertNotNil(answer.latencyMilliseconds)
         }
         let general = await service.general(request: "ringtone")
@@ -234,7 +336,7 @@ final class GuidedCoachTests: XCTestCase {
             engine.submitTypedInput("done")
             await eventually { engine.coach?.stepIndex == index && engine.plannerState == .idle }
         }
-        XCTAssertEqual(engine.coach?.text, "Look near \"Chats\". Open your chat with Mum.")
+        XCTAssertEqual(engine.coach?.text, "In your \"Chats\" list, tap Mum's name.")
         XCTAssertEqual(output.lines.last, engine.coach?.text)
         engine.coachCommand(.slower)
         await eventually { engine.coach?.slower == true && engine.plannerState == .idle }
@@ -242,7 +344,7 @@ final class GuidedCoachTests: XCTestCase {
         engine.coachCommand(.stuck)
         await eventually { engine.plannerState == .idle }
         XCTAssertEqual(engine.coach?.stepIndex, 2)
-        XCTAssertEqual(engine.coach?.text, "Look near \"Chats\". Open your chat with Mum.")
+        XCTAssertEqual(engine.coach?.text, "In your \"Chats\" list, tap Mum's name.")
         engine.coachCommand(.repeatStep)
         await eventually { engine.plannerState == .idle }
         XCTAssertTrue(output.slower)
@@ -259,7 +361,7 @@ final class GuidedCoachTests: XCTestCase {
         XCTAssertFalse(output.slower)
     }
 
-    func testProgressPersistsOnlyIdAndIndexAndRejectsInvalidRestores() throws {
+    func testProgressPersistsOnlyIdentifiersAndCountersAndRejectsInvalidRestores() throws {
         let suite = "CoachTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -267,15 +369,15 @@ final class GuidedCoachTests: XCTestCase {
         let photo = try guide("whatsapp_send_photo")
         let session = CoachSession(guide: photo, request: "private words", person: "Mum", generalSteps: [], stepIndex: 2, text: "private line")
         store.save(session)
-        XCTAssertEqual(Set(defaults.persistentDomain(forName: suite)?.keys.map { $0 } ?? []), [CoachProgressStore.guideKey, CoachProgressStore.stepKey])
+        XCTAssertEqual(Set(defaults.persistentDomain(forName: suite)?.keys.map { $0 } ?? []), [CoachProgressStore.progressKey])
         let restored = try XCTUnwrap(store.restore(guides: [photo]))
         XCTAssertEqual(restored.stepIndex, 2)
         XCTAssertNil(restored.person)
         XCTAssertEqual(restored.request, "")
         XCTAssertTrue(restored.text.contains("the person"))
-        defaults.set(100, forKey: CoachProgressStore.stepKey)
+        store.save(CoachProgress(guideID: photo.id, stepIndex: 100, sessionID: session.id, revision: 1))
         XCTAssertNil(store.restore(guides: [photo]))
-        XCTAssertNil(defaults.string(forKey: CoachProgressStore.guideKey))
+        XCTAssertNil(defaults.data(forKey: CoachProgressStore.progressKey))
         store.save(session)
         store.save(CoachSession(guide: nil, request: "private", person: nil, generalSteps: ["Try an option."], stepIndex: 0, text: "Try an option."))
         XCTAssertNil(store.restore(guides: [photo]))
@@ -320,7 +422,7 @@ final class GuidedCoachTests: XCTestCase {
             engine.userTappedToTalk()
             await eventually { engine.coach?.stepIndex == index && engine.plannerState == .idle }
         }
-        XCTAssertEqual(output.lines.last, "Look near \"Chats\". Open your chat with Mum.")
+        XCTAssertEqual(output.lines.last, "In your \"Chats\" list, tap Mum's name.")
         XCTAssertEqual(journey.extractions, 0)
         XCTAssertEqual(journey.placeExtractions, 0)
         input.nextTranscript = "stop"
@@ -338,6 +440,7 @@ final class GuidedCoachTests: XCTestCase {
         store.save(CoachSession(guide: photo, request: "send a photo to Mum", person: "Mum", generalSteps: [], stepIndex: 2, text: "private"))
         let output = CoachTestOutput()
         let engine = try makeEngine(output: output, store: store)
+        engine.appBecameActive()
         engine.restoreCoach()
         await eventually { engine.coach?.stepIndex == 2 && engine.plannerState == .idle && !output.lines.isEmpty }
         XCTAssertNil(engine.coach?.person)
@@ -398,7 +501,7 @@ final class GuidedCoachTests: XCTestCase {
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
             coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
-            appOpener: UnavailableCoachAppOpener())
+            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater())
     }
 
     private func eventually(_ condition: () -> Bool) async {
