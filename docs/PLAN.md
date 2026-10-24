@@ -32,7 +32,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | done (owner compile and phrase-1 check pending) |
 | [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | done (Mac check pending) |
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | todo |
-| [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P09 | codex | todo (only if done by Sun 12:00) |
+| [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P11 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | in_progress |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo (after P11; owner recording the voice clone) |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | dropped (privacy screen moved to P05) |
@@ -71,6 +71,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): FINAL ORDER. 1. P07b (round 2 adds: hidden debug badge, calm step card, auto-open WhatsApp). 2. P11 Live Activity coach (Dynamic Island step and Done). 3. P05 family voice plus the privacy screen (moved from P06; owner is recording the voice clone). 4. P09 UI polish (Sunday morning). 5. P10 widget and Siri shortcut, only if done by Sunday 12:00. Dropped: P06 leftovers, P08. Code freeze Sunday 25 Oct 13:00. The P09/P10 planning files came from the owner's other session; committed to main separately.
 - 2026-10-24 (owner): other owner sessions work in their own git worktree or only write under docs/, never in the main folder while the manager has a task running (see CLAUDE.md).
 - 2026-10-24 (owner): target ring pulses 3 cycles of about 1.2 s when a step's target first appears, then static; Repeat replays the 3 pulses; Reduce Motion static 6 pt from the start (resolves HIG rule 9). Done as P07c right after P07b (P07b used its 3 review rounds). The manager is now the only manager; the other session stood down. Order confirmed: P07b, P07c, P11, P05 with privacy, P09 Sunday morning, P10 if done by Sun 12:00; P06 and P08 dropped.
+- 2026-10-24 (owner): P11 adds nearme:// (nearme://coach?session=<id> resumes, unknown opens Home) and Done while NearMe is not running (intent in app and extension, perform() in the app process against saved progress, no App Group; stop if it would run in the extension). P10 depends on P11, lives in the NearMeLiveActivity extension and uses nearme://ask. The stood-down session's duplicate P07c review (5f50b7d) exists only on the already-merged P07c branch, not on main; its P07c Mac check line is kept; N07b/N07c LOG tags corrected to P07b/P07c.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
@@ -88,3 +89,4 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P09: screenshots of Home, conversation (listening, speaking), coach card, onboarding at default and Accessibility XXXL, light and dark; nothing clipped; Reduce Motion, Reduce Transparency, Bold Text, Button Shapes readable; VoiceOver order on Home.
 - [ ] P10 (iPhone): Home and Lock Screen widgets open NearMe listening (closed, backgrounded, locked); mid-guide keeps the guide; "Hey Siri, ask NearMe" works; mic denied gives Type instead and Open Settings.
 - [ ] P11 (iPhone): Dynamic Island shows NearMe and step count inside WhatsApp; Done advances; Lock Screen Done and Resume; no names on the Lock Screen; activity ends with the guide.
+- [ ] P07c: each practice step's ring pulses 3 times (about 3.6 s) then holds still; dock Repeat and spoken "repeat" pulse again, Slower does not; Reduce Motion on: ring never moves, 6 pt; Debug badge shows Pending before the first turn.

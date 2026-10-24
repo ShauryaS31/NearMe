@@ -4,9 +4,13 @@
 |---|---|
 | Status | todo |
 | Window | Sun 25 Oct morning, after P09, before P05 |
-| Depends on | P09 |
+| Depends on | P11 |
 | Assignee | codex |
 | Branch | task/P10-ask-widget |
+
+## Owner changes (2026-10-24, override anything below that conflicts)
+- Depends on P11. The Ask NearMe widget goes into the existing `NearMeLiveActivity` widget extension from P11 (add the widget to its `WidgetBundle`); no second extension target.
+- Reuse the `nearme://` URL scheme registered in P11: the widget and the Siri shortcut open `nearme://ask`, which starts listening (P11's `.onOpenURL` handler gains the `ask` host). No new scheme.
 
 ## Goal
 One tap from the Home Screen or Lock Screen, or "Hey Siri, ask NearMe", opens NearMe straight into listening. Launcher only: no shared data, no App Group, no Live Activity.
