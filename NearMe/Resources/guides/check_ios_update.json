@@ -27,7 +27,8 @@
     },
     {
       "instruction": "Wait for the update check to finish. This screen will show whether an update is available.",
-      "ui_label_hint": "Software Update"
+      "ui_label_hint": "Software Update",
+      "label_is_nearby": true
     }
   ],
   "source_note": "Settings on iOS 26/27, English, October 2026 documentation review. An internet connection is needed. This guide only checks availability; it does not download or install an update. Managed phones and connection errors can change the result shown. Not checked on a phone. Source: https://support.apple.com/en-ie/118575",

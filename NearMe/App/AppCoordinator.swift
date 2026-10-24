@@ -20,9 +20,7 @@ final class AppCoordinator: ObservableObject {
         route = .session
     }
 
-    /// Also used as "end session"'s destination — SessionContainerView calls
-    /// this once the engine has torn down, since there's no dedicated
-    /// "session ended" screen in the mockups.
+    /// Explicit onboarding restart. Ending guidance now returns to the help home.
     func restartOnboarding() {
         route = .welcome
     }

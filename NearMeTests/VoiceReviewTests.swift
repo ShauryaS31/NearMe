@@ -780,7 +780,8 @@ final class VoiceReviewTests: XCTestCase {
                             brain: TaskPlannerBrain? = nil,
                             settle: (() async throws -> Void)? = nil) -> TaskPlannerEngine {
         TaskPlannerEngine(brain: brain ?? ReviewBrain(), voiceInput: input ?? ReviewInput(), voiceOutput: output ?? ReviewOutput(),
-                          permissions: PermissionsManager(), userName: "", permissionCheck: { true }, settleBeforeListening: settle)
+                          permissions: PermissionsManager(), userName: "", permissionCheck: { true }, settleBeforeListening: settle,
+                          helpRouter: PracticeOnlyTestRouter(), coachService: CoachModelService(brain: nil))
     }
 
     private func eventually(_ condition: () -> Bool) async {

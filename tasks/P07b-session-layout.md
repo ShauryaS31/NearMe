@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (right after P07) |
+| Status | in_progress |
 | Window | Sat 24 Oct |
 | Depends on | P07 |
 | Assignee | codex |
@@ -17,6 +17,14 @@ AGENTS.md; docs/design/HIG-NOTES.md rules 2, 3, 5, 6, 7, 9, 10, 14. Files: `Near
 Swift 6.4 rule: default arguments must not construct NearMe or test types or read MainActor statics.
 
 ## Acceptance criteria
+### 0. P07 review follow-ups (do these first)
+- [ ] Rename the Codable guide model `Guide` (NearMe/Models/Guide.swift) to `HelpGuide` everywhere (types, loader, tests) and restore the plain `@Guide(...)` attribute in `JourneyIntent.swift` and `FoundationModelsBrain.swift` (no `@FoundationModels.Guide`), so the `@Generable` macro is certain to see the field descriptions
+- [ ] TaskPlannerEngine.swift:431: on "Let's start again. Where would you like to go?" keep `tripRouteActive = true` (the user is still in practice), so a bare answer such as "Town Hall" stays in the trip flow. Test with the real keyword fallback router (not `PracticeOnlyTestRouter`)
+- [ ] Practice card (`startPractice`, TaskPlannerEngine.swift:653-657): start the trip practice directly (route `practiceTripPlanner`, no model call) and stay in voice mode (do not call `useTypedInput`)
+- [ ] Swift 6.4 type checker: split `HelpRouter.swift:69-78` (map, sorted with a ternary comparator, prefix, map) into explicitly typed steps; annotate the `Dictionary(uniqueKeysWithValues:)` in `GuidedCoachTests` as `[String: [Double]]`
+- [ ] Nits: nearby-label fallback keeps the step's second sentence (for example set_alarm's 24-hour note, the torch's "The light stays on."); person extraction ignores "the bank", "the doctor" and other "the <noun>" phrases (only family words and capitalised names) and never rewrites "the person or number" to "Mum or number"; single-line text fields in `CoachView.swift:23,111` so Return submits; backgrounding during practice keeps the practice state; the Debug launch check accepts any valid `last_checked` date (YYYY-MM-DD), not only 2026-10-24; the loader reads only `.json` files
+- [ ] If the owner's parallel P07 check reports a routing bug, it is added here as a numbered item in round 2
+
 ### 1. Compact bottom dock
 - [ ] One `SessionDock` view at the bottom of practice and coach screens, inside the safe area (above the home indicator), never overlapping the practice screen's tab bar. Contents: a small mic button (44 x 44 pt minimum; tap to talk, tap again to finish, same states and VoiceOver labels as P04b), the current instruction in large text (`.title3` or larger, wraps, never truncates), and one "..." menu button (SF Symbol `ellipsis.circle`, label "More", 44 x 44 pt) holding Repeat, Slower, Type instead and End session
 - [ ] A Stop button (SF Symbol `stop.fill` plus "Stop") appears in the dock only while NearMe is speaking, and stops speech at once (keeps the step, as in P04b)

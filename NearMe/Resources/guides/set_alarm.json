@@ -43,7 +43,8 @@
     {
       "instruction": "Check that the time shows morning or afternoon as you intended. A 24-hour clock has no \"AM\" or \"PM\".",
       "ui_label_hint": "PM",
-      "verify": true
+      "verify": true,
+      "label_is_nearby": true
     },
     {
       "instruction": "Tap the tick icon to save the alarm.",

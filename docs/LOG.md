@@ -78,3 +78,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:19 AEDT | - | claude | tooling fix | mac-run.sh device: connected-iphone.py rejects simulators (reality, platform, simctl UDID cross-check), connected-only, --device=NAME option; 6 new script tests pass
 - 2026-10-24 17:22 AEDT | P03a/P04b | owner | iPhone check | "from Central to Newtown" accepted, straight to practice; STT 93 ms, first audio 1.06 s, ElevenLabs
 - 2026-10-24 17:22 AEDT | P07b | owner | decision | session layout: compact bottom dock, full-screen practice with visible tab bar, target ring with pulse and dim, two-line Debug badge (understood vs reply template); right after P07
+- 2026-10-24 17:24 AEDT | P07 | codex | dev-report r1 | guided coach, router, person, nearby labels, home (committed by manager)
+- 2026-10-24 17:32 AEDT | P07 | claude | review r1 PASS with follow-ups | must-haves met in code; 4 fixes (Guide name collision, practice restart leaks to router, practice card via model, type-check split) folded into P07b item 0; merged to main
+- 2026-10-24 17:33 AEDT | P07b | claude | dispatch r1 | item 0 = P07 follow-ups (HelpGuide rename, practice restart stays in trip flow, practice card direct, type-check split, nits), then dock, highlight, badge; owner checks P07 in parallel

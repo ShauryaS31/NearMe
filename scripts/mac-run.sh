@@ -5,7 +5,7 @@
 #   quick          incremental build of the current checkout; reuse a booted iPhone
 #   device         build, install and launch on a connected iPhone (needs Config/Team.xcconfig)
 #   test           run NearMeTests on the newest iPhone simulator
-#   eval           run the three opt-in real-model sentences on that simulator
+#   eval           run opt-in real-model journey, help-router and coach evaluations
 #   report         write docs/mac-results/<timestamp>.md, then commit and push it
 #   --current      build the checked-out branch without switching to main or pulling
 #   --device=NAME  device mode: use this iPhone (name or id) when several are connected

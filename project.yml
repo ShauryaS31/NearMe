@@ -14,6 +14,10 @@ targets:
       - path: NearMe
         excludes:
           - Info.plist
+          - Resources/guides
+      - path: NearMe/Resources/guides
+        type: folder
+        buildPhase: resources
       - path: Shared
     # NearMeBroadcastExtension/ is kept as source only; it is not a target yet.
     configFiles:

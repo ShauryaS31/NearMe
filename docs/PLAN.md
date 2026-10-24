@@ -28,8 +28,8 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | done (iPhone: Newtown accepted) |
 | [P04b](../tasks/P04b-tap-to-finish.md) | Tap to finish speaking, word-based auto-stop, 12 s cap, voice processing, barge-in | P03a | codex | done (iPhone check pending) |
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | done (owner verify-step check pending) |
-| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | in_progress |
-| [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | todo (right after P07) |
+| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
+| [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | in_progress |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | todo |
 | [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | todo (only after P07 passes) |
@@ -62,6 +62,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): P07 is the top priority, dispatched right after P04b and before P05. Reason: on the phone, "can you help me send an image to my mom" went into the trip flow. Added to P07: exclusive routing (trip flow only on the trip route), 7 router acceptance phrases (unit tests with fake brain and keyword fallback, plus eval), person personalisation ("Open your chat with Mum"), nearby-label steps say "look near", home hint text. Order: P04b, P07, P05, P06, P08.
 - 2026-10-24 (owner): device mode picked a booted simulator on Xcode 27.1 (wrong-architecture install). Fixed by the manager in tooling only: connected-iphone.py accepts only physical, paired, connected iPhones (reality physical, platform iOS, and not any simulator UDID from simctl); --device=NAME picks one. macfix 4110302 reviewed: OK.
 - 2026-10-24 (owner): P07b (session layout and highlight) right after P07; also applies to the P07 coach screen. Order: P07, P07b, P05, P06, P08.
+- 2026-10-24 (owner): after P07 merges, dispatch P07b at once (no stop). Owner runs a quick P07 compile and 7-phrase routing check on the Mac/iPhone in parallel (macfix allowed for compile-only errors); a routing bug found there goes into P07b round 2. The full iPhone check after P07b covers both. P07 review follow-ups are P07b item 0.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).

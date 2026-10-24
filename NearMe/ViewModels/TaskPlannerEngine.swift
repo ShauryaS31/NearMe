@@ -19,6 +19,15 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var latestVoice: String?
     @Published private(set) var isVoiceOutputActive = false
     @Published private(set) var isStartingListening = false
+    @Published private(set) var coach: CoachSession?
+    @Published private(set) var isHome = true
+    private let guides: [Guide]
+    private let helpRouter: any HelpRouting
+    private let coachService: CoachModelService
+    private let coachStore: CoachProgressStore
+    private var tripRouteActive = false
+    private var preparedStep: (index: Int, task: Task<BrainAnswer<String>, Never>)?
+    private var wasBackgrounded = false
     private var playbackGeneration = 0
     private let settleBeforeListening: () async throws -> Void
 
@@ -68,7 +77,15 @@ final class TaskPlannerEngine: ObservableObject {
          voiceOutput: VoiceOutputService,
          permissions: PermissionsManager,
          userName: String, permissionCheck: (() async -> Bool)? = nil,
-         settleBeforeListening: (() async throws -> Void)? = nil) {
+         settleBeforeListening: (() async throws -> Void)? = nil,
+         guides: [Guide]? = nil, helpRouter: (any HelpRouting)? = nil,
+         coachService: CoachModelService? = nil, coachStore: CoachProgressStore? = nil) {
+        let library = guides ?? GuideLibrary.bundled()
+        let service = coachService ?? CoachModelService.makeDefault()
+        self.guides = library
+        self.coachService = service
+        self.helpRouter = helpRouter ?? HelpRouter(guides: library, service: service)
+        self.coachStore = coachStore ?? CoachProgressStore()
         self.brain = brain
         self.latestBrainSource = brain.initialSource
         self.voiceInput = voiceInput
@@ -90,6 +107,7 @@ final class TaskPlannerEngine: ObservableObject {
     // MARK: - Entry points
 
     func beginSession() {
+        isHome = false
         consecutiveInputFailures = 0
         sessionGeneration += 1
         voiceInput.stopListening()
@@ -102,6 +120,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// A second tap finishes the turn; speaking can be interrupted immediately.
     func userTappedToTalk() {
+        isHome = false
         if plannerState == .listening {
             plannerState = .finishing
             voiceInput.finishListening()
@@ -126,6 +145,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func useTypedInput() {
+        isHome = false
         if let suggestionSlot { pendingClarification = suggestionSlot }
         sessionGeneration += 1
         voiceInput.stopListening()
@@ -156,6 +176,9 @@ final class TaskPlannerEngine: ObservableObject {
     /// "cancel" — stops whatever NearMe is currently doing and returns to a
     /// neutral, tappable idle state rather than silently continuing.
     func cancelCurrentAction() {
+        clearCoach()
+        isHome = true
+        tripRouteActive = false
         clearSuggestions()
         clearTurn()
         isPreparingSpeech = false
@@ -170,10 +193,13 @@ final class TaskPlannerEngine: ObservableObject {
         plannerState = .idle
     }
 
-    /// "end session" — stops everything for good. There's no separate "ended"
-    /// screen in the mockups; the caller (SessionContainerView) navigates
-    /// straight back to onboarding once this returns.
+    /// End all guidance and return to the help home screen.
     func endSession() {
+        clearCoach()
+        isHome = true
+        tripRouteActive = false
+        pendingClarification = nil
+        currentIntent = .empty
         clearSuggestions()
         clearTurn()
         isPreparingSpeech = false
@@ -338,6 +364,10 @@ final class TaskPlannerEngine: ObservableObject {
         lastErrorMessage = nil
         VoiceDiagnostics.logger.debug("User input: \(transcript, privacy: .private)")
         conversation.append(ConversationTurn(speaker: .user, text: transcript))
+        if coach != nil {
+            await handleCoachCommand(CoachCommand.parse(transcript), generation: generation)
+            return
+        }
         if tripPlannerPracticeViewModel != nil {
             let command = transcript.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters)).lowercased()
             switch command {
@@ -347,11 +377,35 @@ final class TaskPlannerEngine: ObservableObject {
             }
             return
         }
-        await handle(transcript: transcript, generation: generation)
+        if !tripRouteActive {
+            let answer = await helpRouter.route(transcript)
+            guard isCurrent(generation) else { return }
+            latestBrainSource = answer.source
+            latestBrainLatencyMilliseconds = answer.latencyMilliseconds
+            switch answer.value.route {
+            case .practiceTripPlanner:
+                tripRouteActive = true
+            case .guide(let id):
+                if let guide = guides.first(where: { $0.id == id }) {
+                    await startCoach(guide: guide, request: transcript, person: answer.value.person, generation: generation)
+                } else {
+                    await startGeneral(request: transcript, generation: generation)
+                }
+                return
+            case .general:
+                await startGeneral(request: transcript, generation: generation)
+                return
+            }
+        }
+        // Journey extraction and all slot questions are reachable only after a trip route.
+        // An infinitive in "want to practise/plan a trip" is not a destination.
+        let journeyRequest = transcript.replacingOccurrences(of: #"(?i)\bto\s+(?:practi[cs]e|plan(?:ning)?)\b"#,
+                                                            with: "", options: .regularExpression)
+        await handle(transcript: journeyRequest, generation: generation)
     }
 
     private func handle(transcript: String, generation: Int) async {
-        guard isCurrent(generation) else { return }
+        guard isCurrent(generation), tripRouteActive else { return }
         plannerState = .thinking
 
         do {
@@ -374,6 +428,7 @@ final class TaskPlannerEngine: ObservableObject {
                         pendingClarification = nil
                         clarificationFailures = 0
                         currentIntent = .empty
+                        tripRouteActive = false
                         question = "Let's start again. Where would you like to go?"
                     }
                     await speak(question, generation: generation)
@@ -473,7 +528,9 @@ final class TaskPlannerEngine: ObservableObject {
             tripPlannerPracticeViewModel = nil
             currentIntent = .empty
             hasCompletedAtLeastOneJourney = true
-            await listenAndHandle(generation: generation)
+            tripRouteActive = false
+            isHome = true
+            plannerState = .idle
         }
     }
 
@@ -589,5 +646,174 @@ final class TaskPlannerEngine: ObservableObject {
             // Repeating a caption must not advance or finish the practice, even on its last step.
             await self.speak(practice.currentCaption, generation: generation, updatesPlannerState: false)
         }
+    }
+
+    // MARK: - Guide and general coach
+
+    func startPractice() {
+        cancelCurrentAction()
+        useTypedInput()
+        // Even the practice card goes through the router before journey extraction.
+        submitTypedInput("I want to practise planning a train trip")
+    }
+
+    private func startCoach(guide: Guide, request: String, person: String?, generation: Int) async {
+        voiceOutput.setSlower(false)
+        coach = CoachSession(guide: guide, request: request, person: PersonNormalization.normalize(person),
+                             generalSteps: [], stepIndex: 0, text: CoachText.fallback(step: guide.steps[0], person: person))
+        if let coach { coachStore.save(coach) }
+        await presentCoachStep(generation: generation)
+    }
+
+    private func startGeneral(request: String, generation: Int) async {
+        let answer = await coachService.general(request: request)
+        guard isCurrent(generation) else { return }
+        latestBrainSource = answer.source
+        latestBrainLatencyMilliseconds = answer.latencyMilliseconds
+        voiceOutput.setSlower(false)
+        coachStore.clear()
+        coach = CoachSession(guide: nil, request: request, person: nil, generalSteps: answer.value,
+                             stepIndex: 0, text: answer.value.first ?? CoachText.generalFallback)
+        await presentCoachStep(generation: generation)
+    }
+
+    func coachCommand(_ command: CoachCommand) {
+        guard coach != nil else { return }
+        lastErrorMessage = nil
+        sessionGeneration += 1
+        voiceInput.stopListening()
+        stopOutput()
+        let generation = sessionGeneration
+        plannerState = .thinking
+        Task { await self.handleCoachCommand(command, generation: generation) }
+    }
+
+    private func handleCoachCommand(_ command: CoachCommand?, generation: Int) async {
+        guard isCurrent(generation), let session = coach else { return }
+        switch command {
+        case .stop:
+            cancelCurrentAction()
+        case .next:
+            if session.stepIndex + 1 == session.count {
+                preparedStep?.task.cancel()
+                preparedStep = nil
+                coach?.text = "That's it, you're done."
+                coachStore.clear()
+                await speak("That's it, you're done.", generation: generation)
+                guard isCurrent(generation) else { return }
+                cancelCurrentAction()
+            } else {
+                coach?.stepIndex += 1
+                if let coach { coachStore.save(coach) }
+                await presentCoachStep(generation: generation)
+            }
+        case .slower:
+            coach?.slower = true
+            voiceOutput.setSlower(true)
+            await speakCoach(generation: generation)
+        case .stuck:
+            if let guide = session.guide {
+                plannerState = .thinking
+                let answer = await coachService.rewrite(request: session.request, guide: guide, index: session.stepIndex,
+                                                        person: session.person, stuck: true)
+                guard isCurrent(generation), coach?.id == session.id else { return }
+                coach?.text = answer.value
+                latestBrainSource = answer.source
+                latestBrainLatencyMilliseconds = answer.latencyMilliseconds
+            } else {
+                plannerState = .thinking
+                let answer = await coachService.generalStuck(step: session.generalSteps[session.stepIndex])
+                guard isCurrent(generation), coach?.id == session.id else { return }
+                coach?.text = answer.value
+                latestBrainSource = answer.source
+                latestBrainLatencyMilliseconds = answer.latencyMilliseconds
+            }
+            await speakCoach(generation: generation)
+        case .repeatStep:
+            await speakCoach(generation: generation)
+        case nil:
+            lastErrorMessage = "Try Done, Repeat, Slower, I'm stuck or Stop."
+            plannerState = .idle
+        }
+    }
+
+    private func presentCoachStep(generation: Int) async {
+        guard let session = coach, isCurrent(generation) else { return }
+        if let guide = session.guide {
+            coach?.text = CoachText.fallback(step: guide.steps[session.stepIndex], person: session.person)
+            plannerState = .thinking
+            let answer: BrainAnswer<String>
+            if let preparedStep, preparedStep.index == session.stepIndex {
+                answer = await preparedStep.task.value
+            } else {
+                answer = await coachService.rewrite(request: session.request, guide: guide, index: session.stepIndex, person: session.person)
+            }
+            guard isCurrent(generation), coach?.id == session.id else { return }
+            preparedStep = nil
+            coach?.text = answer.value
+            latestBrainSource = answer.source
+            latestBrainLatencyMilliseconds = answer.latencyMilliseconds
+            prepareNextCoachStep()
+        } else {
+            coach?.text = session.generalSteps[session.stepIndex]
+        }
+        await speakCoach(generation: generation)
+    }
+
+    private func prepareNextCoachStep() {
+        guard let session = coach, let guide = session.guide, session.stepIndex + 1 < guide.steps.count else { return }
+        let index = session.stepIndex + 1
+        let service = coachService
+        preparedStep?.task.cancel()
+        preparedStep = (index, Task {
+            await service.rewrite(request: session.request, guide: guide, index: index, person: session.person)
+        })
+    }
+
+    private func speakCoach(generation: Int, welcome: Bool = false) async {
+        guard let session = coach, isCurrent(generation) else { return }
+        voiceOutput.setSlower(session.slower)
+        let text = welcome ? "Welcome back. You were on step \(session.stepIndex + 1): \(session.text)" : session.text
+        await speak(text, generation: generation)
+        guard isCurrent(generation) else { return }
+        plannerState = .idle
+    }
+
+    private func clearCoach() {
+        preparedStep?.task.cancel()
+        preparedStep = nil
+        coach = nil
+        coachStore.clear()
+        conversation = []
+        liveTranscript = ""
+        voiceOutput.setSlower(false)
+    }
+
+    func restoreCoach() {
+        guard coach == nil, isHome, let restored = coachStore.restore(guides: guides) else { return }
+        coach = restored
+        isHome = false
+        resumeCoach()
+    }
+
+    func appEnteredBackground() {
+        wasBackgrounded = true
+        sessionGeneration += 1
+        voiceInput.stopListening()
+        stopOutput()
+        plannerState = .idle
+    }
+
+    func appBecameActive() {
+        guard wasBackgrounded else { return }
+        wasBackgrounded = false
+        if coach != nil { resumeCoach() }
+    }
+
+    private func resumeCoach() {
+        sessionGeneration += 1
+        if preparedStep == nil { prepareNextCoachStep() }
+        let generation = sessionGeneration
+        Task { await speakCoach(generation: generation, welcome: true) }
     }
 }

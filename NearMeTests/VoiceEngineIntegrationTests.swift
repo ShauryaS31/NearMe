@@ -50,7 +50,8 @@ final class VoiceEngineIntegrationTests: XCTestCase {
 
     private func makeEngine(input: EngineVoiceInput, output: EngineVoiceOutput) -> TaskPlannerEngine {
         TaskPlannerEngine(brain: KeywordFallbackBrain(), voiceInput: input, voiceOutput: output,
-                          permissions: PermissionsManager(), userName: "")
+                          permissions: PermissionsManager(), userName: "",
+                          helpRouter: PracticeOnlyTestRouter(), coachService: CoachModelService(brain: nil))
     }
 
     private func eventually(_ condition: () -> Bool) async {

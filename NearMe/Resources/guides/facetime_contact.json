@@ -29,7 +29,8 @@
     {
       "instruction": "Tap the matching person in the suggestions below \"To:\".",
       "ui_label_hint": "To:",
-      "verify": true
+      "verify": true,
+      "label_is_nearby": true
     },
     {
       "instruction": "Tap \"FaceTime\" to start the video call.",

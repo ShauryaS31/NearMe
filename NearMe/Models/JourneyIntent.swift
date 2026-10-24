@@ -18,16 +18,16 @@ enum MissingSlot: String, Sendable, Equatable {
 #if canImport(FoundationModels)
 @Generable
 struct JourneyIntent: Sendable {
-    @Guide(description: "What the user is trying to do. Use plan_journey when they want help getting from one place to another via public transport; otherwise unknown.")
+    @FoundationModels.Guide(description: "What the user is trying to do. Use plan_journey when they want help getting from one place to another via public transport; otherwise unknown.")
     var intent: JourneyIntentKindGenerable
 
-    @Guide(description: "A short destination station or place name of at most 5 words. Nil if not mentioned.")
+    @FoundationModels.Guide(description: "A short destination station or place name of at most 5 words. Nil if not mentioned.")
     var destination: String?
 
-    @Guide(description: "A short origin station or place name of at most 5 words. Nil if not mentioned.")
+    @FoundationModels.Guide(description: "A short origin station or place name of at most 5 words. Nil if not mentioned.")
     var origin: String?
 
-    @Guide(description: "The transport mode if the user specified one, e.g. train, tram, bus. Nil if not mentioned.")
+    @FoundationModels.Guide(description: "The transport mode if the user specified one, e.g. train, tram, bus. Nil if not mentioned.")
     var mode: String?
 }
 
