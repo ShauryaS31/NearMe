@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress (P09 lane worker, worktree ../NearMe-p09) |
+| Status | review passed, awaiting owner merge and Mac gate (branch task/P09-ui-polish) |
 | Window | Sat 24 Oct evening, after P07b, before P10 |
 | Depends on | P07b |
 | Assignee | codex |
@@ -376,3 +376,10 @@ The main comparison includes prior lane commits and pre-existing branch divergen
 - Commit disposition: staging succeeded on `task/P09-ui-polish`; committing these five files as `N09: Preserve coach sessions through UI error recovery`. No merge or push.
 
 - 2026-10-24 18:47 AEDT | P09 | codex | dev-report r3 | final review 1-4: preserve coach on errors and fallback rewrites, remove read-only preview override, restrict Cancel to active capture/preparation; Mac gate pending
+
+## Review (round 3)
+PASS (static; no Swift toolchain here). 1: `showsCoachCard` depends only on the session kind, so a guide or real general session keeps its card and dock error; Home's Try again and Type instead cancel only a `.homeReply` session, so the P07 progress store survives. 2: kind decided from `guide` and `generalSteps` only. 3: read-only `accessibilityReduceMotion` preview removed. 4: Cancel only while listening or preparing (preparing covers starting to listen, thinking and finishing). Tests replaced: guide plus error and real general plus error keep the card; no coach plus error and fallback plus error give the Home reply. Scope: no changes under Services, Models, ViewModels, Shared, project.yml or Info.plist on the whole branch.
+
+PENDING MAC: everything in Verify (Mac), plus: no-words during a guide step keeps the coach card and its step; I'm stuck without the model keeps the card; new Stop on Home does not change cancel or barge-in; dock mic symbol readable with its state text; Open WhatsApp button opens WhatsApp without changing the step.
+Follow-up for the manager: resuming a held fallback session after backgrounding says "You were on step 1: I'm not sure about that one" (engine, after P11).
+- 2026-10-24 18:49 AEDT | P09 | claude (P09 lane) | review r3 PASS | coach card kept through errors, fallback from session kind only, preview compile fix, Cancel only while listening or preparing; rebased on origin/main, pushed, not merged
