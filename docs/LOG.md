@@ -84,3 +84,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:42 AEDT | P07b | codex | dev-report r1 | P07 follow-ups, shared session dock, anchored target highlights and separate understanding/reply badge; commit 195cece; Mac/iPhone gate pending
 - 2026-10-24 17:49 AEDT | P07b | claude | review r1 CHANGES | static PASS-level, 8 review fixes (CoachView split, dock state text, ring outside target, tab-bar dim, badge clipping, tab labels, practice source, nits) plus owner additions: hidden debug badge, calm step card, auto-open WhatsApp; dispatch r2
 - 2026-10-24 17:49 AEDT | P07b | claude | review r1 CHANGES | 5.3 label test restates the table; dock .id drops typing focus; results target invented; hints wiped; stale badge on card; typing drops guiding; pulse via repeatForever; dispatch r2
+- 2026-10-24 17:54 AEDT | N07b | codex | dev-report r2 | review fixes, hidden Debug info, calm coach card and speech-first app opening with fake tests; commit d40805f; Mac/iPhone gate pending
+- 2026-10-24 17:55 AEDT | P07b | codex | dev-report r2 | review fixes 1-8, hidden badge, calm step card, auto-open WhatsApp (committed by manager)
