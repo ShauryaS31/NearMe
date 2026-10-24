@@ -73,3 +73,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:11 AEDT | P04b | codex | dev-report r2 | Preserve practice and step during voice interruptions, route practice commands and add regression tests; commit 6cb4302; Mac/iPhone checks pending
 - 2026-10-24 17:12 AEDT | P04b | claude | review r2 PASS | static; merged to main; next: P07 (top priority)
 - 2026-10-24 17:12 AEDT | P07 | claude | dispatch r1 | top priority; branch task/P07-guided-coach (P07a guides on main)
+- 2026-10-24 17:14 AEDT | P04b | claude (mac) | macfix | compile-only: SpeechTurn.swift:35 closestPlaces chain split into typed steps (Swift 6.4 type-check timeout), same logic; 101 tests, 100 pass, 1 skip

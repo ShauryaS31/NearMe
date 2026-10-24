@@ -32,10 +32,13 @@ nonisolated enum PracticeVocabulary {
             }
             return scores.min() ?? target.count * 4
         }
-        return places.map { (place: $0, score: score($0)) }
-            .filter { $0.score <= editDistanceThreshold * 4 }
-            .sorted { $0.score == $1.score ? $0.place < $1.place : $0.score < $1.score }
-            .prefix(2).map { $0.place }
+        let limit: Int = editDistanceThreshold * 4
+        let scored: [(place: String, score: Int)] = places.map { (place: $0, score: score($0)) }
+        let close: [(place: String, score: Int)] = scored.filter { $0.score <= limit }
+        let ranked: [(place: String, score: Int)] = close.sorted { lhs, rhs in
+            lhs.score == rhs.score ? lhs.place < rhs.place : lhs.score < rhs.score
+        }
+        return ranked.prefix(2).map { $0.place }
     }
 
     private static func normalized(_ text: String) -> String {
