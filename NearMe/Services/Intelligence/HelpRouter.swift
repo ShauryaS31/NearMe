@@ -118,12 +118,12 @@ final class HelpRouter: HelpRouting {
         let candidates = GuidePrefilter.rank(request: request, guides: guides,
                                             requestVector: embedding?.vector(for: request), guideVectors: vectors)
         let fallback = GuidePrefilter.fallback(request: request, candidates: candidates)
-        return await service.perform("router", fallback: fallback) { brain in
+        return await service.perform("router", fallback: fallback, candidates: candidates) { brain in
             let choice = try await brain.route(request: request, candidates: candidates)
-            let route: HelpRoute
-            if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }) { route = .general }
-            else { route = choice.route }
-            return HelpChoice(route: route, person: PersonNormalization.extractedPerson(choice.person)
+            if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }) {
+                throw CoachModelError.invalid
+            }
+            return HelpChoice(route: choice.route, person: PersonNormalization.extractedPerson(choice.person)
                               ?? PersonNormalization.extract(from: request))
         }
     }

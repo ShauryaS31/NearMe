@@ -20,30 +20,32 @@ enum CoachModelError: Error { case unavailable, invalid }
 @MainActor
 final class CoachModelService {
     private let brain: (any CoachBrain)?
-    init(brain: (any CoachBrain)?) { self.brain = brain }
+    private let modelAccess: PlannerModelAccess
 
-    static func makeDefault() -> CoachModelService {
+    init(brain: (any CoachBrain)?, modelAccess: PlannerModelAccess? = nil) {
+        self.brain = brain
+        self.modelAccess = modelAccess ?? PlannerModelAccess()
+    }
+
+    static func makeDefault(modelAccess: PlannerModelAccess? = nil) -> CoachModelService {
         #if canImport(FoundationModels)
-        return CoachModelService(brain: FoundationModelsBrain.isAvailable ? FoundationCoachBrain() : nil)
+        return CoachModelService(brain: FoundationCoachBrain(), modelAccess: modelAccess)
         #else
-        return CoachModelService(brain: nil)
+        return CoachModelService(brain: nil, modelAccess: modelAccess)
         #endif
     }
 
-    func perform<Value: Sendable>(_ kind: String, fallback: Value,
+    func perform<Value: Sendable>(_ kind: String, fallback: Value, candidates: [GuideCandidate]? = nil,
         operation: @escaping @MainActor @Sendable (any CoachBrain) async throws -> Value) async -> BrainAnswer<Value> {
-        let clock = ContinuousClock()
-        let start = clock.now
         do {
-            guard let brain else { throw CoachModelError.unavailable }
-            let value = try await PlannerCallDeadline.run(timeout: .seconds(10)) { try await operation(brain) }
-            let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))
-            PlannerDiagnostics.modelCall(kind, outcome: "ok", milliseconds: ms)
-            return BrainAnswer(value: value, source: .onDeviceModel, latencyMilliseconds: ms)
+            return try await modelAccess.run(kind, candidates: candidates) { [brain] in
+                guard let brain else { throw CoachModelError.unavailable }
+                return try await operation(brain)
+            }
         } catch {
-            let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))
-            PlannerDiagnostics.modelCall(kind, outcome: error is PlannerCallTimeout ? "timeout" : "fallback", milliseconds: ms)
-            return BrainAnswer(value: fallback, source: .keywordFallback, latencyMilliseconds: ms)
+            return BrainAnswer(value: fallback, source: .keywordFallback,
+                               latencyMilliseconds: (error as? PlannerModelFailure)?.milliseconds,
+                               fallbackReason: PlannerModelAccess.reason(for: error))
         }
     }
 
@@ -110,7 +112,9 @@ final class FoundationCoachBrain: CoachBrain {
         let route: HelpRoute
         switch answer.choice {
         case .practiceTripPlanner: route = .practiceTripPlanner
-        case .guide: route = answer.guideID.map(HelpRoute.guide) ?? .general
+        case .guide:
+            guard let id = answer.guideID else { throw CoachModelError.invalid }
+            route = .guide(id)
         case .general: route = .general
         }
         return HelpChoice(route: route, person: answer.person)

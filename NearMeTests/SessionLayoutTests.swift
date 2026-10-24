@@ -4,6 +4,34 @@ import XCTest
 
 @MainActor
 final class SessionLayoutTests: XCTestCase {
+    func testRouterFallbackReasonSurvivesCoachReplyAndClearsOnCommand() async throws {
+        let engine = makeEngine(router: LayoutFallbackRouter(), guides: try GuideLibrary.load())
+        engine.useTypedInput()
+        await submit("send a photo on WhatsApp", to: engine)
+        XCTAssertEqual(engine.latestBrainSource, .keywordFallback)
+        XCTAssertEqual(engine.latestBrainFallbackReason, .timeout)
+        XCTAssertEqual(engine.debugBadge.lines[0], "Understood: Keyword fallback (timeout), 10000 ms | reply: template")
+        await submit("repeat", to: engine)
+        XCTAssertNil(engine.latestBrainFallbackReason)
+        XCTAssertFalse(engine.debugBadge.text.contains("timeout"))
+        engine.endSession()
+    }
+
+    func testExtractionReasonSurvivesTemplateThenClearsAfterModelRecoveryAndSessionReset() async {
+        let engine = makeEngine(brain: RecoveringLayoutBrain())
+        engine.useTypedInput()
+        await submit("to Town Hall", to: engine)
+        XCTAssertEqual(engine.latestBrainFallbackReason, .unavailable(.modelNotReady))
+        XCTAssertEqual(engine.debugBadge.lines[0], "Understood: Keyword fallback (model not ready), 0 ms | reply: template")
+        // A nil place keeps the engine idle for this assertion while still proving a fresh model call won.
+        await submit("um", to: engine)
+        XCTAssertEqual(engine.latestBrainSource, .onDeviceModel)
+        XCTAssertNil(engine.latestBrainFallbackReason)
+        XCTAssertFalse(engine.debugBadge.text.contains("model not ready"))
+        engine.endSession()
+        XCTAssertNil(engine.latestBrainFallbackReason)
+    }
+
     func testUnderstandingAndLatencySurviveTemplateReply() async {
         for source in [BrainSource.onDeviceModel, .onDeviceModelWithKeywordFill, .keywordFallback] {
             let engine = makeEngine(brain: LayoutBrain(source: source))
@@ -393,5 +421,24 @@ private struct UnexpectedLayoutBrain: TaskPlannerBrain {
 private struct LayoutModelRouter: HelpRouting {
     func route(_ request: String) async -> BrainAnswer<HelpChoice> {
         BrainAnswer(value: HelpChoice(route: .guide("whatsapp_send_photo")), source: .onDeviceModel, latencyMilliseconds: 840)
+    }
+}
+
+@MainActor
+private struct LayoutFallbackRouter: HelpRouting {
+    func route(_ request: String) async -> BrainAnswer<HelpChoice> {
+        BrainAnswer(value: HelpChoice(route: .guide("whatsapp_send_photo")), source: .keywordFallback,
+                    latencyMilliseconds: 10_000, fallbackReason: .timeout)
+    }
+}
+
+private struct RecoveringLayoutBrain: TaskPlannerBrain {
+    var initialSource: BrainSource { .onDeviceModel }
+    func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
+        BrainAnswer(value: JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: nil, mode: nil),
+                    source: .keywordFallback, latencyMilliseconds: 0, fallbackReason: .unavailable(.modelNotReady))
+    }
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
+        BrainAnswer(value: nil, source: .onDeviceModel, latencyMilliseconds: 840)
     }
 }

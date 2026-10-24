@@ -15,6 +15,7 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var hasCompletedAtLeastOneJourney = false
     // Last user-turn understanding; never overwritten by reply generation.
     @Published private(set) var latestBrainSource: BrainSource
+    @Published private(set) var latestBrainFallbackReason: ModelFallbackReason?
     @Published private(set) var latestReplySource: BrainSource = .template
     @Published private(set) var latestBrainLatencyMilliseconds: Int?
     @Published private(set) var isTyping = false
@@ -65,7 +66,8 @@ final class TaskPlannerEngine: ObservableObject {
     var debugBadge: SessionDebugBadge {
         SessionDebugBadge(understanding: latestBrainSource, modelMilliseconds: latestBrainLatencyMilliseconds,
                           reply: latestReplySource, voice: latestVoice,
-                          firstAudioMilliseconds: firstAudioMilliseconds, sttMilliseconds: sttMilliseconds)
+                          firstAudioMilliseconds: firstAudioMilliseconds, sttMilliseconds: sttMilliseconds,
+                          fallbackReason: latestBrainFallbackReason)
     }
 
     private let brain: TaskPlannerBrain
@@ -416,12 +418,14 @@ final class TaskPlannerEngine: ObservableObject {
         conversation.append(ConversationTurn(speaker: .user, text: transcript))
         if coach != nil {
             latestBrainSource = .keywordFallback
+            latestBrainFallbackReason = nil
             latestBrainLatencyMilliseconds = nil
             await handleCoachCommand(CoachCommand.parse(transcript), generation: generation)
             return
         }
         if tripPlannerPracticeViewModel != nil {
             latestBrainSource = .keywordFallback
+            latestBrainFallbackReason = nil
             latestBrainLatencyMilliseconds = nil
             latestReplySource = .template
             let command = transcript.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters)).lowercased()
@@ -436,6 +440,7 @@ final class TaskPlannerEngine: ObservableObject {
             let answer = await helpRouter.route(transcript)
             guard isCurrent(generation) else { return }
             latestBrainSource = answer.source
+            latestBrainFallbackReason = answer.fallbackReason
             latestBrainLatencyMilliseconds = answer.latencyMilliseconds
             switch answer.value.route {
             case .practiceTripPlanner:
@@ -468,6 +473,7 @@ final class TaskPlannerEngine: ObservableObject {
                 let answer = try await brain.extractPlace(from: transcript, for: missing)
                 guard isCurrent(generation) else { return }
                 latestBrainSource = answer.source
+                latestBrainFallbackReason = answer.fallbackReason
                 latestBrainLatencyMilliseconds = answer.latencyMilliseconds
                 let extractedPlace = PlaceNormalization.normalize(answer.value)
                 if spokenInput, needsSuggestion(extractedPlace) {
@@ -502,6 +508,7 @@ final class TaskPlannerEngine: ObservableObject {
             let answer = try await brain.extractIntent(from: transcript)
             guard isCurrent(generation) else { return }
             latestBrainSource = answer.source
+            latestBrainFallbackReason = answer.fallbackReason
             latestBrainLatencyMilliseconds = answer.latencyMilliseconds
             let extracted = answer.value.normalizingPlaces()
 
@@ -670,6 +677,7 @@ final class TaskPlannerEngine: ObservableObject {
         sttMilliseconds = nil
         firstAudioMilliseconds = nil
         latestBrainLatencyMilliseconds = nil
+        latestBrainFallbackReason = nil
         latestReplySource = .template
     }
 
@@ -714,6 +722,7 @@ final class TaskPlannerEngine: ObservableObject {
         tripRouteActive = true
         // No user turn has been understood in this practice session yet.
         latestBrainSource = .template
+        latestBrainFallbackReason = nil
         latestBrainLatencyMilliseconds = nil
         latestReplySource = .template
         latestVoice = nil

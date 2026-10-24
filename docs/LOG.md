@@ -87,3 +87,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:54 AEDT | N07b | codex | dev-report r2 | review fixes, hidden Debug info, calm coach card and speech-first app opening with fake tests; commit d40805f; Mac/iPhone gate pending
 - 2026-10-24 17:55 AEDT | P07b | codex | dev-report r2 | review fixes 1-8, hidden badge, calm step card, auto-open WhatsApp (committed by manager)
 - 2026-10-24 17:55 AEDT | P07b | claude | review r2 CHANGES | r2 checked (auto-open guarded and persisted, hidden badge in DEBUG only); owner bug: model 0 ms on iPhone, cause: availability snapshotted at session creation in CoachModelService and TaskPlannerBrainFactory; dispatch r3 (final)
+- 2026-10-24 17:57 AEDT | N07b | codex | dev-report r2 | final eight-item review complete, Pending badge reset and regression coverage; handoff commit 677eadf (shared fixes captured concurrently in d40805f/4fb35aa); Mac gate pending
+- 2026-10-24 18:01 AEDT | N07b | codex | dev-report r3 | live per-call model availability, planner diagnostics, fallback reasons, prompt-free prewarm and fake regressions; commit denied by sandbox (.git/index.lock Permission denied), manager to commit; Mac/iPhone gate pending
+- 2026-10-24 18:02 AEDT | P07b | codex | dev-report r3 | model availability checked per call, reasons logged and on badge, prewarm (committed by manager)

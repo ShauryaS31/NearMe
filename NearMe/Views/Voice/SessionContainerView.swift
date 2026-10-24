@@ -45,6 +45,7 @@ struct SessionContainerView: View {
         .onAppear {
             guard !didRestore else { return }
             didRestore = true
+            PlannerModelAccess().prewarm()
             engine.restoreCoach()
         }
         .onChange(of: scenePhase) { _, phase in
