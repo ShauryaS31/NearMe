@@ -81,3 +81,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:24 AEDT | P07 | codex | dev-report r1 | guided coach, router, person, nearby labels, home (committed by manager)
 - 2026-10-24 17:32 AEDT | P07 | claude | review r1 PASS with follow-ups | must-haves met in code; 4 fixes (Guide name collision, practice restart leaks to router, practice card via model, type-check split) folded into P07b item 0; merged to main
 - 2026-10-24 17:33 AEDT | P07b | claude | dispatch r1 | item 0 = P07 follow-ups (HelpGuide rename, practice restart stays in trip flow, practice card direct, type-check split, nits), then dock, highlight, badge; owner checks P07 in parallel
+- 2026-10-24 17:42 AEDT | P07b | codex | dev-report r1 | P07 follow-ups, shared session dock, anchored target highlights and separate understanding/reply badge; commit 195cece; Mac/iPhone gate pending
