@@ -21,6 +21,9 @@ AGENTS.md. Files: `NearMe/ViewModels/TaskPlannerEngine.swift` (place answers and
 - [ ] When offered, the screen shows the transcript ("I heard: <transcript>"), up to 2 closest matches from the practice place list as tappable buttons (only matches within the edit-distance threshold; zero buttons is fine), and a "Keep what I said" button that uses the transcript's place (or the cleaned transcript if no place was extracted). Plus "Say it again". All 44 x 44 pt, spoken question uses the real names ("Did you mean Holsworthy or Town Hall?") or "Did you say <transcript>?" when there are no close matches
 - [ ] Tests (fakes): "Newtown" with high confidence is accepted without suggestions; "Holsworth" with low confidence offers Holsworthy and Keep what I said; Keep what I said fills the slot with the user's words; no-place transcript offers suggestions
 
+### 2. "nil" is not a place (owner, from the P04 Mac check)
+- [ ] The model can return the text "nil" as a place ("I need to get to Town Hall" gave origin "Nil"). Normalise every extracted place in one function used by all paths (intent extraction, place cleanup, keyword fill, suggestions): trimmed, case-insensitive "nil", "null", "none", "unknown", "n/a", "-" or empty become missing (nil). Tests: each of those strings is treated as missing; "I need to get to Town Hall" through a stub model returning origin "Nil" asks where you are starting from
+
 ## Verify (Mac)
 ```
 bash scripts/mac-run.sh test --current

@@ -48,9 +48,10 @@ final class VoiceInputRouter: VoiceInputService {
     private var activeService: VoiceInputService?
     private var generation = 0
 
-    init(capabilities: OnDeviceSpeechCapabilityChecking = OnDeviceSpeechCapabilities(),
+    // Built in the body: default arguments are evaluated outside the main actor.
+    init(capabilities: OnDeviceSpeechCapabilityChecking? = nil,
          locales: [Locale] = [Locale(identifier: "en-AU"), .current]) {
-        self.capabilities = capabilities
+        self.capabilities = capabilities ?? OnDeviceSpeechCapabilities()
         var seen = Set<String>()
         self.locales = locales.filter { seen.insert($0.identifier(.bcp47).lowercased()).inserted }
     }
