@@ -2,63 +2,38 @@
 
 import Foundation
 
-enum SharedScreenBridge {
-    static let appGroupID = "group.com.nearme.shared"
-    private static let newFrameNotificationName = "com.nearme.screenguidance.newframe" as CFString
-
-    static var containerURL: URL? {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)
-    }
-
-    /// Where the broadcast extension drops the most recent frame as a JPEG.
-    /// A single overwritten file (rather than a queue) is intentional —
-    /// NearMe only ever needs to react to "what does the screen look like
-    /// right now", not process every frame.
-    static var latestFrameURL: URL? {
-        containerURL?.appendingPathComponent("latest_frame.jpg")
-    }
-
-    /// Called by the broadcast extension after writing a new frame.
-    static func notifyNewFrameAvailable() {
-        CFNotificationCenterPostNotification(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            CFNotificationName(newFrameNotificationName),
-            nil, nil, true
-        )
-    }
-
-    /// Called by the main app to be told whenever a new frame lands.
-    /// Returns a token — keep it alive for as long as you want to keep
-    /// observing; deinit-ing it (or calling `stopObservingNewFrames`) removes
-    /// the observer.
-    static func observeNewFrames(_ handler: @escaping () -> Void) -> DarwinNotificationToken {
-        DarwinNotificationToken(name: newFrameNotificationName, handler: handler)
-    }
+nonisolated struct ScreenBroadcastHeartbeat: Codable, Equatable, Sendable {
+    /// Seconds since the Unix epoch, shared by both processes.
+    let timestamp: TimeInterval
+    let frameCount: Int
 }
 
-/// Thin, safe wrapper around CFNotificationCenter's C-callback-based Darwin
-/// notification API (which has no native closure support) so call sites can
-/// use an ordinary Swift closure.
-final class DarwinNotificationToken {
-    private let name: CFString
-    private let handler: () -> Void
+/// Foundation-only so this file can also compile with extension-safe APIs.
+nonisolated enum SharedScreenBridge {
+    static let appGroupID = "group.au.nearme.shared"
+    static let staleAfter: TimeInterval = 3
 
-    fileprivate init(name: CFString, handler: @escaping () -> Void) {
-        self.name = name
-        self.handler = handler
-
-        let center = CFNotificationCenterGetDarwinNotifyCenter()
-        let observerPointer = Unmanaged.passUnretained(self).toOpaque()
-        CFNotificationCenterAddObserver(center, observerPointer, { _, observer, _, _, _ in
-            guard let observer else { return }
-            let token = Unmanaged<DarwinNotificationToken>.fromOpaque(observer).takeUnretainedValue()
-            token.handler()
-        }, name, nil, .deliverImmediately)
+    static var heartbeatURL: URL? {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID)?
+            .appendingPathComponent("screen-heartbeat.json")
     }
 
-    deinit {
-        let center = CFNotificationCenterGetDarwinNotifyCenter()
-        let observerPointer = Unmanaged.passUnretained(self).toOpaque()
-        CFNotificationCenterRemoveObserver(center, observerPointer, CFNotificationName(name), nil)
+    static func write(_ heartbeat: ScreenBroadcastHeartbeat, to url: URL) throws {
+        let data = try JSONEncoder().encode(heartbeat)
+        try data.write(to: url, options: .atomic)
+    }
+
+    static func read(from url: URL) -> ScreenBroadcastHeartbeat? {
+        guard let data = try? Data(contentsOf: url), data.count <= 1_024 else { return nil }
+        return try? JSONDecoder().decode(ScreenBroadcastHeartbeat.self, from: data)
+    }
+
+    static func debugLine(heartbeat: ScreenBroadcastHeartbeat?, now: Date) -> String {
+        guard let heartbeat, heartbeat.frameCount >= 0, heartbeat.timestamp.isFinite else {
+            return "Screen: off"
+        }
+        let age = now.timeIntervalSince1970 - heartbeat.timestamp
+        guard age.isFinite, age >= 0, age <= staleAfter else { return "Screen: off" }
+        return "Screen: broadcast on, last update \(Int(age)) s ago"
     }
 }

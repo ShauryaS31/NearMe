@@ -1,44 +1,91 @@
 // Adapted from a prior prototype, used with permission.
 
+import Foundation
 import ReplayKit
 import CoreMedia
-import CoreImage
+import Dispatch
 
-class SampleHandler: RPBroadcastSampleHandler {
-    private let ciContext = CIContext()
-    /// Throttle: The practice UI doesn't need 30-60fps analysis — a frame every
-    /// ~500ms is plenty for "did the user reach a new screen" and keeps
-    /// battery/CPU use in the extension's tight memory budget reasonable.
-    private var lastWriteTime: CFAbsoluteTime = 0
-    private let minimumWriteInterval: CFTimeInterval = 0.5
+nonisolated final class SampleHandler: RPBroadcastSampleHandler {
+    private let heartbeat = BroadcastHeartbeatWriter()
 
     override func broadcastStarted(withSetupInfo setupInfo: [String: NSObject]?) {
-        // Nothing to set up — SharedScreenBridge resolves its container URL lazily.
+        startHeartbeat()
     }
 
     override func processSampleBuffer(_ sampleBuffer: CMSampleBuffer, with sampleBufferType: RPSampleBufferType) {
         guard sampleBufferType == .video else { return }
+        // Count only. Never extract, retain, encode or write a frame or audio buffer.
+        heartbeat.countFrame()
+    }
 
-        let now = CFAbsoluteTimeGetCurrent()
-        guard now - lastWriteTime >= minimumWriteInterval else { return }
+    override func broadcastPaused() { heartbeat.stop() }
+    override func broadcastResumed() { startHeartbeat() }
+    override func broadcastFinished() { heartbeat.stop() }
 
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
-              let url = SharedScreenBridge.latestFrameURL else { return }
-
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        guard let colorSpace = ciImage.colorSpace,
-              let jpegData = ciContext.jpegRepresentation(of: ciImage, colorSpace: colorSpace) else { return }
-
+    private func startHeartbeat() {
         do {
-            try jpegData.write(to: url, options: .atomic)
-            SharedScreenBridge.notifyNewFrameAvailable()
-            lastWriteTime = now
+            try heartbeat.start()
         } catch {
-            // Best-effort — dropping an occasional frame is fine.
+            heartbeat.stop()
+            finishBroadcastWithError(NSError(
+                domain: "au.nearme.ios.broadcast", code: 1,
+                userInfo: [NSLocalizedDescriptionKey:
+                    "NearMe could not share its screen connection status. Check App Group signing on the Mac."]
+            ))
         }
     }
+}
 
-    override func broadcastFinished() {
-        // Nothing to tear down.
+/// ReplayKit callbacks and the timer share only lock-protected state.
+/// The timer publishes even when a static screen produces no new video buffers.
+private nonisolated final class BroadcastHeartbeatWriter: @unchecked Sendable {
+    private let lock = NSLock()
+    private let queue = DispatchQueue(label: "au.nearme.ios.broadcast.heartbeat")
+    private var timer: DispatchSourceTimer?
+    private var url: URL?
+    private var frameCount = 0
+
+    func start() throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guard timer == nil else { return }
+        guard let destination = SharedScreenBridge.heartbeatURL else {
+            throw CocoaError(.fileNoSuchFile)
+        }
+        url = destination
+        let value = ScreenBroadcastHeartbeat(timestamp: Date().timeIntervalSince1970, frameCount: frameCount)
+        try SharedScreenBridge.write(value, to: destination)
+        let source = DispatchSource.makeTimerSource(queue: queue)
+        source.schedule(deadline: .now() + .seconds(1), repeating: .seconds(1))
+        source.setEventHandler { [weak self] in self?.publish() }
+        timer = source
+        source.resume()
     }
+
+    func countFrame() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard timer != nil, frameCount < Int.max else { return }
+        frameCount += 1
+    }
+
+    func stop() {
+        lock.lock()
+        defer { lock.unlock() }
+        timer?.cancel()
+        timer = nil
+        if let url { try? FileManager.default.removeItem(at: url) }
+        url = nil
+    }
+
+    private func publish() {
+        lock.lock()
+        defer { lock.unlock() }
+        guard timer != nil, let url else { return }
+        let value = ScreenBroadcastHeartbeat(timestamp: Date().timeIntervalSince1970, frameCount: frameCount)
+        // A write failure ages out in the app; retry on the next tick.
+        try? SharedScreenBridge.write(value, to: url)
+    }
+
+    deinit { timer?.cancel() }
 }

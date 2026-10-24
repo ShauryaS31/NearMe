@@ -14,12 +14,12 @@ targets:
       - path: NearMe
         excludes:
           - Info.plist
+          - NearMe.entitlements
           - Resources/guides
       - path: NearMe/Resources/guides
         type: folder
         buildPhase: resources
       - path: Shared
-    # NearMeBroadcastExtension/ is kept as source only; it is not a target yet.
     configFiles:
       Debug: Config/Base.xcconfig
       Release: Config/Base.xcconfig
@@ -41,11 +41,51 @@ targets:
         SWIFT_EMIT_LOC_STRINGS: YES
         ENABLE_PREVIEWS: YES
         CODE_SIGN_STYLE: Automatic
+        # Resolve to an empty path when mac-run.sh forces unsigned simulator builds.
+        NEARME_GROUP_ENTITLEMENTS_YES: NearMe/NearMe.entitlements
+        NEARME_GROUP_ENTITLEMENTS_NO: ""
+        CODE_SIGN_ENTITLEMENTS: "$(NEARME_GROUP_ENTITLEMENTS_$(CODE_SIGNING_ALLOWED))"
         MARKETING_VERSION: "0.1.0"
         CURRENT_PROJECT_VERSION: "1"
     dependencies:
       - target: NearMeLiveActivity
         embed: true
+      - target: NearMeBroadcast
+        embed: true
+  NearMeBroadcast:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "26.5"
+    sources:
+      - path: NearMeBroadcastExtension
+        excludes:
+          - Info.plist
+          - NearMeBroadcast.entitlements
+      - path: Shared/SharedScreenBridge.swift
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: au.nearme.ios.broadcast
+        INFOPLIST_FILE: NearMeBroadcastExtension/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+        CODE_SIGN_STYLE: Automatic
+        NEARME_GROUP_ENTITLEMENTS_YES: NearMeBroadcastExtension/NearMeBroadcast.entitlements
+        NEARME_GROUP_ENTITLEMENTS_NO: ""
+        CODE_SIGN_ENTITLEMENTS: "$(NEARME_GROUP_ENTITLEMENTS_$(CODE_SIGNING_ALLOWED))"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    dependencies:
+      - sdk: ReplayKit.framework
+      - sdk: CoreMedia.framework
   NearMeLiveActivity:
     type: app-extension
     platform: iOS
