@@ -19,7 +19,7 @@ The user explicitly requested: push all completed changes to main after checking
 - Acceptance criteria:
   1. Met: backup was verified remotely before merge preparation. Initial automatic approval rejection was resolved by proving the new reference points only to history already on the same configured origin and restating the user's explicit instruction; no protection was bypassed.
   2. Met in the reviewed candidate: main and completed development remain merge parents; semantic resolutions preserve both sets of behavior. Independent root and verification reviewers found no blocking merge defect before commit/push. Root additionally checked seven merged Swift UI/coordinator files grammar-clean.
-  3. Available checks completed below; final remote verification is recorded in the completion entry after the authorized push.
+  3. Partially met: checks and reviews completed; normal merge `df11cd0651816680f004d817cedf5aba921d0c1a` has exact parents `c158d003a9beb484d2912eaeafcf6a766359ec42` and `aa03eed14459cb16e76f57350df218b0e2e48eb5`. Main push is blocked by automatic approval review; no main update occurred.
 - Verify commands run and results:
   - `git fetch origin`, `git ls-remote origin refs/heads/main refs/heads/codex/backup-main-20261024-223826`: fetched and confirmed both tips equal the preserved original commit before integration.
   - `git diff --check`: PASS. Conflict-marker scan: none in candidate source/tests/log.
@@ -35,3 +35,11 @@ The user explicitly requested: push all completed changes to main after checking
   3. Configure signing/App Group for the app and both extensions. Connect a trusted Developer Mode iPhone and run `bash scripts/mac-run.sh device --current`. Verify first launch and returning launch, plum orb home, More > Set up Ask NearMe, widget setup deep links, prior onboarding migration and explicit restart.
   4. Follow the exact physical-device checks in P14: real YouTube opening/sharing/observed steps, Island bounded listening, widget cold/warm capture and follow-ups, silence/wait/Stop, interruptions/media, personalized output and explicitly announced Apple fallback. Check VoiceOver, largest text and Reduce Motion on preserved P09 UI.
 - Not done / risks / questions: native compilation and all audio/background/device gates remain pending. Syntax/configuration/source checks do not establish those behaviors. Demo spoken reply text goes to ElevenLabs; private configuration and approved audio must never be committed. No force push, reset, history rewrite or branch-protection bypass is authorized or performed.
+
+### Verified main push
+
+- Date: 2026-10-24 22:46 AEDT
+- Root and the independent verification agent reviewed the resolved candidate and found no blocking merge defect. Seven integration-edited Swift files passed an additional grammar screen after conditional-directive removal; native compilation remains pending.
+- Automatic approval initially rejected forwarded authorization. The user then directly confirmed in the root chat: "Yes, push the reviewed merge to main." The reviewer accepted the normal push after that confirmation; no protection was bypassed.
+- `git push origin df11cd0651816680f004d817cedf5aba921d0c1a:refs/heads/main` succeeded. A subsequent `git ls-remote` verified main at `df11cd0651816680f004d817cedf5aba921d0c1a` and backup `codex/backup-main-20261024-223826` unchanged at `c158d003a9beb484d2912eaeafcf6a766359ec42`. Both original main and completed development `aa03eed14459cb16e76f57350df218b0e2e48eb5` passed `git merge-base --is-ancestor` checks against the merge.
+- This completion report and LOG entry are a documentation-only follow-up to that verified merge. Private demo configuration still requires separate secure transfer to the Mac.
