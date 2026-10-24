@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (after P05 and its Mac check) |
+| Status | dropped (owner 2026-10-24; privacy screen moved to P05) |
 | Window | Sat 24 Oct |
 | Depends on | P05, P07 |
 | Assignee | codex |

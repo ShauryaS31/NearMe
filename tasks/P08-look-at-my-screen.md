@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (stretch; starts only after P07 passes the owner's Mac check) |
+| Status | dropped (owner 2026-10-24) |
 | Window | Sat 24 Oct or Sun 25 Oct before the 13:00 freeze |
 | Depends on | P07 |
 | Assignee | codex, then owner on a real iPhone |
