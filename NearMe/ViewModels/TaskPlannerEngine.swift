@@ -20,11 +20,16 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var latestBrainLatencyMilliseconds: Int?
     @Published private(set) var isTyping = false
     @Published private(set) var latestVoice: String?
-    @Published private(set) var isVoiceOutputActive = false
+    @Published private(set) var isVoiceOutputActive = false {
+        didSet { voiceCommands.setSpeaking(isVoiceOutputActive) }
+    }
     @Published private(set) var isStartingListening = false
     @Published private(set) var coach: CoachSession?
     @Published private(set) var screenManualMode = true
     @Published private(set) var offersScreenSharing = false
+    @Published private(set) var voiceCommandStatus: VoiceCommandStatus = .off
+    private let voiceCommands: HandsFreeVoiceCommands
+    private var commandsPrepared = false
     private let screenObserver: ScreenObserver
     private let screenNow: () -> TimeInterval
     private let screenAudio: any ScreenGuidanceKeepingAlive
@@ -117,11 +122,15 @@ final class TaskPlannerEngine: ObservableObject {
          activityUpdater: (any CoachActivityUpdating)? = nil,
          screenSource: (any ScreenSnapshotSource)? = nil,
          screenNow: (() -> TimeInterval)? = nil,
-         screenAudio: (any ScreenGuidanceKeepingAlive)? = nil) {
+         screenAudio: (any ScreenGuidanceKeepingAlive)? = nil,
+         commandInput: (any CommandSpeechInput)? = nil,
+         screenRecheckWait: ((TimeInterval) async throws -> Void)? = nil) {
         let clock = screenNow ?? { Date().timeIntervalSince1970 }
         self.screenNow = clock
-        self.screenObserver = ScreenObserver(source: screenSource ?? AppGroupScreenSnapshotSource(), now: clock)
+        self.screenObserver = ScreenObserver(source: screenSource ?? AppGroupScreenSnapshotSource(), now: clock,
+                                             recheckWait: screenRecheckWait)
         self.screenAudio = screenAudio ?? ScreenGuidanceAudioLease()
+        self.voiceCommands = HandsFreeVoiceCommands(input: commandInput ?? OnDeviceCommandSpeechInput(), now: clock)
         let library = guides ?? GuideLibrary.bundled()
         let service = coachService ?? CoachModelService.makeDefault()
         self.guides = library
@@ -155,6 +164,8 @@ final class TaskPlannerEngine: ObservableObject {
             }
         self.voiceOutput.prefetch(Self.acknowledgementLine)
         self.screenObserver.onPoll = { [weak self] in self?.screenPolled() }
+        self.voiceCommands.onStatus = { [weak self] in self?.voiceCommandStatus = $0 }
+        self.voiceCommands.onCommand = { [weak self] in await self?.handleVoiceCommand($0) }
         ScreenCoachIntentRecheck.warmRecheck = { [weak self] progress in
             guard let self, progress.guideID == "youtube_play_song",
                   self.coach?.id == progress.sessionID else { return false }
@@ -189,6 +200,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// A second tap finishes the turn; speaking can be interrupted immediately.
     func userTappedToTalk() {
+        voiceCommands.stop()
         isHome = false
         if plannerState == .listening {
             plannerState = .finishing
@@ -254,6 +266,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// Silence immediately, retaining the current practice or coach step.
     func stopSessionSpeech() {
+        voiceCommands.stop()
         if tripPlannerPracticeViewModel != nil {
             stopPracticeSpeech()
             return
@@ -388,7 +401,12 @@ final class TaskPlannerEngine: ObservableObject {
         playbackGeneration += 1
         let playback = playbackGeneration
         isVoiceOutputActive = true
-        defer { if playback == playbackGeneration { isVoiceOutputActive = false } }
+        defer {
+            if playback == playbackGeneration {
+                isVoiceOutputActive = false
+                screenAudio.setSpeaking(false)
+            }
+        }
         // Yield to foreground speech before doing next-caption cache work.
         let speechGeneration = guidanceSpeechGeneration
         let prefetch = Task { [weak self] in
@@ -714,6 +732,7 @@ final class TaskPlannerEngine: ObservableObject {
         acknowledgementGeneration = nil
         playbackGeneration += 1
         voiceOutput.stop()
+        screenAudio.setSpeaking(false)
         isVoiceOutputActive = false
         isStartingListening = false
     }
@@ -791,6 +810,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func recordFirstAudio() {
+        if isVoiceOutputActive { screenAudio.setSpeaking(true) }
         guard firstAudioMilliseconds == nil, let elapsed = elapsedSinceSpeechEnd() else { return }
         firstAudioMilliseconds = elapsed
         VoiceDiagnostics.logger.info("First audio ms=\(elapsed)")
@@ -1048,6 +1068,7 @@ final class TaskPlannerEngine: ObservableObject {
                 coach?.text = "That's it, you're done."
                 coachReplySource = .template
                 finishingCoachID = session.id
+                voiceCommands.stop()
                 if let guide = session.guide {
                     let progress = CoachProgress(guideID: guide.id, stepIndex: session.stepIndex,
                                                  sessionID: session.id, revision: session.revision + 1)
@@ -1154,6 +1175,8 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func clearCoach(clearProgress: Bool = true) {
+        voiceCommands.stop()
+        commandsPrepared = false
         screenObserver.stop()
         screenAudio.stop()
         screenAction?.cancel()
@@ -1304,6 +1327,8 @@ final class TaskPlannerEngine: ObservableObject {
         if coach?.guide?.id == "youtube_play_song" {
             startScreenObservation()
             if screenObserver.canSee {
+                let generation = sessionGeneration
+                Task { await prepareVoiceCommands(generation: generation) }
                 screenRecheckPending = true
                 screenObserver.poll()
                 return
@@ -1329,6 +1354,68 @@ final class TaskPlannerEngine: ObservableObject {
 
     // MARK: - YouTube observe, guide, wait, recheck
 
+    func resumeVoiceCommands() {
+        guard isSceneActive, coach?.guide?.id == "youtube_play_song" else { return }
+        let generation = sessionGeneration
+        Task {
+            await prepareVoiceCommands(generation: generation, retry: true)
+        }
+    }
+
+    private func prepareVoiceCommands(generation: Int, retry: Bool = false) async {
+        guard isSceneActive, screenObserver.canSee, let session = coach else { return }
+        guard session.guide?.id == "youtube_play_song", !commandsPrepared || retry else { return }
+        let allowed = await ensurePermissions(generation: generation)
+        guard isCurrent(generation), coach?.id == session.id, isSceneActive else { return }
+        commandsPrepared = allowed
+        voiceCommands.update(guideID: session.id, sharing: screenObserver.canSee && allowed, foreground: true)
+        if allowed {
+            if retry { voiceCommands.resume() }
+        } else { voiceCommands.requireResume() }
+    }
+
+    private func handleVoiceCommand(_ command: VoiceCommand) async {
+        guard let session = coach, session.guide?.id == "youtube_play_song" else { return }
+        if command == .stop { cancelCurrentAction(); return }
+        sessionGeneration += 1
+        let generation = sessionGeneration
+        plannerState = .thinking
+        screenSpeechPaused = false
+        defer { if isCurrent(generation) { plannerState = .idle } }
+        if command == .repeatStep {
+            publishCoach(startIfNeeded: false)
+            await speakCoach(generation: generation)
+            return
+        }
+        // Polling continues to enforce sharing loss while this awaits fresh evidence.
+        let snapshot: ScreenSnapshot?
+        do { snapshot = try await screenObserver.freshForRecheck() }
+        catch { return }
+        guard isCurrent(generation), coach?.id == session.id, !Task.isCancelled else { return }
+        if let value = screenLoop.update(snapshot: snapshot, guideID: "youtube_play_song",
+                                         song: session.song, now: screenObserver.observationTime,
+                                         recheck: true, simplify: command == .stuck) {
+            await applyScreenInstruction(value, generation: generation)
+        } else if snapshot == nil {
+            // Voice "next" must never fall through to manual index advancement.
+            screenActivityText = "Manual mode. Return to NearMe for help."
+            publishCoach(startIfNeeded: false)
+            await speak("I can't see your screen right now.", generation: generation)
+        } else {
+            // The other-app dwell can withhold the reopen offer. Never replay
+            // the old YouTube instruction over a newly observed different app.
+            let text: String
+            if screenLoop.question == .reopen {
+                text = "It looks like you've left YouTube. Shall I open it again?"
+            } else {
+                text = "It looks like you've left YouTube. I'll check again in a moment."
+            }
+            let value = ScreenCoachInstruction(text: text, stepIndex: nil,
+                                                activityText: "Return to NearMe for help.")
+            await applyScreenInstruction(value, generation: generation)
+        }
+    }
+
     private func startScreenObservation() {
         guard coach?.guide?.id == "youtube_play_song" else { return }
         screenObserver.poll()
@@ -1340,6 +1427,8 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func screenPolled() {
         guard let session = coach, session.guide?.id == "youtube_play_song" else { return }
+        let mayStartCommands: Bool = isSceneActive && commandsPrepared
+        voiceCommands.update(guideID: session.id, sharing: screenObserver.canSee, foreground: mayStartCommands)
         let wasManual = screenManualMode
         screenManualMode = !screenObserver.canSee
         if screenObserver.canSee { screenLoop.captureDidStart() }
@@ -1363,6 +1452,7 @@ final class TaskPlannerEngine: ObservableObject {
         if screenObserver.canSee, screenObserver.snapshot == nil { return }
         guard !screenStarting, !screenSpeechPaused, screenActionID == nil,
               !isVoiceOutputActive, !isStartingListening, plannerState == .idle else { return }
+        guard !voiceCommands.isHandlingCommand else { return }
         let recheck = screenRecheckPending
         let fromIntent = screenIntentRecheck
         screenRecheckPending = false
@@ -1457,6 +1547,8 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// Same supported URL path as auto-open, with no inferred screen transition.
     private func openObservedCoachApp(generation: Int) async -> Bool {
+        await prepareVoiceCommands(generation: generation)
+        guard isCurrent(generation) else { return true }
         guard let session = coach, let guide = session.guide,
               let url = CoachAppLaunch.url(for: guide) else { return false }
         guard appOpener.canOpen(url) else {
@@ -1470,6 +1562,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func handoffObservedCoachApp(url: URL, sessionID: UUID, generation: Int) async -> Bool {
+        await prepareVoiceCommands(generation: generation)
         await activityUpdater.flush()
         guard isCurrent(generation), coach?.id == sessionID else { return true }
         let opened = await appOpener.open(url)
@@ -1553,9 +1646,12 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func finishObservedCoach(generation: Int) async {
         guard let session = coach, let guide = session.guide else { return }
+        voiceCommands.stop()
         finishingCoachID = session.id
         screenObserver.stop()
-        screenAudio.stop()
+        // Keep mixing/temporary ducking policy through the completion line too.
+        // The microphone is already stopped; release this lease after speech.
+        defer { if coach?.id == session.id { screenAudio.stop() } }
         let progress = CoachProgress(guideID: guide.id, stepIndex: session.stepIndex,
                                      sessionID: session.id, revision: session.revision + 1)
         if let snapshot = CoachActivitySnapshot.build(progress: progress, guide: guide.activityGuide, completed: true) {

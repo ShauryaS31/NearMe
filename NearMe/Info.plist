@@ -46,7 +46,7 @@
         <string>youtube</string>
     </array>
     <key>NSMicrophoneUsageDescription</key>
-    <string>NearMe listens when you tap the mic so it can understand what you're trying to do on your phone.</string>
+    <string>NearMe listens when you tap the mic to understand your request. While a guide and screen sharing are on, it also listens for short commands such as "what's next" and "stop", including in the other app.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>NearMe converts your spoken request into text so it can help you find the right app.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>
