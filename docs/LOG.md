@@ -118,3 +118,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:09 AEDT | P07e/P12 | owner | decision | urgent: Lane A P07e YouTube guide (merge by 19:35), Lane B P12 video practice (worktree); one review round each, A first
 - 2026-10-24 19:16 AEDT | P07e | codex | dev-report r1 | YouTube song guide, one-time song question, private song speech and auto-open; validator 16 guides/0 problems; Mac gate pending; commit denied (.git/index.lock), uncommitted for manager.
 - 2026-10-24 19:16 AEDT | P07e | claude | review r1 PASS | merged to main (Lane A); P12 merges next
+- 2026-10-24 19:25 AEDT | P13 | owner | decision | page awareness is the core feature; P12 parked (reverted on main 271bb84); P13 See my screen, spike first (broadcast extension, App Group, picker); test Sun 10:00, kill 11:00
