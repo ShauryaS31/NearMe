@@ -10,6 +10,13 @@ import UIKit
 nonisolated final class CommandAudioGate: @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
+    private var otherAudioDeadline: TimeInterval?
+
+    func setOtherAudioAllowed(_ allowed: Bool) {
+        lock.lock()
+        defer { lock.unlock() }
+        otherAudioDeadline = allowed ? ProcessInfo.processInfo.systemUptime + 8 : nil
+    }
 
     func set(_ request: SFSpeechAudioBufferRecognitionRequest?) {
         lock.lock()
@@ -21,17 +28,24 @@ nonisolated final class CommandAudioGate: @unchecked Sendable {
         lock.lock()
         defer { lock.unlock() }
         guard let request else { return }
-        guard !AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint else { return }
+        let session = AVAudioSession.sharedInstance()
+        let windowOpen = otherAudioDeadline.map { ProcessInfo.processInfo.systemUptime < $0 } ?? false
+        guard windowOpen || (!session.secondaryAudioShouldBeSilencedHint && !session.isOtherAudioPlaying) else { return }
         request.append(buffer)
     }
 }
 
 @MainActor
 final class OnDeviceCommandSpeechInput: CommandSpeechInput {
+    var allowsOtherAudio = false { didSet { gate.setOtherAudioAllowed(allowsOtherAudio) } }
     var onResult: ((String, Bool) -> Void)?
     var onFailure: (() -> Void)?
+    var onCaptureLost: (() -> Void)?
     var onAudioHint: (() -> Void)?
-    var otherAudio: Bool { AVAudioSession.sharedInstance().secondaryAudioShouldBeSilencedHint }
+    var otherAudio: Bool {
+        let session = AVAudioSession.sharedInstance()
+        return session.secondaryAudioShouldBeSilencedHint || session.isOtherAudioPlaying
+    }
     private let engine = AVAudioEngine()
     private let gate = CommandAudioGate()
     private var recognizer: SFSpeechRecognizer?
@@ -52,8 +66,9 @@ final class OnDeviceCommandSpeechInput: CommandSpeechInput {
                 let raw = notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
                 guard raw == AVAudioSession.InterruptionType.began.rawValue else { return }
                 Task { @MainActor [weak self] in
-                    self?.pauseRecognition()
-                    self?.onFailure?()
+                    guard let self, self.ownsSession else { return }
+                    self.pauseRecognition()
+                    self.onCaptureLost?()
                 }
             }.store(in: &observations)
     }
@@ -97,7 +112,7 @@ final class OnDeviceCommandSpeechInput: CommandSpeechInput {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
-        request.contextualStrings = VoiceCommand.phrases
+        request.contextualStrings = VoiceCommand.recognitionPhrases
         return request
     }
 
@@ -132,6 +147,7 @@ final class OnDeviceCommandSpeechInput: CommandSpeechInput {
     }
 
     func stopCapture() {
+        allowsOtherAudio = false
         pauseRecognition()
         engine.stop()
         if installedTap { engine.inputNode.removeTap(onBus: 0); installedTap = false }

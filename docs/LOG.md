@@ -132,3 +132,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 21:09 AEDT | P13b | codex | dev-report r2 | Addressed review items 1-11: static heartbeat, retained external observation, audio recovery, sharing offer and picker fallback, intent wording and test expectations; static checks passed, Mac/device gate pending; commit 3925c9f.
 - 2026-10-24 21:10 AEDT | P13b | claude | review r2 PASS | merged to main; P13c next, then P09
 - 2026-10-24 21:10 AEDT | P13c | claude | dispatch r1 | hands-free voice commands on top of P13b
+- 2026-10-24 21:37 AEDT | P13d | codex | dev-report r1 | Added bounded screen-question voice answers, evidence-grounded uncertainty and explicit eight-second Check & listen fallback; inherited P13c preserved separately; static checks passed, Mac/device validation pending.
