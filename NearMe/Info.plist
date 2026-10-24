@@ -41,6 +41,7 @@
     <array>
         <string>whatsapp</string>
         <string>sms</string>
+        <string>youtube</string>
     </array>
     <key>NSMicrophoneUsageDescription</key>
     <string>NearMe listens when you tap the mic so it can understand what you're trying to do on your phone.</string>

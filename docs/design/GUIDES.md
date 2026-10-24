@@ -1,6 +1,6 @@
 # Guide library
 
-P07a supplies 15 content files in `NearMe/Resources/guides/`. P07 will bundle and load them, route requests using their titles and aliases, and coach one step at a time. These files do not implement navigation or act inside another app.
+The library has 16 content files in `NearMe/Resources/guides/`: the 15 P07a guides and P07e's YouTube song guide. P07 bundles and loads them, routes requests using their titles and aliases, and coaches one step at a time. These files do not implement navigation or act inside another app.
 
 The content review date is 24 October 2026. The guides target English interfaces on iOS 26/27 and WhatsApp for iPhone. `last_checked` records the documentation/editorial review, not a completed device test. No guide has been checked on a phone in this task. Uncertain steps carry `verify: true` for the owner's review.
 
@@ -83,6 +83,9 @@ All text fields must be single-line strings without surrounding whitespace. Arra
 | `call_from_recents` | Phone | Omit |
 | `turn_on_torch` | Control Centre | Omit |
 | `send_text_message` | Messages | `sms:` |
+| `youtube_play_song` (P07e) | YouTube | `youtube://` |
+
+P07e authorises the YouTube guide and launch scheme. Its song title is session-only user content in step 3, not a UI label. Saved progress and Live Activity content retain the guide's generic wording. Steps 2 to 6 need device verification; the first result may be an advertisement or a different recording. [YouTube's iOS search help](https://support.google.com/youtube/answer/111997?hl=en&co=GENIE.Platform%3DiOS) supports opening search and entering a term. The validator now reports `Validated 16 guides: 0 problems.`
 
 WhatsApp documents its [custom URL scheme](https://faq.whatsapp.com/425247423114725/?cms_platform=iphone). Apple documents the [Messages scheme](https://developer.apple.com/library/archive/featuredarticles/iPhoneURLScheme_Reference/SMSLinks/SMSLinks.html). No recipient, message text, credential or other query data belongs in these values. A future number-dialling guide may use a documented `tel:` scheme, but none of these 15 guides dials a supplied number; the Phone guide opens an existing call entry. The validator therefore rejects `tel:` for this library. Settings, Photos, Clock, Contacts, Phone, FaceTime and Control Centre have no launch scheme here. Private or undocumented URLs, including `App-prefs:`, are forbidden.
 
@@ -119,7 +122,7 @@ python scripts/validate-guides.py
 
 On a Mac where Python is called `python3`, use `python3 scripts/validate-guides.py`. The script also works when invoked by its absolute path from another directory. It needs only Python 3's standard library and does not write files.
 
-Successful output is `Validated 15 guides: 0 problems.` with exit status 0. Failures print one line per detected problem with the filename and field/step where available, then exit with status 1. Missing files and unexpected entries also fail. Malformed JSON, duplicate keys, invalid UTF-8, a byte-order mark and non-JSON constants are rejected.
+Successful output is `Validated 16 guides: 0 problems.` with exit status 0. Failures print one line per detected problem with the filename and field/step where available, then exit with status 1. Missing files and unexpected entries also fail. Malformed JSON, duplicate keys, invalid UTF-8, a byte-order mark and non-JSON constants are rejected.
 
 The script checks field names/types, required strings, exact ids and filenames, app mapping, scheme restrictions, counts, duplicate aliases, date, formatting, label membership, balanced quotes, sentence/character limits, obvious compound actions, password wording, jargon, em dashes, curly quotes, private Settings URLs, price markers and imperial units. Hinglish detection uses a small vocabulary heuristic; the presence of a matching word does not prove that an alias is natural. A conservative capitalisation check flags possible names/brands or unsupported labels in instructions.
 

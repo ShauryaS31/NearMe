@@ -129,7 +129,7 @@ struct VoiceSessionView: View {
 
     private var canSend: Bool {
         guard case .idle = engine.plannerState else { return false }
-        return !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return engine.isAwaitingSong || !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var typedInputLayout: AnyLayout {

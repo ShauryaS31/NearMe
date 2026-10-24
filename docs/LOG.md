@@ -117,3 +117,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:01 AEDT | P11 | claude (mac) | macfix | test-only compile fix: CoachAppOpenTests.swift add `import ActivityKit` (AlertConfiguration.body, MemberImportVisibility). 195 tests: 190 pass, 3 skip, 2 FAIL (SessionLayoutTests:384, VoiceReviewTests:164), sent to manager
 - 2026-10-24 19:09 AEDT | P07e/P12 | owner | decision | urgent: Lane A P07e YouTube guide (merge by 19:35), Lane B P12 video practice (worktree); one review round each, A first
 - 2026-10-24 19:15 AEDT | P12 | codex | dev-report r1 | Safe video practice, shared caption/highlight, model and keyword routing, youtube_play_song completion offer and 10 fake XCTest methods; commit 6f7a165; static checks passed, Swift/Xcode unavailable and Mac gate pending.
+- 2026-10-24 19:16 AEDT | P07e | codex | dev-report r1 | YouTube song guide, one-time song question, private song speech and auto-open; validator 16 guides/0 problems; Mac gate pending; commit denied (.git/index.lock), uncommitted for manager.
+- 2026-10-24 19:16 AEDT | P07e | claude | review r1 PASS | merged to main (Lane A); P12 merges next
+- 2026-10-24 19:17 AEDT | P12 | claude | review r1 PASS | merged main (P07e) into P12 with 3 conflicts resolved; merged to main (Lane B)

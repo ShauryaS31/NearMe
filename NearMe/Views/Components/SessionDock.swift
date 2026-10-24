@@ -193,7 +193,7 @@ struct SessionDock: View {
     }
 
     private var canSend: Bool {
-        engine.canSubmitTypedInput && !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        engine.canSubmitTypedInput && (engine.isAwaitingSong || !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
     private func send() {
         guard canSend else { return }

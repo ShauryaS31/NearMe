@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (iPhone check pending) |
 | Window | Sat 24 Oct, finish tonight even after 19:55 |
 | Depends on | P11 (merge after P07e) |
 | Assignee | codex (Lane B, worktree ../NearMe-p12) |
@@ -59,3 +59,9 @@ bash scripts/mac-run.sh quick
   6. Check light/dark appearance, large accessibility text, Increase Contrast, VoiceOver and the keyboard on a small iPhone simulator/device. Captions must scroll rather than truncate; controls and the target must remain reachable. With Reduce Motion enabled, each target and Repeat must show a static ring with no pulse. Verify the adaptive veil remains visible in both appearances.
   7. After P07e is merged, complete the real `youtube_play_song` guide using Done on its final step. Confirm the exact offer is shown/spoken. Test Yes and No buttons, typed `yes please` / `no thanks`, and the same spoken answers via the microphone. Yes opens video practice; No returns Home. While that guide is still open, say/type `can I practise first` and confirm video practice starts. Complete a different guide and confirm it returns Home without this offer. Before P07e merges, the default fake-guide tests exercise this integration by id.
 - Not done / risks / questions: Mac compilation, XCTest execution and visual/device checks remain the owner's gate. P07e's guide content is deliberately outside this task; the manager should review shared engine/router edits when combining branches. The existing log records prior failures in SessionLayoutTests and VoiceReviewTests; those unrelated failures were not investigated here. The shared caption chrome and adaptive veil need the trip regression check above. No merge or additional task was started.
+
+## Review (round 1)
+- Date: 2026-10-24 19:17 AEDT
+- Verdict: PASS (static, one urgent round). Merged to main after P07e (owner order).
+- Four unbranded practice screens on the trip practice engine (highlight with 3-cycle pulse, dim, dock, caption bar), "Video app" with a Practice label, no YouTube name or red; practiceVideo route (model and keywords); "Want to practise this again safely?" after youtube_play_song. Default-argument scan clean.
+- Merge with main (P07e) resolved by the manager: one router prompt with both the practiceVideo rule and song extraction; receive() handles the pending song answer first, then the practice offer, then "practise" during the YouTube guide; acknowledgement guard keeps isPractising, offersVideoPractice and pendingSong. Every HelpRoute switch handles practiceVideo.
