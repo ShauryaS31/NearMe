@@ -76,4 +76,4 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [x] P03a (iPhone): "from Central to Newtown" accepted, straight to practice; STT 93 ms, first audio 1.06 s, ElevenLabs. Remaining: a mumbled place gives suggestions plus Keep what I said; a mumbled place gives suggestions plus Keep what I said.
 - [ ] P07a: owner checks every step flagged `verify: true` on the iPhone (list in tasks/P07a-guides.md Dev Report).
 - [ ] P04b (iPhone, noisy venue): tap, speak, tap captures words over music; barge-in stops NearMe and listens; NearMe never transcribes itself; no words gives the message.
-- [ ] P07b: screenshot of each practice step shows the dock, a visible highlight and an unobstructed tab bar (also at the largest text size); Debug badge shows Understood and Voice lines.
+- [ ] P07b: screenshot of each practice step shows the dock, a visible highlight and an unobstructed tab bar (also at the largest text size); Debug badge shows Understood and Voice lines. Also at xxxLarge: tab labels not wrapped or truncated.
