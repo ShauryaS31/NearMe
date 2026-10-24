@@ -10,6 +10,7 @@ nonisolated struct CoachSession: Sendable {
     var stepIndex: Int
     var text: String
     var slower = false
+    var song: String? = nil
 
     var count: Int { guide?.steps.count ?? generalSteps.count }
     var isGeneral: Bool { guide == nil }

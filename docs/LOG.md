@@ -114,3 +114,14 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:52 AEDT | P11 | claude | merge main | P07d merged into P11 (3 additive conflicts in TaskPlannerEngine kept both sides); round 3 next
 - 2026-10-24 18:55 AEDT | P11 | codex | dev-report r3 | Generic silent Live Activity step alerts; P07d preserved; Git index.lock permission denied, uncommitted for manager.
 - 2026-10-24 18:56 AEDT | P11 | claude | review r3 PASS | Island alert on step change with silent sound, generic text; merged to main; stopping for the combined iPhone check (P07d + P11)
+- 2026-10-24 19:01 AEDT | P11 | claude (mac) | macfix | test-only compile fix: CoachAppOpenTests.swift add `import ActivityKit` (AlertConfiguration.body, MemberImportVisibility). 195 tests: 190 pass, 3 skip, 2 FAIL (SessionLayoutTests:384, VoiceReviewTests:164), sent to manager
+- 2026-10-24 19:09 AEDT | P07e/P12 | owner | decision | urgent: Lane A P07e YouTube guide (merge by 19:35), Lane B P12 video practice (worktree); one review round each, A first
+- 2026-10-24 19:16 AEDT | P07e | codex | dev-report r1 | YouTube song guide, one-time song question, private song speech and auto-open; validator 16 guides/0 problems; Mac gate pending; commit denied (.git/index.lock), uncommitted for manager.
+- 2026-10-24 19:16 AEDT | P07e | claude | review r1 PASS | merged to main (Lane A); P12 merges next
+- 2026-10-24 19:25 AEDT | P13 | owner | decision | page awareness is the core feature; P12 parked (reverted on main 271bb84); P13 See my screen, spike first (broadcast extension, App Group, picker); test Sun 10:00, kill 11:00
+- 2026-10-24 19:27 AEDT | P13 | owner | decision | explainer copy approved with tweak; loopback fallback approved; signed spike build tonight or Sun 10:00
+- 2026-10-24 19:29 AEDT | P13 | codex | dev-report r1 | Spike only: broadcast target, signed App Group configuration, native picker and JSON heartbeat; static checks passed, Mac/device gate pending; commit 17440c1.
+- 2026-10-24 19:30 AEDT | P13 | claude | review r1 spike PASS | merged to main for the owner's signed device build; round 2 after App Group result
+- 2026-10-24 19:32 AEDT | P13b | owner | decision | P13 round 2 replaced by P13b observe-recheck loop (YouTube only), overnight, ScreenSnapshotSource protocol; honest copy per handoff (no unverified claims)
+- 2026-10-24 19:34 AEDT | P07e | owner | iPhone PASS | YouTube guide, song in steps, auto-open, Island over YouTube, asks which song
+- 2026-10-24 19:36 AEDT | P13 | owner | device build | App Group signs (Personal Team), appex embedded; heartbeat result pending; tests at d93ffe7: 204 run, 198 pass, 3 skip, 3 fail (SessionLayoutTests guide count 15 vs 16, two more names pending)

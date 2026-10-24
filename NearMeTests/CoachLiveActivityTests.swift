@@ -255,7 +255,7 @@ final class CoachLiveActivityTests: XCTestCase {
 
     func testAllBundledStatesAndLongUnicodeContentFitUnderFourKB() throws {
         let guides = CoachActivityGuide.bundled()
-        XCTAssertEqual(guides.count, 15)
+        XCTAssertEqual(guides.count, 16)
         for guide in guides {
             for step in guide.steps.indices {
                 let progress = CoachProgress(guideID: guide.id, stepIndex: step, sessionID: UUID(), revision: step)

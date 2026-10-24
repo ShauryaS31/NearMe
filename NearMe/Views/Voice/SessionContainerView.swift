@@ -91,6 +91,7 @@ private struct SessionDebugBadgeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
+            ScreenBroadcastDebugLine()
         }
         .font(.caption)
         .foregroundStyle(.primary)

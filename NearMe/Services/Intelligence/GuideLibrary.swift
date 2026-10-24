@@ -9,7 +9,7 @@ nonisolated enum GuideLibrary {
         "connect_wifi": "Settings", "take_screenshot": "iPhone", "share_photo_from_photos": "Photos",
         "facetime_contact": "FaceTime", "add_contact": "Contacts", "turn_on_do_not_disturb": "Control Centre",
         "check_ios_update": "Settings", "set_alarm": "Clock", "call_from_recents": "Phone",
-        "turn_on_torch": "Control Centre", "send_text_message": "Messages"
+        "turn_on_torch": "Control Centre", "send_text_message": "Messages", "youtube_play_song": "YouTube"
     ]
 
     static func load(bundle: Bundle? = nil) throws -> [HelpGuide] {
@@ -24,12 +24,12 @@ nonisolated enum GuideLibrary {
         let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
         let files: [URL] = entries.filter { $0.pathExtension == "json" }
         guard Set(files.map(\.lastPathComponent)) == Set(expectedApps.keys.map { $0 + ".json" }) else {
-            throw GuideLibraryError.invalid("Expected exactly the 15 guide files")
+            throw GuideLibraryError.invalid("Expected exactly the \(expectedApps.count) guide files")
         }
         let guides = try files.sorted { $0.lastPathComponent < $1.lastPathComponent }.map {
             try decode(Data(contentsOf: $0), filename: $0.deletingPathExtension().lastPathComponent)
         }
-        guard Set(guides.map(\.id)).count == 15 else { throw GuideLibraryError.invalid("Duplicate ids") }
+        guard Set(guides.map(\.id)).count == expectedApps.count else { throw GuideLibraryError.invalid("Duplicate ids") }
         return guides
     }
 
@@ -77,7 +77,11 @@ nonisolated enum GuideLibrary {
         try require(guide.id == filename && expectedApps[guide.id] == guide.app, "Id/app/filename mismatch")
         try require(validReviewDate(guide.lastChecked), "Review date")
         if root.keys.contains("app_url_scheme") {
-            let allowed = guide.id.hasPrefix("whatsapp_") ? "whatsapp://" : (guide.id == "send_text_message" ? "sms:" : nil)
+            let allowed: String?
+            if guide.id.hasPrefix("whatsapp_") { allowed = "whatsapp://" }
+            else if guide.id == "send_text_message" { allowed = "sms:" }
+            else if guide.id == "youtube_play_song" { allowed = "youtube://" }
+            else { allowed = nil }
             try require(allowed != nil && guide.appURLScheme == allowed, "Unsupported scheme")
         }
         let mixed = #"\b(?:bhejna|bhejni|bheje|bada|badi|karna|karni|karo|kaise|kare|hai|hain|ki|ka|pe|par|se|lagana|lagao|chalu|jalao|leni|lena|lete|awaaz|tasveer|naya|banana|subah|aaya|kya|wapas|jisne|jodna)\b"#
@@ -90,7 +94,7 @@ nonisolated enum GuideLibrary {
         try require((3...8).contains(guide.steps.count), "Step count")
         let hints = Set(guide.steps.map(\.uiLabelHint))
         guard let rawSteps = root["steps"] as? [[String: Any]] else { throw GuideLibraryError.invalid("Steps") }
-        let capitalWords = Set("WhatsApp FaceTime Settings Display Brightness Text Size Wi Fi Join Save Photos Library Messages To New Call Contacts First Last Phone Do Not Disturb Focus General Software Update Clock Alarms AM PM Calls Chats".split(separator: " ").map(String.init))
+        let capitalWords = Set("WhatsApp YouTube FaceTime Settings Display Brightness Text Size Wi Fi Join Save Photos Library Messages To New Call Contacts First Last Phone Do Not Disturb Focus General Software Update Clock Alarms AM PM Calls Chats".split(separator: " ").map(String.init))
         for (step, raw) in zip(guide.steps, rawSteps) {
             try fields(raw, required: ["instruction", "ui_label_hint"], optional: ["verify", "label_is_nearby", "icon"])
             // JSONDecoder rejects non-boolean values, including numbers and null for present flags.

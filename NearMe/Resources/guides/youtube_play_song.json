@@ -1,0 +1,53 @@
+{
+  "id": "youtube_play_song",
+  "title": "Play a song on YouTube",
+  "app": "YouTube",
+  "app_url_scheme": "youtube://",
+  "aliases": [
+    "play a song on youtube",
+    "open youtube and play",
+    "gaana chalao youtube pe",
+    "youtube pe bhajan lagao",
+    "play music on youtube",
+    "youtube pe gaana chalao"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"YouTube\".",
+      "ui_label_hint": "YouTube",
+      "icon": "play.rectangle"
+    },
+    {
+      "instruction": "Tap the search icon, the magnifying glass at the top right.",
+      "ui_label_hint": "search icon",
+      "icon": "magnifyingglass",
+      "verify": true
+    },
+    {
+      "instruction": "Type the song name.",
+      "ui_label_hint": "Search YouTube",
+      "icon": "keyboard",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the search button on the keyboard.",
+      "ui_label_hint": "search",
+      "icon": "magnifyingglass",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the first result.",
+      "ui_label_hint": "first result",
+      "icon": "list.bullet",
+      "verify": true
+    },
+    {
+      "instruction": "Tap play if it does not start by itself.",
+      "ui_label_hint": "play button",
+      "icon": "play.fill",
+      "verify": true
+    }
+  ],
+  "source_note": "YouTube for iPhone on iOS 26/27, English. Assumes YouTube is installed, setup is complete and internet access is available. Search position, keyboard label, result ordering and playback may vary; ads may appear. Steps 2 to 6 need a phone check. Documentation review only; not checked on a phone. Source: https://support.google.com/youtube/answer/111997?hl=en&co=GENIE.Platform%3DiOS",
+  "last_checked": "2026-10-24"
+}
