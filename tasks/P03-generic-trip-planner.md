@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (Mac compile pending) |
 | Window | Sat 24 Oct, after P02a |
 | Depends on | P02b |
 | Assignee | codex |
@@ -57,3 +57,9 @@ bash scripts/mac-run.sh --current
   6. While paused on a practice step, run `xcrun simctl ui booted appearance dark`, then `xcrun simctl ui booted appearance light`. Verify the header, fields, results, highlights and caption bar adapt immediately and stay readable; repeat at a large accessibility text size, with Increase Contrast and Reduce Transparency. Check the opening screen on another walkthrough and confirm the session returns normally on completion.
   7. Rerun the exact brand grep above from the repository root and require no output.
 - Not done / risks / questions: Mac compile, XCTest execution, visual layout/contrast and speech checks are pending. No new tests were added for this rename/copy/style change. Existing walkthrough captions refer to From/To while the fields say Choose origin/Choose destination, and the simulated field-entry sequence remains unchanged per scope. The larger shared header needs the owner’s small-screen/large-text check. No changes to the planner architecture, live transport data or other tasks.
+
+## Review (round 1)
+- Date: 2026-10-24 15:27 AEDT
+- Verdict: PASS (static). Merged to main; Mac compile and retest pending (owner).
+- Brand grep over NearMe/, Shared/, NearMeTests/, NearMeBroadcastExtension/: 0 hits. Facts grep: 0. Prior names: 0. No old PTV type or property names left anywhere; every TripPlanner*/Practice* type used is defined (rename compile check by grep). Practice screens: no hex/RGB palette or TTColor brand colours; header shows "Trip planner" plus a "Practice" label. PTVBrand.swift and PTVLauncher.swift deleted. Sydney places in tests and prompts.
+- Noted, not blocking: captions say From/To while fields say Choose origin/Choose destination; practice screens still use some fixed font sizes and a fixed min height (large-text pass later).
