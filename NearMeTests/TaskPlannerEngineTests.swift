@@ -93,8 +93,9 @@ final class TaskPlannerEngineTests: XCTestCase {
         engine.endSession()
     }
 
-    private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain = CannedEngineBrain()) -> TaskPlannerEngine {
-        TaskPlannerEngine(brain: brain, voiceInput: input ?? SilentInput(),
+    // Defaults are built in the body: default arguments are evaluated outside the main actor.
+    private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain? = nil) -> TaskPlannerEngine {
+        TaskPlannerEngine(brain: brain ?? CannedEngineBrain(), voiceInput: input ?? SilentInput(),
                           voiceOutput: SilentOutput(), permissions: PermissionsManager(), userName: "")
     }
 

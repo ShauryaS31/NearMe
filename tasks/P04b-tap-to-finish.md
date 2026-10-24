@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct, after P03a, before P07 |
 | Depends on | P03a |
 | Assignee | codex |
@@ -74,3 +74,11 @@ Mac checks on the iPhone in the noisy venue: tap, speak, tap: the words are capt
   5. Tap during the greeting and during a practice caption (create practice using "from Central to Town Hall"). Confirm speech stops immediately, the voice screen listens after settling, and the interrupted line is not repeated. Test with online ElevenLabs configured through the existing Secrets.xcconfig, then with the phone offline after speech assets are installed to exercise system output fallback. Confirm speaker output remains on the loudspeaker and NearMe's own line never appears in the transcript.
   6. Inspect device Console logs filtered to subsystem `au.nearme.ios`, category `voice`: verify voice-processing on/off, tap / words settled / 12 s cap triggers, no-words outcomes, and capture durations. Hardware behavior on both recognizer paths, voice-processing failure fallback, and echo/noise performance require Mac/iPhone verification; the Windows static checks cannot establish these.
 - Not done / risks / questions: Mac/iPhone verification remains the owner's gate. The 12 s capture cap is checked by the existing 20 ms polling loop; decoder finalization may then take up to 1 s. Practice barge-in leaves the practice screen to show the live voice turn. No additional task was started.
+
+## Review (round 1)
+- Date: 2026-10-24 17:09 AEDT
+- Verdict: CHANGES (one behaviour fix). Everything else met in code: toggle with finishing state (in TaskPlannerState ==), finishListening distinct from stopListening in both paths and the router, word-based 1.5 s rule with no audio input, 12 s cap, voice processing in both paths with .defaultToSpeaker kept, 150 ms settle and acceptsTranscript gate while output plays, no-words message stays idle, VoiceOver labels, tests.
+- Manager fix already on the branch: NearMeTests/TaskPlannerEngineTests.swift:96 default argument `brain: TaskPlannerBrain = CannedEngineBrain()` (Swift 6.4 MainActor default-argument error, same as macfix 5cd50e5) now optional and built in the body.
+
+Fix:
+1. TaskPlannerEngine.userTappedToTalk sets `tripPlannerPracticeViewModel = nil`, so tapping the orb during a practice caption throws away the practice and its step (undoes P04's "Stop keeps the step"). During practice: tapping the orb while NearMe speaks stops the speech at once and keeps the current step and practice view; it starts listening on the practice screen (orb shows "Listening... tap when you're done"), and the finished transcript is handled as follows: "repeat" repeats the caption, "slower" repeats it slower, "stop" or "end" ends the practice, anything else is answered with the current step's caption (P06 adds real help). Never clear the practice view model from a tap. Add a test: tap during practice speech keeps the step and the view model.
