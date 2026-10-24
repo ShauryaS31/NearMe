@@ -115,3 +115,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:55 AEDT | P11 | codex | dev-report r3 | Generic silent Live Activity step alerts; P07d preserved; Git index.lock permission denied, uncommitted for manager.
 - 2026-10-24 18:56 AEDT | P11 | claude | review r3 PASS | Island alert on step change with silent sound, generic text; merged to main; stopping for the combined iPhone check (P07d + P11)
 - 2026-10-24 19:01 AEDT | P11 | claude (mac) | macfix | test-only compile fix: CoachAppOpenTests.swift add `import ActivityKit` (AlertConfiguration.body, MemberImportVisibility). 195 tests: 190 pass, 3 skip, 2 FAIL (SessionLayoutTests:384, VoiceReviewTests:164), sent to manager
+- 2026-10-24 19:09 AEDT | P07e/P12 | owner | decision | urgent: Lane A P07e YouTube guide (merge by 19:35), Lane B P12 video practice (worktree); one review round each, A first
