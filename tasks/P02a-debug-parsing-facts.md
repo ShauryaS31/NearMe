@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct, now |
 | Depends on | P02 |
 | Assignee | codex |
@@ -83,3 +83,17 @@ bash scripts/mac-run.sh --current
   6. Run `xcodebuild -scheme NearMe -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build`. If NearMe is running, terminate it with `xcrun simctl terminate booted au.nearme.ios`. Run `xcrun simctl install booted build/Build/Products/Release-iphonesimulator/NearMe.app` then `xcrun simctl launch booted au.nearme.ios`. Confirm the badge and domain/code suffixes are absent in Release, while typing and plain error messages remain available.
 - Not done / risks / questions: Mac compilation, all XCTest execution, real-model output, audio hardware/permissions, visual layout and accessibility checks remain the owner's gate. Keyword place extraction is deliberately a phrase/filler heuristic, not a place database; it cannot disambiguate a garbled place name. Model factual restrictions are prompt instructions, not a live-data validator. Existing screen-guidance claims and other baseline UI behavior outside P02a remain for later tasks. No merge, push, CI run or subsequent task was started.
 - Commit: pending the normal current-branch commit attempt; if the sandbox blocks `.git`, the manager must commit the working tree.
+
+## Review (round 1)
+- Date: 2026-10-24 14:51 AEDT
+- Verdict: CHANGES (static review; no compiler here, CI off by owner decision, Mac compile is the gate)
+- No definite compile errors found: imports, changed signatures, all four TaskPlannerBrain conformers, Logger privacy syntax and #if DEBUG placement checked. Keyword cases traced by hand: all pass. Facts grep: clean.
+
+Fixes (address every one):
+1. TaskPlannerBrain.swift:64-83: keyword fill never upgrades the intent kind. When the model returns kind unknown and the keyword parse returns plan_journey with a place, set the intent to plan_journey as well (source onDeviceModelWithKeywordFill). Otherwise the engine still rejects "I wanna go from Central to Holsworthy" and the model test fails.
+2. VoiceSessionView.swift:24 and TaskPlannerEngine: after Type instead the user can never return to voice (orb tap is gated on isTyping, and cancel does not reset it). Remove the gate so tapping the orb returns to voice (userTappedToTalk already clears isTyping), add a visible "Use voice" button (SF Symbol mic, 44 x 44 pt) next to the text field, and reset isTyping in cancelCurrentAction and endSession.
+3. FoundationModelsBrain.swift:55 / ResilientTaskPlannerBrain.extractPlace: the model may return the whole answer as the place. Pass the model's place through the keyword place extractor before using it; if the model returns nil, use the keyword extractor's result before re-asking.
+4. VoiceSessionView.swift:45: use a single-line TextField (no axis: .vertical) with .submitLabel(.send) so the keyboard Send key submits.
+5. TaskPlannerEngine.swift:186: do not leave the no-speech message (with its DEBUG suffix) on screen while listening again; clear lastErrorMessage when listening restarts.
+6. SessionContainerView.swift:50: use .background(.background) (SwiftUI) instead of the UIKit .systemBackground member, or add import UIKit.
+7. Add or update unit tests for fixes 1 and 3 (model unknown plus keyword plan_journey becomes plan_journey; "I'm leaving from Central" returned whole by a stub model becomes Central).
