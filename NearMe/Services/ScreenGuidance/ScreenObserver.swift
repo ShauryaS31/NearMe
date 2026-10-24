@@ -33,6 +33,7 @@ final class ScreenObserver: ObservableObject {
     var onPoll: (() -> Void)?
     private let source: any ScreenSnapshotSource
     private let now: () -> TimeInterval
+    private let recheckWait: (TimeInterval) async throws -> Void
     private var polling: Task<Void, Never>?
     private var previousTexts: Set<String>?
     private var activeSince: TimeInterval?
@@ -50,9 +51,11 @@ final class ScreenObserver: ObservableObject {
 
     func sceneBecameInactive() { activeSince = nil }
 
-    init(source: any ScreenSnapshotSource, now: @escaping () -> TimeInterval) {
+    init(source: any ScreenSnapshotSource, now: @escaping () -> TimeInterval,
+         recheckWait: ((TimeInterval) async throws -> Void)? = nil) {
         self.source = source
         self.now = now
+        self.recheckWait = recheckWait ?? { try await Task.sleep(for: .seconds($0)) }
     }
 
     var canSee: Bool { age.map { $0 <= SharedScreenBridge.staleAfter } ?? false }
@@ -81,6 +84,21 @@ final class ScreenObserver: ObservableObject {
         // Drop recognised text from memory on stop/staleness too.
         snapshot = fresh
         onPoll?()
+    }
+
+    /// Request-time read, then at most 1.5 s for a newer capture. When NearMe is
+    /// visible, preserve P13b's retained external page instead of interpreting our UI.
+    func freshForRecheck() async throws -> ScreenSnapshot? {
+        let previous = snapshot?.timestamp
+        poll()
+        if isHoldingObservation { return snapshot }
+        for _ in 0..<15 {
+            if let snapshot, snapshot.timestamp != previous { return snapshot }
+            try await recheckWait(0.1)
+            try Task.checkCancellation()
+            poll()
+        }
+        return snapshot
     }
 
     func stop() {

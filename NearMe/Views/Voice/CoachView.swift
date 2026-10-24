@@ -15,7 +15,9 @@ struct CoachView: View {
                             ScreenSharingOffer(onNotNow: engine.declineScreenSharing)
                         } else if let session = engine.coach {
                             CoachStepContent(session: session, onCommand: command,
-                                             manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode)
+                                             manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode,
+                                             commandStatus: engine.voiceCommandStatus,
+                                             onResumeCommands: engine.resumeVoiceCommands)
                                 .id(session.stepIndex)
                                 .transition(.opacity)
                         }
@@ -91,6 +93,8 @@ struct CoachStepContent: View {
     let session: CoachSession
     let onCommand: (CoachCommand) -> Void
     var manualMode = false
+    var commandStatus: VoiceCommandStatus = .off
+    var onResumeCommands: () -> Void = {}
 
     private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
 
@@ -117,6 +121,7 @@ struct CoachStepContent: View {
                     .font(TTFont.body())
                     .foregroundStyle(TTColor.textSecondary)
             }
+            commandStatusLine
             stepIcon
             Text(presentation.instruction)
                 .font(TTFont.title())
@@ -170,6 +175,19 @@ struct CoachStepContent: View {
             ProgressView(value: presentation.completedSteps, total: presentation.totalSteps)
                 .accessibilityLabel("Completed steps")
                 .accessibilityValue("\(session.stepIndex) of \(session.count)")
+        }
+    }
+
+    @ViewBuilder
+    private var commandStatusLine: some View {
+        if let text = commandStatus.text {
+            if commandStatus == .paused {
+                Button(text, action: onResumeCommands)
+                    .font(.footnote)
+                    .frame(minHeight: 44)
+            } else {
+                Text(text).font(.footnote).foregroundStyle(.secondary)
+            }
         }
     }
 }
