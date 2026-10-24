@@ -31,3 +31,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 14:51 AEDT | P02a | claude | review r1 CHANGES | static review: no definite compile errors; 3 logic bugs (intent kind not upgraded by keyword fill, stuck in typing mode, model place not cleaned) plus 4 small fixes; dispatch r2
 - 2026-10-24 14:53 AEDT | P02a | codex | dev-report r2 | Addressed all seven review fixes; added five regression tests and typing-reset assertions; committed 126462a. Static checks passed; Swift/Xcode unavailable, Mac tests and runtime validation pending owner gate.
 - 2026-10-24 14:53 AEDT | P02a | claude | review r2 PASS | static review; merged to main; waiting for owner Mac compile before anything else
+- 2026-10-24 14:53 AEDT | P02b | claude | queued | onboarding at largest accessibility sizes; explainer copy 'never looks at your other apps'; screen-permission step becomes How NearMe works; waits for owner P02a compile check

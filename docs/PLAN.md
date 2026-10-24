@@ -8,7 +8,7 @@ How we work: code is written on Windows by the factory (Claude Code manager, Cod
 | When | What |
 |---|---|
 | Sat 24 Oct | P01 import, P02 baseline on the Mac |
-| After P02 review | Owner picks P03 onwards |
+| After P02 review | P02a, P02b, then P03; owner compile check after each merge |
 | Sun 25 Oct 13:00 | Freeze: no new features |
 | Sun 25 Oct 14:00 | Judging: submit to Community (primary) and Enterprise |
 
@@ -19,8 +19,9 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 |---|---|---|---|---|
 | [P01](../tasks/P01-ios-import.md) | Import the prior iPhone prototype as NearMe | - | codex, manager | done (Mac: 4/4 tests pass) |
 | [P02](../tasks/P02-baseline.md) | Baseline test on Mac (simulator + iPhone if available): what works, what breaks | P01 | owner, manager | done |
-| [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | in_progress |
-| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02a | codex | todo |
+| [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | done (Mac compile pending) |
+| [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy (no screen watching) | P02a | codex | todo (after owner's P02a compile check) |
+| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | todo |
 
 After P03: owner retests on the Mac before anything else is planned.
 
@@ -33,6 +34,7 @@ After P03: owner retests on the Mac before anything else is planned.
 - 2026-10-24 (owner, executed by manager): history rewritten earlier with git filter-repo to remove the prior project's names; verified clean; force-pushed. Making the repo public is deferred (GitHub's Activity feed still lists pre-rewrite SHAs; recreating the repo is the agreed fix when going public).
 
 - 2026-10-24 (owner): P02a now (debug badge, real errors, Type instead, parsing fixes, no invented facts), then P03 (generic Trip planner, Sydney places). Gate: builds on the Mac; owner retests.
+- 2026-10-24 (owner): no CI. After each merge, stop and wait for the owner's Mac compile check before the next task. P02b (large text onboarding, honest explainer) added after P02a, before P03.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
