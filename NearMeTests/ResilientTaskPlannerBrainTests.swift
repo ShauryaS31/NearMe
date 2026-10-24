@@ -39,7 +39,7 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
     }
 
     func testMissingOrEmptyModelPlaceUsesKeywordAnswer() async throws {
-        let modelPlaces: [String?] = [nil, " \n", "um"]
+        let modelPlaces: [String?] = [nil, " \n", "um", "Nil", "NULL", "none", "Unknown", "N/A", "-"]
         for modelPlace in modelPlaces {
             for slot in [MissingSlot.origin, .destination] {
                 let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(place: modelPlace), fallback: KeywordFallbackBrain())
@@ -55,6 +55,14 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         let answer = try await brain.extractPlace(from: "I'm leaving from Central please", for: .origin)
         XCTAssertEqual(answer.value, "Central")
         XCTAssertEqual(answer.source, .onDeviceModel)
+    }
+
+    func testPlaceholderModelAndKeywordPlacesRemainMissing() async throws {
+        for placeholder in ["nil", "null", "none", "unknown", "n/a", "-", ""] {
+            let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(place: placeholder), fallback: KeywordFallbackBrain())
+            let answer = try await brain.extractPlace(from: placeholder, for: .origin)
+            XCTAssertNil(answer.value, placeholder)
+        }
     }
 
     func testKeywordFillForMissingAndWhitespaceSlots() async throws {
@@ -76,6 +84,18 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         XCTAssertEqual(answer.value.destination, "Model destination")
         XCTAssertEqual(answer.value.mode, "bus")
         XCTAssertEqual(answer.source, .onDeviceModel)
+    }
+
+    func testKeywordFillTreatsEveryModelPlaceholderAsMissing() async throws {
+        for placeholder in ["nil", "null", "none", "unknown", "n/a", "-", ""] {
+            let model = StubModelBrain(intent: JourneyIntent(intent: .planJourney,
+                                                            destination: placeholder, origin: placeholder, mode: nil))
+            let brain = ResilientTaskPlannerBrain(primary: model, fallback: KeywordFallbackBrain())
+            let answer = try await brain.extractIntent(from: "from Central to Newtown")
+            XCTAssertEqual(answer.value.origin, "Central", placeholder)
+            XCTAssertEqual(answer.value.destination, "Newtown", placeholder)
+            XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+        }
     }
 
     func testFillOneSlotPreservesOtherModelValue() async throws {

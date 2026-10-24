@@ -86,6 +86,6 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
         }) {
             place = trimEdges(String(place.dropLast(filler.count)))
         }
-        return place.isEmpty ? nil : place
+        return PlaceNormalization.normalize(place)
     }
 }
