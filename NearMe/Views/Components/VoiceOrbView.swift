@@ -17,9 +17,40 @@ enum VoiceOrbState: Equatable {
 
     var accessibilityLabel: String {
         switch self {
-        case .speaking: return "NearMe is speaking"
-        case .listening: return "NearMe is listening"
-        case .idle: return "Tap to talk to NearMe"
+        case .speaking: return "Start listening"
+        case .listening: return "Stop listening"
+        case .idle: return "Start listening"
+        }
+    }
+
+    var instruction: String {
+        switch self {
+        case .listening: return "Listening... tap when you're done"
+        case .speaking: return "Tap to talk"
+        case .idle: return "Tap to talk"
+        }
+    }
+}
+
+struct VoiceOrbButton: View {
+    let state: VoiceOrbState
+    var instruction: String? = nil
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Button(action: action) {
+                VoiceOrbView(state: state)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityHidden(true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(state.accessibilityLabel)
+            .accessibilityAddTraits(.isButton)
+            Text(instruction ?? state.instruction)
+                .font(.title)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

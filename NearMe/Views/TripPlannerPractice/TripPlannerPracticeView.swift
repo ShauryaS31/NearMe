@@ -7,6 +7,8 @@ struct TripPlannerPracticeView: View {
     var onRepeat: () -> Void = {}
     var onSlower: () -> Void = {}
     var onStop: () -> Void = {}
+    var isSpeaking = false
+    var onTalk: () -> Void = {}
     var onTypeInstead: () -> Void = {}
     var onEndSession: () -> Void = {}
 
@@ -15,6 +17,7 @@ struct TripPlannerPracticeView: View {
             VStack(spacing: TTSpacing.md) {
                 CaptionBubble(text: viewModel.currentCaption, onDismiss: nil)
                     .padding(.horizontal, TTSpacing.md)
+                VoiceOrbButton(state: isSpeaking ? .speaking : .idle, action: onTalk)
                 Group {
                     switch viewModel.step.screen {
                     case .forYou:

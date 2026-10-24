@@ -32,6 +32,8 @@ struct SessionContainerView: View {
                                             onRepeat: { engine.repeatPracticeCaption() },
                                             onSlower: { engine.repeatPracticeCaption(slower: true) },
                                             onStop: engine.stopPracticeSpeech,
+                                            isSpeaking: engine.isVoiceOutputActive,
+                                            onTalk: engine.userTappedToTalk,
                                             onTypeInstead: engine.useTypedInput, onEndSession: {
                         engine.endSession()
                         onSessionEnded()

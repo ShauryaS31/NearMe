@@ -143,6 +143,7 @@ private struct CannedEngineBrain: TaskPlannerBrain {
 
 @MainActor
 private final class SilentInput: VoiceInputService {
+    var acceptsTranscript: () -> Bool = { true }
     var isListening = false
     var stopCount = 0
     var startCount = 0
@@ -150,6 +151,7 @@ private final class SilentInput: VoiceInputService {
         startCount += 1
         throw VoiceInputError.microphoneUnavailable
     }
+    func finishListening() { isListening = false }
     func stopListening() { stopCount += 1 }
 }
 

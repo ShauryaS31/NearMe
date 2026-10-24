@@ -32,7 +32,7 @@ nonisolated enum VoiceDiagnostics {
             case .unsupportedOnDeviceLocale:
                 return "Speech recognition on this phone isn't available for your language yet. You can type instead."
             case .noSpeechDetected:
-                message = "I didn't catch that. Please try again or type instead."
+                return "I didn't hear anything. Tap and try again, or type instead."
             default:
                 message = "NearMe couldn't hear your request. Please try again or type instead."
             }
@@ -98,14 +98,19 @@ protocol VoiceInputService: AnyObject {
     func resetSession()
     var lastTurn: SpeechTurn { get }
     var onSpeechEnd: ((String) -> Void)? { get set }
+    /// Checked before accepting recognizer callbacks, including final results.
+    var acceptsTranscript: () -> Bool { get set }
 
     /// Starts listening and returns the final transcript once the user
-    /// stops talking (silence timeout) or `stopListening()` is called.
+    /// finishes speaking or `finishListening()` is called.
     /// `onPartialTranscript` is invoked repeatedly as interim text becomes
     /// available, so the UI can optionally show live captions.
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String
 
-    /// Ends listening early (e.g. the user tapped "cancel").
+    /// Stop capture now, allowing up to one second for the final decoded words.
+    func finishListening()
+
+    /// Cancels listening and discards the turn.
     func stopListening()
 }
 

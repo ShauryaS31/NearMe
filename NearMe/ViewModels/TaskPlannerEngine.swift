@@ -17,6 +17,10 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var latestBrainLatencyMilliseconds: Int?
     @Published private(set) var isTyping = false
     @Published private(set) var latestVoice: String?
+    @Published private(set) var isVoiceOutputActive = false
+    @Published private(set) var isStartingListening = false
+    private var playbackGeneration = 0
+    private let settleBeforeListening: () async throws -> Void
 
     @Published private(set) var isPreparingSpeech = false
     @Published private(set) var placeSuggestions: [String] = []
@@ -63,7 +67,8 @@ final class TaskPlannerEngine: ObservableObject {
          voiceInput: VoiceInputService,
          voiceOutput: VoiceOutputService,
          permissions: PermissionsManager,
-         userName: String, permissionCheck: (() async -> Bool)? = nil) {
+         userName: String, permissionCheck: (() async -> Bool)? = nil,
+         settleBeforeListening: (() async throws -> Void)? = nil) {
         self.brain = brain
         self.latestBrainSource = brain.initialSource
         self.voiceInput = voiceInput
@@ -71,6 +76,13 @@ final class TaskPlannerEngine: ObservableObject {
         self.permissions = permissions
         self.userName = userName
         self.permissionCheck = permissionCheck
+        self.settleBeforeListening = settleBeforeListening ?? {
+            try await Task.sleep(for: .seconds(SpeechSilenceRule.playbackSettle))
+        }
+        self.voiceInput.acceptsTranscript = { [weak self] in
+            guard let self else { return false }
+            return !self.isVoiceOutputActive && !self.isStartingListening
+        }
         self.voiceOutput.onVoiceChanged = { [weak self] voice in self?.latestVoice = voice }
         self.voiceOutput.onPlaybackStarted = { [weak self] in self?.recordFirstAudio() }
     }
@@ -81,20 +93,30 @@ final class TaskPlannerEngine: ObservableObject {
         consecutiveInputFailures = 0
         sessionGeneration += 1
         voiceInput.stopListening()
-        voiceOutput.stop()
+        stopOutput()
         voiceInput.resetSession()
         clearTurn()
         let generation = sessionGeneration
         Task { await runGreeting(generation: generation) }
     }
 
-    /// User tapped the orb from an idle state to speak again.
+    /// A second tap finishes the turn; speaking can be interrupted immediately.
     func userTappedToTalk() {
+        if plannerState == .listening {
+            plannerState = .finishing
+            voiceInput.finishListening()
+            return
+        }
+        guard plannerState != .finishing, plannerState != .thinking, !isStartingListening else { return }
         if let suggestionSlot { pendingClarification = suggestionSlot }
         consecutiveInputFailures = 0
         sessionGeneration += 1
+        guidanceSpeechGeneration += 1
         voiceInput.stopListening()
-        voiceOutput.stop()
+        stopOutput()
+        tripPlannerPracticeViewModel = nil
+        plannerState = .idle
+        isStartingListening = true
         isTyping = false
         clearSuggestions()
         lastErrorMessage = nil
@@ -108,7 +130,7 @@ final class TaskPlannerEngine: ObservableObject {
         if let suggestionSlot { pendingClarification = suggestionSlot }
         sessionGeneration += 1
         voiceInput.stopListening()
-        voiceOutput.stop()
+        stopOutput()
         clearSuggestions()
         clearTurn()
         isPreparingSpeech = false
@@ -141,7 +163,7 @@ final class TaskPlannerEngine: ObservableObject {
         sessionGeneration += 1
         isTyping = false
         voiceInput.stopListening()
-        voiceOutput.stop()
+        stopOutput()
         pendingClarification = nil
         clarificationFailures = 0
         currentIntent = .empty
@@ -159,7 +181,7 @@ final class TaskPlannerEngine: ObservableObject {
         sessionGeneration += 1
         isTyping = false
         voiceInput.stopListening()
-        voiceOutput.stop()
+        stopOutput()
         tripPlannerPracticeViewModel = nil
         plannerState = .idle
     }
@@ -230,6 +252,10 @@ final class TaskPlannerEngine: ObservableObject {
         }
         conversation.append(ConversationTurn(speaker: .nearme, text: text))
         if voiceInput.isListening { voiceInput.stopListening() }
+        playbackGeneration += 1
+        let playback = playbackGeneration
+        isVoiceOutputActive = true
+        defer { if playback == playbackGeneration { isVoiceOutputActive = false } }
         // Yield to foreground speech before doing next-caption cache work.
         let speechGeneration = guidanceSpeechGeneration
         let prefetch = Task { [weak self] in
@@ -249,23 +275,30 @@ final class TaskPlannerEngine: ObservableObject {
             plannerState = .idle
             return
         }
+        isStartingListening = true
+        defer { if isCurrent(generation) { isStartingListening = false } }
         guard await ensureOnDeviceSpeech(generation: generation), isCurrent(generation),
               await ensurePermissions(generation: generation), isCurrent(generation) else { return }
+        guard !isVoiceOutputActive else { return }
+        do { try await settleBeforeListening() } catch { return }
+        guard isCurrent(generation), !isVoiceOutputActive, !Task.isCancelled else { return }
+        isStartingListening = false
         lastErrorMessage = nil
         plannerState = .listening
         liveTranscript = ""
         speechEndedAt = nil
         voiceInput.onSpeechEnd = { [weak self] transcript in
-            guard let self, self.isCurrent(generation) else { return }
+            guard let self, self.isCurrent(generation), !self.isVoiceOutputActive else { return }
             self.clearTurn()
             self.liveTranscript = transcript
             self.speechEndedAt = self.voiceInput.lastTurn.endedAt
-            self.plannerState = .thinking
+            self.plannerState = .finishing
         }
 
         do {
             let transcript = try await voiceInput.startListening { [weak self] partial in
-                guard let self, self.isCurrent(generation) else { return }
+                guard let self, self.isCurrent(generation), !self.isVoiceOutputActive,
+                      !self.isStartingListening else { return }
                 self.liveTranscript = partial
             }
             guard isCurrent(generation) else { return }
@@ -285,9 +318,9 @@ final class TaskPlannerEngine: ObservableObject {
             guard isCurrent(generation) else { return }
             consecutiveInputFailures = 0
             lastErrorMessage = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
-            await speak(Self.retryLine, generation: generation)
+            await speak(VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected), generation: generation)
             guard isCurrent(generation) else { return }
-            await listenAndHandle(generation: generation)
+            plannerState = .idle
         } catch {
             VoiceDiagnostics.log(error)
             guard isCurrent(generation) else { return }
@@ -446,7 +479,14 @@ final class TaskPlannerEngine: ObservableObject {
     func stopPracticeSpeech() {
         guard tripPlannerPracticeViewModel != nil else { return }
         guidanceSpeechGeneration += 1
+        stopOutput()
+    }
+
+    private func stopOutput() {
+        playbackGeneration += 1
         voiceOutput.stop()
+        isVoiceOutputActive = false
+        isStartingListening = false
     }
 
     private func needsSuggestion(_ extractedPlace: String?) -> Bool {
@@ -479,7 +519,7 @@ final class TaskPlannerEngine: ObservableObject {
     private func acceptSuggestedPlace(_ place: String?) {
         guard let slot = suggestionSlot else { return }
         sessionGeneration += 1
-        voiceOutput.stop()
+        stopOutput()
         currentIntent.intent = .planJourney
         currentIntent = currentIntent.filling(slot, with: PlaceNormalization.normalize(place) ?? "")
         pendingClarification = nil

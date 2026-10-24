@@ -9,6 +9,8 @@ enum TaskPlannerState: Equatable {
     case speaking(String)
     /// Microphone is open, transcribing the user's speech.
     case listening
+    /// Capture has stopped; waiting briefly for final recognized words.
+    case finishing
     /// Foundation Models is extracting intent / deciding next step.
     case thinking
     /// Transition shown as the trip planner practice opens.
@@ -18,7 +20,7 @@ enum TaskPlannerState: Equatable {
 
     static func == (lhs: TaskPlannerState, rhs: TaskPlannerState) -> Bool {
         switch (lhs, rhs) {
-        case (.idle, .idle), (.listening, .listening), (.thinking, .thinking),
+        case (.idle, .idle), (.listening, .listening), (.finishing, .finishing), (.thinking, .thinking),
              (.openingApp, .openingApp):
             return true
         case let (.speaking(a), .speaking(b)):

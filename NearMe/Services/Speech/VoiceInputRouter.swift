@@ -57,6 +57,7 @@ final class VoiceInputRouter: VoiceInputService {
     }
 
     var onSpeechEnd: ((String) -> Void)?
+    var acceptsTranscript: () -> Bool = { true }
     var lastTurn: SpeechTurn { activeService?.lastTurn ?? SpeechTurn() }
     private var preparationError: VoiceInputError?
 
@@ -88,8 +89,11 @@ final class VoiceInputRouter: VoiceInputService {
         if activeService == nil { try await prepareForListening() }
         guard let activeService else { throw VoiceInputError.recognizerUnavailable }
         activeService.onSpeechEnd = onSpeechEnd
+        activeService.acceptsTranscript = acceptsTranscript
         return try await activeService.startListening(onPartialTranscript: onPartialTranscript)
     }
+
+    func finishListening() { activeService?.finishListening() }
 
     func stopListening() {
         generation += 1
