@@ -31,6 +31,8 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 | [N07](../tasks/N07-benchmark.md) | Grounding benchmark and demo tasks | Sat 24 Oct 19:00 to 20:00 | N02 | codex, then owner | todo |
 | [N08](../tasks/N08-polish.md) | Craft and demo hardening | Sun 25 Oct 10:00 to 13:00 (freeze 13:00) | N05, N07 | codex + owner | todo |
 | [N09](../tasks/N09-scx.md) | STRETCH: SCX fallback for hard goals | Only after N07 | N03 | codex | todo |
+| [N11a](../tasks/N11a-hig-design-notes.md) | HIG design notes (docs only) | Sat 24 Oct, now; independent of N03 | - | codex | done (docs); UI verification in N11b |
+| [N11b](../tasks/N11b-apply-hig.md) | Apply HIG to NearMe UI | After N04 and N10 are merged | N04, N10, N11a | codex | blocked on N04 and N10 merges |
 
 ## Decisions
 - 2026-10-24 (manager proposed, owner APPROVED): AXStaticText's AXValue is read as its label because it is the visible text (System Settings sidebar rows would otherwise be unlabelled). AXValue is never read for any other role. N03 PrivacyFilter still applies on top.
@@ -45,6 +47,9 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 
 ## Mac gate checklist
 (manager appends PENDING MAC items here)
+
+- [ ] HIG1 (N11b, PENDING MAC) Attach screenshots of the macOS panel, onboarding and ring, plus NearMe iOS onboarding and guidance, in light mode, dark mode, Increase Contrast (both appearances), and largest text size. On iOS use the largest Accessibility Larger Text size; on native macOS use the largest existing app text setting (target 200%), plus the display's Larger Text scaling. If the Mac app has no text setting, record the gap as a deliberate exception, not a Dynamic Type pass. Capture a combined dark + Increase Contrast + largest-text case. Verify no clipped instructions or inaccessible Stop control; record OS/device, settings and screenshot paths in the N11b Dev Report.
+- [ ] HIG2 (N11b, PENDING MAC) Complete all 15 items in docs/design/HIG-NOTES.md on macOS and iOS; record each as met with evidence or as a deliberate exception with reason and follow-up. Include VoiceOver/keyboard checks, Reduce Motion, Reduce Transparency, measured contrast, permission explanations and state accuracy. Gate: CI green for the exact N11b commit (macOS and iOS jobs); screenshots do not replace CI.
 
 - [ ] M1 (N00) Launch: `cd ~/NearMe && bash scripts/mac-run.sh`. NearMe window shows "Accessibility trusted", "Foundation Models" and "macOS version" rows with real values.
 - [ ] M2 (N00) Signing persists permission: `codesign -dv build/Build/Products/Debug/NearMe.app 2>&1 | grep -E "Authority|TeamIdentifier"` shows "Apple Development" and your Team ID (not "adhoc"). Grant Accessibility, run `bash scripts/mac-run.sh` again, and the row still says Yes.

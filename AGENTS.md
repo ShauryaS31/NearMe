@@ -11,6 +11,7 @@ Layout:
 - `project.yml`: XcodeGen. Never commit `NearMe.xcodeproj`.
 
 ## Rules
+- All UI work follows docs/design/HIG-NOTES.md.
 - Stay inside task scope; note other problems in your Dev Report.
 - Do not edit docs/SPEC.md, docs/PLAN.md, CLAUDE.md or this file.
 - Never commit secrets. Keys come from `Secrets.xcconfig` via Info.plist build settings.
