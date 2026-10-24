@@ -74,3 +74,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:12 AEDT | P04b | claude | review r2 PASS | static; merged to main; next: P07 (top priority)
 - 2026-10-24 17:12 AEDT | P07 | claude | dispatch r1 | top priority; branch task/P07-guided-coach (P07a guides on main)
 - 2026-10-24 17:24 AEDT | P07 | codex | dev-report r1 | guided coach, router, person, nearby labels, home (committed by manager)
+- 2026-10-24 17:32 AEDT | P07 | claude | review r1 PASS with follow-ups | must-haves met in code; 4 fixes (Guide name collision, practice restart leaks to router, practice card via model, type-check split) folded into P07b item 0; merged to main

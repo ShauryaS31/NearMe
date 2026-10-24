@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (owner compile and 7-phrase check in parallel; follow-ups in P07b) |
 | Window | Sat 24 Oct |
 | Depends on | P04b, P07a |
 | Assignee | codex |
@@ -132,3 +132,9 @@ Mac/iPhone checks: all 7 phrases from 2b, spoken on the phone, route correctly (
   - Git staging succeeded on the current branch. Intended commit: `N07: Add exclusive help routing and guided coaching`.
   - Commit blocked: `git commit -m "N07: Add exclusive help routing and guided coaching"` exited 1 with `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/index.lock': Permission denied`. All changes are uncommitted; implementation files are staged, and this final report update is unstaged. The manager must stage the updated report and commit. No permission escalation or alternate Git directory was attempted.
   - Per the user's explicit sandbox-failure instruction, stopped after recording the failed commit. The post-commit `docs/LOG.md` line has not been appended; after committing, the manager can append: `- 2026-10-24 17:23 AEDT | N07 | codex | dev-report r1 | Exclusive help routing and guided coaching including 2b/2c/2d; Mac gate pending (committed by manager)`.
+
+## Review (round 1)
+- Date: 2026-10-24 17:32 AEDT
+- Verdict: PASS with follow-ups (owner: merge P07 and dispatch P07b at once; P07 fixes are folded into P07b item 0). Static review; owner compile and 7-phrase check run in parallel.
+- Must-haves met in code: exclusive routing (router first, journey extraction only with the trip route active; traced for the image-to-mom phrase with model and with keyword fallback); all 7 phrases hand-traced to the expected route (video call my daughter: WhatsApp 0.95 vs FaceTime 0.5); person normalisation (Mum, Dad, your son) not persisted; nearby-label steps say "Look near" and the validator rejects "tap <label>"; commands, validators, general label, Open app only for whatsapp:// and sms: with canOpenURL, resume stores only guide id and step index, home hint; every model call fresh, greedy, capped, 10 s deadline. Guides bundled as a folder reference matching the loader. Default-argument scan clean.
+- Follow-ups moved to P07b item 0: Guide name collides with FoundationModels @Guide (rename the model); "Let's start again" path leaves practice and routes a bare place; practice card routes through the model and forces typing; split the HelpRouter ranking chain and type the test dictionary (Swift 6.4); plus nits.
