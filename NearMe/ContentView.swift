@@ -1,80 +1,68 @@
-import ApplicationServices
-import Foundation
-import FoundationModels
-import NearMeCore
 import SwiftUI
 
 struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var accessibilityStatus = "Checking..."
-    @State private var modelStatus = "Checking..."
+    @State private var model = DebugViewModel()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("NearMe")
-                .font(.largeTitle.bold())
-            Text(Scaffold.message)
-                .foregroundStyle(.secondary)
-            Grid(alignment: .leading, horizontalSpacing: 24, verticalSpacing: 12) {
-                GridRow {
-                    Text("Accessibility trusted")
-                    Text(accessibilityStatus)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("NearMe · Core loop spike")
+                    .font(.title.bold())
+                TextField("What would you like to do?", text: $model.goal)
+                    .textFieldStyle(.roundedBorder)
+                    .onSubmit { if !model.isBusy { model.nextStep() } }
+                HStack {
+                    Button("Next step") { model.nextStep() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(model.isBusy || model.goal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Clear ring") { model.clearRing() }
+                    if model.isBusy { ProgressView().controlSize(.small) }
                 }
-                GridRow {
-                    Text("Foundation Models")
-                    Text(modelStatus)
+                Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
+                    row("Target app", model.target.app?.name ?? "None — activate System Settings first")
+                    row("Window", model.windowTitle)
+                    row("Accessibility", model.accessibilityStatus)
+                    row("Foundation Models", model.modelStatus)
+                    row("Elements (capped)", String(model.elementCount))
+                    row("Chosen element", model.chosenElement)
+                    row("AX read", timing(model.axMilliseconds))
+                    row("Model", timing(model.modelMilliseconds))
+                    row("Total latency", timing(model.totalMilliseconds))
                 }
-                GridRow {
-                    Text("macOS version")
-                    Text(ProcessInfo.processInfo.operatingSystemVersionString)
+                if !model.readDetails.isEmpty {
+                    Text(model.readDetails).font(.caption).foregroundStyle(.secondary)
                 }
+                if !model.instruction.isEmpty {
+                    Text(model.instruction).font(.title3).textSelection(.enabled)
+                }
+                Text(model.status).foregroundStyle(.secondary)
+                if let error = model.error {
+                    Text(error).foregroundStyle(.red).textSelection(.enabled)
+                }
+                Button("Open Accessibility Settings") {
+                    Task { await model.requestAccessibility() }
+                }
+                Text("Activate the app to guide, then return here. NearMe remembers it and only points; you make every click. Readings are manual for this spike.")
+                    .font(.footnote).foregroundStyle(.secondary)
             }
-            Text("This scaffold shows system status. Guidance is coming next.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            .padding(24)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(28)
-        .frame(minWidth: 500, minHeight: 260, alignment: .topLeading)
-        .task(id: scenePhase) {
-            await refreshStatus()
+        .frame(minWidth: 620, minHeight: 540)
+        .task(id: scenePhase) { await model.refreshAvailability() }
+        .onChange(of: model.target.app) { model.targetDidChange() }
+        .onDisappear { model.clearRing() }
+    }
+
+    private func row(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(.secondary)
+            Text(value).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    @MainActor
-    private func refreshStatus() async {
-        switch SystemLanguageModel.default.availability {
-        case .available:
-            modelStatus = "Available"
-        case .unavailable(.deviceNotEligible):
-            modelStatus = "Unavailable: this Mac is not eligible"
-        case .unavailable(.appleIntelligenceNotEnabled):
-            modelStatus = "Unavailable: turn on Apple Intelligence"
-        case .unavailable(.modelNotReady):
-            modelStatus = "Unavailable: model is not ready"
-        case .unavailable:
-            modelStatus = "Unavailable"
-        @unknown default:
-            modelStatus = "Unknown availability"
-        }
-
-        // Check local trust off the main thread, with a one-second UI wait budget.
-        // The synchronous system call cannot be interrupted, but late results are ignored.
-        let (results, continuation) = AsyncStream<Bool>.makeStream()
-        let check = Task.detached(priority: .utility) {
-            continuation.yield(AXIsProcessTrusted())
-            continuation.finish()
-        }
-        let timeout = Task {
-            try? await Task.sleep(for: .seconds(1))
-            continuation.finish()
-        }
-        defer {
-            check.cancel()
-            timeout.cancel()
-        }
-        var iterator = results.makeAsyncIterator()
-        let trusted = await iterator.next()
-        guard !Task.isCancelled else { return }
-        accessibilityStatus = trusted.map { $0 ? "Yes" : "No" } ?? "Check timed out"
+    private func timing(_ value: Double?) -> String {
+        value.map { String(format: "%.0f ms", $0) } ?? "—"
     }
 }
