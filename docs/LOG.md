@@ -76,3 +76,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:14 AEDT | P04b | claude (mac) | macfix | compile-only: SpeechTurn.swift:35 closestPlaces chain split into typed steps (Swift 6.4 type-check timeout), same logic; 101 tests, 100 pass, 1 skip
 - 2026-10-24 17:19 AEDT | P04b | claude | macfix review | 4110302 compile-only (closestPlaces chain split into typed steps, same filter, sort and tie-break), OK; Mac: 101 tests, 100 pass, 1 skip
 - 2026-10-24 17:19 AEDT | - | claude | tooling fix | mac-run.sh device: connected-iphone.py rejects simulators (reality, platform, simctl UDID cross-check), connected-only, --device=NAME option; 6 new script tests pass
+- 2026-10-24 17:22 AEDT | P03a/P04b | owner | iPhone check | "from Central to Newtown" accepted, straight to practice; STT 93 ms, first audio 1.06 s, ElevenLabs
+- 2026-10-24 17:22 AEDT | P07b | owner | decision | session layout: compact bottom dock, full-screen practice with visible tab bar, target ring with pulse and dim, two-line Debug badge (understood vs reply template); right after P07
