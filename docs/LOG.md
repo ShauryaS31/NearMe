@@ -15,3 +15,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 12:45 AEDT | N01 | codex | dev-report r3 | Moved unchanged coordinate conversion to its own file; added primary/above/left display tests; committed 6f8c19a. Static checks passed; Swift/Xcode unavailable; CI and Mac owner gate pending. Optional AX casts retained.
 - 2026-10-24 12:48 AEDT | N01 | claude | review r3 PASS | CI 40051262605 green, 10 tests; merged to main; G1 kill-rule pending owner Mac checks M1 to M6
 - 2026-10-24 13:38 AEDT | - | claude | decision | owner: prior prototype code reusable with permission, anonymised; CLAUDE.md, AGENTS.md, SPEC, MASTER-PLAN, README updated; N04a added; N03 next, N02 waits for G1
+- 2026-10-24 13:38 AEDT | N03 | claude | dispatch r1 | brief tightened (PrivacyFilter API, exact bundle ids, whole-word title keywords, pipeline order, tests); branch task/N03-privacy
+- 2026-10-24 13:41 AEDT | N03 | codex | dev-report r1 | Implemented pre-traversal privacy blocking, contact masking, label truncation and once-only local blocked speech; committed dbc2e33. Static checks passed; Swift/Xcode unavailable; seven new tests and Mac runtime checks pending CI/owner.
+- 2026-10-24 13:50 AEDT | N03 | claude | review r1 PASS | CI 40055664698 green, 17 tests; merged to main; M7 pending Mac
