@@ -45,7 +45,7 @@ enum PTVSimStep: Equatable, CaseIterable {
         case .readyToSearch:
             return "Both fields are filled — tap Search to see your options."
         case .showingResults:
-            return "Here's your journey — first service leaves shortly from Platform 2. Anything else you need help with?"
+            return "That's the practice done. In the real app, you'd pick a trip from this list and follow its steps. Anything else you need help with?"
         }
     }
 

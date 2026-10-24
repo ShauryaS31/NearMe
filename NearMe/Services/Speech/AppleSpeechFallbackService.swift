@@ -27,8 +27,14 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
     }
 
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
+        guard AVAudioApplication.shared.recordPermission == .granted else {
+            throw VoiceInputError.microphonePermissionDenied
+        }
+        guard SFSpeechRecognizer.authorizationStatus() == .authorized else {
+            throw VoiceInputError.speechPermissionDenied
+        }
         guard let recognizer, recognizer.isAvailable else {
-            throw VoiceInputError.transcriptionFailed("Speech recognizer unavailable for this locale/device.")
+            throw VoiceInputError.recognizerUnavailable
         }
 
         isListening = true
@@ -37,7 +43,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         // FIX: was a per-call setCategory/setActive here — see
         // NearMeAudioSession.swift. The session is configured once for the
         // whole conversation rather than being switched on every turn.
-        NearMeAudioSession.configureIfNeeded()
+        try NearMeAudioSession.configureIfNeeded()
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -59,7 +65,13 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         }
 
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            self.request = nil
+            throw VoiceInputError.audioEngineFailed(error)
+        }
 
         return try await withCheckedThrowingContinuation { [weak self] continuation in
             guard let self else { return }
@@ -69,6 +81,8 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
 
             self.task = recognizer.recognitionTask(with: request) { [weak self] result, error in
                 guard let self else { return }
+                if let error { VoiceDiagnostics.log(error) }
+                guard self.activeResume === resume else { return }
 
                 if let result {
                     latestTranscript = result.bestTranscription.formattedString
@@ -99,7 +113,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
 
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(self?.hardTimeout ?? 25) * 1_000_000_000)
-                guard let self, self.activeResume != nil else { return }
+                guard let self, self.activeResume === resume else { return }
                 self.activeResume = nil
                 self.finish()
                 resume.fulfill(throwing: VoiceInputError.noSpeechDetected)

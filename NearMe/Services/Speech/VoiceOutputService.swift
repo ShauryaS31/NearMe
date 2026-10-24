@@ -12,6 +12,7 @@ protocol VoiceOutputService: AnyObject {
 final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     private var continuation: CheckedContinuation<Void, Never>?
+    private var activeUtterance: AVSpeechUtterance?
 
     override init() {
         super.init()
@@ -20,8 +21,14 @@ final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynt
 
     func speak(_ text: String) async {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        stop()
 
-        NearMeAudioSession.configureIfNeeded()
+        do {
+            try NearMeAudioSession.configureIfNeeded()
+        } catch {
+            VoiceDiagnostics.log(error)
+            return // The caption remains available when audio output cannot start.
+        }
 
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: "en-AU") ?? AVSpeechSynthesisVoice(language: "en-US")
@@ -30,6 +37,7 @@ final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynt
 
         await withCheckedContinuation { continuation in
             self.continuation = continuation
+            self.activeUtterance = utterance
             synthesizer.speak(utterance)
         }
         // No post-speech deactivation/settle-delay anymore — the session
@@ -38,10 +46,15 @@ final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynt
 
     func stop() {
         synthesizer.stopSpeaking(at: .immediate)
+        activeUtterance = nil
+        continuation?.resume()
+        continuation = nil
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
         Task { @MainActor in
+            guard activeUtterance === utterance else { return }
+            activeUtterance = nil
             continuation?.resume()
             continuation = nil
         }
@@ -49,6 +62,8 @@ final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynt
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         Task { @MainActor in
+            guard activeUtterance === utterance else { return }
+            activeUtterance = nil
             continuation?.resume()
             continuation = nil
         }

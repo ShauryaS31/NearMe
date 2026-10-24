@@ -5,6 +5,9 @@ import SwiftUI
 struct VoiceSessionView: View {
     @ObservedObject var engine: TaskPlannerEngine
     let onEndSession: () -> Void
+    @State private var typedText = ""
+    @FocusState private var textEntryFocused: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ScreenScaffold {
@@ -20,7 +23,7 @@ struct VoiceSessionView: View {
                 VoiceOrbView(state: orbState)
                     .onTapGesture {
                         if case .idle = engine.plannerState {
-                            engine.userTappedToTalk()
+                            useVoiceInput()
                         }
                     }
 
@@ -39,6 +42,38 @@ struct VoiceSessionView: View {
                         .multilineTextAlignment(.center)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                if engine.isTyping {
+                    typedInputLayout {
+                        TextField("Type your answer", text: $typedText)
+                            .font(.body)
+                            .textFieldStyle(.roundedBorder)
+                            .focused($textEntryFocused)
+                            .accessibilityLabel("Your answer")
+                            .submitLabel(.send)
+                            .onSubmit(sendTypedAnswer)
+                        Button(action: useVoiceInput) {
+                            Label("Use voice", systemImage: "mic")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(engine.plannerState != .idle)
+                    }
+                    Button(action: sendTypedAnswer) {
+                        Label("Send", systemImage: "paperplane.fill")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canSend)
+                } else {
+                    Button {
+                        engine.useTypedInput()
+                        textEntryFocused = true
+                    } label: {
+                        Label("Type instead", systemImage: "keyboard")
+                            .frame(minWidth: 44, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                }
                 Spacer()
                 PrimaryButton(title: buttonTitle) {
                     if engine.hasCompletedAtLeastOneJourney {
@@ -50,6 +85,29 @@ struct VoiceSessionView: View {
             }
             .frame(minHeight: 520)
         }
+    }
+
+    private var canSend: Bool {
+        guard case .idle = engine.plannerState else { return false }
+        return !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var typedInputLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+    }
+
+    private func sendTypedAnswer() {
+        guard canSend else { return }
+        engine.submitTypedInput(typedText)
+        typedText = ""
+        textEntryFocused = false
+    }
+
+    private func useVoiceInput() {
+        textEntryFocused = false
+        engine.userTappedToTalk()
     }
 
     private var buttonTitle: String {
@@ -81,6 +139,9 @@ struct VoiceSessionView: View {
         case .thinking:
             return engine.conversation.last?.text ?? "One moment..."
         case .idle:
+            if engine.isTyping {
+                return engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "What would you like help with?"
+            }
             return engine.lastErrorMessage == nil ? "Tap the mic to talk to NearMe." : "Tap the mic to try again."
         default:
             return ""

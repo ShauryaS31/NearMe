@@ -7,6 +7,7 @@ final class ElevenLabsScribeService: VoiceInputService {
     private let recorder = AudioFileRecorder()
     private let session: URLSession
     private(set) var isListening = false
+    private var listeningGeneration = 0
 
     /// Backstop for `recordAudio()` — see that method's header comment.
     private static let hardRecordingTimeout: TimeInterval = 25
@@ -18,6 +19,8 @@ final class ElevenLabsScribeService: VoiceInputService {
     }
 
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
+        listeningGeneration += 1
+        let generation = listeningGeneration
         guard APIKeys.hasElevenLabsKey else {
             throw VoiceInputError.transcriptionFailed("No ElevenLabs API key configured (see APIKeys.swift).")
         }
@@ -27,13 +30,19 @@ final class ElevenLabsScribeService: VoiceInputService {
 
         let fileURL = try await recordAudio()
 
-        defer { try? FileManager.default.removeItem(at: fileURL) }
+        defer {
+            do { try FileManager.default.removeItem(at: fileURL) }
+            catch { VoiceDiagnostics.log(error) }
+        }
+
+        guard generation == listeningGeneration else { throw CancellationError() }
 
         return try await transcribe(fileURL: fileURL)
     }
 
     private func recordAudio() async throws -> URL {
-        try await withCheckedThrowingContinuation { continuation in
+        let generation = listeningGeneration
+        return try await withCheckedThrowingContinuation { continuation in
             let resume = ResumeOnce(continuation)
 
             do {
@@ -44,19 +53,21 @@ final class ElevenLabsScribeService: VoiceInputService {
                     }
                 }
             } catch {
-                resume.fulfill(throwing: VoiceInputError.microphoneUnavailable)
+                resume.fulfill(throwing: error)
                 return
             }
 
-            Task { [recorder] in
+            Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(Self.hardRecordingTimeout * 1_000_000_000))
-                recorder.stop() // resolves the completion itself if still pending
+                guard let self, generation == self.listeningGeneration else { return }
+                self.recorder.stop() // resolves the completion itself if still pending
                 resume.fulfill(throwing: VoiceInputError.noSpeechDetected) // no-op if already resolved
             }
         }
     }
 
     func stopListening() {
+        listeningGeneration += 1
         recorder.stop()
         isListening = false
     }
@@ -100,8 +111,8 @@ final class ElevenLabsScribeService: VoiceInputService {
 
         guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            let bodyText = String(data: data, encoding: .utf8) ?? ""
-            throw VoiceInputError.transcriptionFailed("ElevenLabs returned status \(statusCode): \(bodyText)")
+            // Response bodies can contain transcripts; keep them out of public error logs.
+            throw VoiceInputError.transcriptionFailed("ElevenLabs returned status \(statusCode).")
         }
 
         let decoded = try JSONDecoder().decode(ScribeResponse.self, from: data)

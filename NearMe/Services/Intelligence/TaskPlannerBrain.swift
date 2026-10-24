@@ -1,59 +1,131 @@
 // Adapted from a prior prototype, used with permission.
 
 import Foundation
+import OSLog
 
-protocol TaskPlannerBrain: Sendable {
-    /// Parses a user utterance into a structured journey intent.
-    func extractIntent(from utterance: String) async throws -> JourneyIntent
+enum BrainSource: String, Sendable {
+    case onDeviceModel
+    case onDeviceModelWithKeywordFill
+    case keywordFallback
 
-    /// Produces the single follow-up question to ask when `missing` is the
-    /// only thing standing between the current intent and taking action.
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> String
-
-    /// The short confirmation line spoken once every required slot is filled,
-    /// right before NearMe opens PTV.
-    func confirmationLine(for intent: JourneyIntent) async throws -> String
+    var label: String {
+        switch self {
+        case .onDeviceModel: return "On-device model"
+        case .onDeviceModelWithKeywordFill: return "On-device model + keyword fill"
+        case .keywordFallback: return "Keyword fallback"
+        }
+    }
 }
 
-/// Wraps a primary brain with a deterministic fallback, mirroring
-/// `VoiceInputRouter`'s ElevenLabs -> Apple Speech pattern: if the primary
-/// throws at *generation* time — not just at the availability check
-/// `TaskPlannerBrainFactory` does up front — retry immediately with the
-/// fallback rather than dead-ending the conversation. This matters because
-/// `SystemLanguageModel.default.availability` reporting `.available` is not
-/// a guarantee every subsequent `LanguageModelSession.respond` call will
-/// succeed (e.g. in the Simulator, or when on-device model assets are still
-/// being provisioned) — those show up as a generic
-/// `FoundationModels.LanguageModelSession.GenerationError` at call time.
+struct BrainAnswer<Value: Sendable>: Sendable {
+    let value: Value
+    let source: BrainSource
+}
+
+protocol TaskPlannerBrain: Sendable {
+    var initialSource: BrainSource { get }
+    func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent>
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?>
+    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String>
+    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String>
+}
+
+enum PlannerDiagnostics {
+    static let logger = Logger(subsystem: "au.nearme.ios", category: "planner")
+
+    static func fallback(after error: Error) {
+        let nsError = error as NSError
+        logger.error("Model error type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .public); using keyword fallback")
+    }
+}
+
 final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
     private let primary: TaskPlannerBrain
     private let fallback: TaskPlannerBrain
+    var initialSource: BrainSource { primary.initialSource }
 
     init(primary: TaskPlannerBrain, fallback: TaskPlannerBrain) {
         self.primary = primary
         self.fallback = fallback
     }
 
-    func extractIntent(from utterance: String) async throws -> JourneyIntent {
+    func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
+        let answer: BrainAnswer<JourneyIntent>
         do {
-            return try await primary.extractIntent(from: utterance)
+            answer = try await primary.extractIntent(from: utterance)
         } catch {
+            PlannerDiagnostics.fallback(after: error)
             return try await fallback.extractIntent(from: utterance)
         }
+
+        // Parse every sentence again, filling only absent model values.
+        let keywords = try await fallback.extractIntent(from: utterance).value
+        var intent = answer.value
+        var didFill = false
+        if intent.kind == .unknown, keywords.kind == .planJourney,
+           keywords.origin != nil || keywords.destination != nil {
+            intent.intent = .planJourney
+            didFill = true
+        }
+        if intent.origin?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+           let origin = keywords.origin {
+            intent.origin = origin
+            didFill = true
+        }
+        if intent.destination?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+           let destination = keywords.destination {
+            intent.destination = destination
+            didFill = true
+        }
+        if intent.mode?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+           let mode = keywords.mode {
+            intent.mode = mode
+            didFill = true
+        }
+        if didFill {
+            PlannerDiagnostics.logger.debug("Model extraction supplemented by keyword fill")
+        }
+        return BrainAnswer(value: intent, source: didFill ? .onDeviceModelWithKeywordFill : answer.source)
     }
 
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> String {
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
+        let modelAnswer: BrainAnswer<String?>
+        do {
+            modelAnswer = try await primary.extractPlace(from: answer, for: slot)
+        } catch {
+            PlannerDiagnostics.fallback(after: error)
+            return try await fallback.extractPlace(from: answer, for: slot)
+        }
+
+        // The model can return a whole sentence rather than just the place.
+        var place: String?
+        if let modelPlace = modelAnswer.value {
+            place = try await fallback.extractPlace(from: modelPlace, for: slot).value
+        }
+        if place == nil {
+            place = try await fallback.extractPlace(from: answer, for: slot).value
+        }
+        let didFill = place != modelAnswer.value
+        if didFill {
+            PlannerDiagnostics.logger.debug("Model place extraction supplemented by keyword fill")
+        }
+        return BrainAnswer(value: place, source: didFill ? .onDeviceModelWithKeywordFill : modelAnswer.source)
+    }
+
+    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
         do {
             return try await primary.clarifyingQuestion(for: missing, currentIntent: currentIntent)
         } catch {
+            PlannerDiagnostics.fallback(after: error)
             return try await fallback.clarifyingQuestion(for: missing, currentIntent: currentIntent)
         }
     }
 
-    func confirmationLine(for intent: JourneyIntent) async throws -> String {
+    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
         do {
             return try await primary.confirmationLine(for: intent)
         } catch {
+            PlannerDiagnostics.fallback(after: error)
             return try await fallback.confirmationLine(for: intent)
         }
     }
@@ -66,6 +138,7 @@ enum TaskPlannerBrainFactory {
             return ResilientTaskPlannerBrain(primary: FoundationModelsBrain(), fallback: KeywordFallbackBrain())
         }
         #endif
+        PlannerDiagnostics.logger.notice("On-device model unavailable; using keyword fallback")
         return KeywordFallbackBrain()
     }
 }
