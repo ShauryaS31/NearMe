@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct evening |
 | Depends on | P07b |
 | Assignee | codex, then owner on a real iPhone |
@@ -85,3 +85,15 @@ iPhone check: force-quit NearMe while a guide's Live Activity is showing, tap Do
   7. Check stale cleanup: while debugging a running guide, pause in the app and run `expr -l Swift -- import Foundation`, then `expr -l Swift -- UserDefaults.standard.removeObject(forKey: "coach.progress")`. Stop and relaunch the app; the orphan activity must be dismissed. Do not edit guide JSON or add user words to defaults.
   8. On the iPhone, check compact/minimal/expanded/Lock Screen presentations with large accessibility text, Bold Text, light/dark appearance and VoiceOver. Done must announce “Mark step done”; Resume must identify the guide-return action. Verify controls remain usable and any layout clipping before accepting the task.
 - Not done / risks / questions: compilation, SDK metadata extraction, signing/embedding, actual app-process wake after force-quit, and device layout/accessibility remain owner gates. The implementation follows Apple's documented process contract, not an on-device measurement. No unrelated code changes or other tasks were undertaken.
+
+## Review (round 1)
+- Date: 2026-10-24 18:40 AEDT
+- Verdict: CHANGES. Config sound (extension target, embed, xcconfig signing, shared sources, NSSupportsLiveActivities, nearme scheme, no App Group); must-haves met in code (Done without engine from saved progress with session and revision checks, deep link cold and warm, generic text only, migration safe, revision races handled, tests).
+
+Fixes:
+1. Build risk: Shared/LiveActivity/CoachActivityUpdater.swift:70-72 (`Activity.request`, `ActivityAuthorizationInfo`) compiles into the extension (APPLICATION_EXTENSION_API_ONLY). Add `SWIFT_ACTIVE_COMPILATION_CONDITIONS: NEARME_LIVE_ACTIVITY_EXTENSION` (plus $(inherited)) to the extension target and keep starting activities and the full `perform()` body app-only (`#if !NEARME_LIVE_ACTIVITY_EXTENSION`); the extension copy of `CoachDoneIntent` keeps the same type and parameters with an empty `perform()` (it is only needed for `Button(intent:)`). Updating and ending existing activities may stay shared only if extension-safe; otherwise app-only too.
+2. TaskPlannerEngine.swift:209: dock Stop (silence, keep the step) must not end the Live Activity. Only Stop-the-guide paths (voice "stop", End session, cancel) end it. Also make in-app step changes start the activity if none exists for the current guide (`startIfNeeded: true` in persistCoach, line 876), so a missing activity comes back. Update `testAppDoneStopAndEndPublishLifecycleEvents`.
+3. TaskPlannerEngine.swift:950: `clearCoach` enqueues `.stop(nil)` when there is no guide coach, ending every activity (cuts short the 30 s final state). Only enqueue a stop for an existing guide coach id.
+4. TaskPlannerEngine.swift:1014-1028: resuming the session that is already running must not tear it down and rebuild it (keeps person personalisation, no double "Welcome back"): if the URL's session equals the current coach, just show it.
+5. Background launch for the intent: when the system launches NearMe in the background to run `CoachDoneIntent`, no scene work may start speaking or listening. Guard `restoreCoach` speech so it only runs when the scene is active (scenePhase .active), and never from the intent path.
+6. Nits: hide "Resume" on the Lock Screen once the guide is finished (NearMeLiveActivity.swift:87); Lock Screen instruction `.body` (title stays `.headline`); if `openAppWhenRun` is deprecated, use `supportedModes` (or leave it if it is not); decode bundled guides once at launch; accept the `coach` host case-insensitively; add a test of an in-app Done racing an intent with the same revision (exactly one advance).
