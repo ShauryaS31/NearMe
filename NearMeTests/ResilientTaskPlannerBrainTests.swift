@@ -3,6 +3,58 @@ import XCTest
 
 @MainActor
 final class ResilientTaskPlannerBrainTests: XCTestCase {
+    func testUnknownModelIntentBecomesKeywordJourney() async throws {
+        // Include a model with both places already filled: upgrading the kind
+        // alone must still report keyword fill.
+        let modelIntents: [JourneyIntent] = [
+            .empty,
+            JourneyIntent(intent: .unknown, destination: "Holsworthy", origin: "Central", mode: nil)
+        ]
+        for intent in modelIntents {
+            let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(intent: intent), fallback: KeywordFallbackBrain())
+            let answer = try await brain.extractIntent(from: "I wanna go from Central to Holsworthy")
+            XCTAssertEqual(answer.value.kind, .planJourney)
+            XCTAssertEqual(answer.value.origin, "Central")
+            XCTAssertEqual(answer.value.destination, "Holsworthy")
+            XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+        }
+    }
+
+    func testUnknownModelIntentStaysUnknownWithoutKeywordPlace() async throws {
+        let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(), fallback: KeywordFallbackBrain())
+        let answer = try await brain.extractIntent(from: "hello")
+        XCTAssertEqual(answer.value.kind, .unknown)
+        XCTAssertNil(answer.value.origin)
+        XCTAssertNil(answer.value.destination)
+        XCTAssertEqual(answer.source, .onDeviceModel)
+    }
+
+    func testWholeModelPlaceAnswerIsCleaned() async throws {
+        let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(place: "I'm leaving from Central"), fallback: KeywordFallbackBrain())
+        let answer = try await brain.extractPlace(from: "I'm leaving from Central", for: .origin)
+        XCTAssertEqual(answer.value, "Central")
+        XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+    }
+
+    func testMissingOrEmptyModelPlaceUsesKeywordAnswer() async throws {
+        let modelPlaces: [String?] = [nil, " \n", "um"]
+        for modelPlace in modelPlaces {
+            for slot in [MissingSlot.origin, .destination] {
+                let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(place: modelPlace), fallback: KeywordFallbackBrain())
+                let answer = try await brain.extractPlace(from: "um, Town Hall please", for: slot)
+                XCTAssertEqual(answer.value, "Town Hall")
+                XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+            }
+        }
+    }
+
+    func testCleanModelPlaceIsPreserved() async throws {
+        let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(place: "Central"), fallback: KeywordFallbackBrain())
+        let answer = try await brain.extractPlace(from: "I'm leaving from Central please", for: .origin)
+        XCTAssertEqual(answer.value, "Central")
+        XCTAssertEqual(answer.source, .onDeviceModel)
+    }
+
     func testKeywordFillForMissingAndWhitespaceSlots() async throws {
         for (sentence, origin, destination) in tripParsingCases {
             let model = StubModelBrain(intent: JourneyIntent(intent: .planJourney, destination: " \n", origin: nil, mode: nil))
@@ -62,6 +114,7 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
 private struct StubModelBrain: TaskPlannerBrain {
     let initialSource: BrainSource = .onDeviceModel
     var intent: JourneyIntent = .empty
+    var place: String? = nil
     var shouldThrow = false
 
     private func answer<T: Sendable>(_ value: T) throws -> BrainAnswer<T> {
@@ -70,7 +123,7 @@ private struct StubModelBrain: TaskPlannerBrain {
     }
 
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> { try answer(intent) }
-    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> { try self.answer(nil as String?) }
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> { try self.answer(place) }
     func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> { try answer("Where are you leaving from?") }
     func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> { try answer("Let's plan that journey.") }
 }

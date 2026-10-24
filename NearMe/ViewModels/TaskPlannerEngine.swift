@@ -84,6 +84,7 @@ final class TaskPlannerEngine: ObservableObject {
     /// neutral, tappable idle state rather than silently continuing.
     func cancelCurrentAction() {
         sessionGeneration += 1
+        isTyping = false
         voiceInput.stopListening()
         voiceOutput.stop()
         pendingClarification = nil
@@ -98,6 +99,7 @@ final class TaskPlannerEngine: ObservableObject {
     /// straight back to onboarding once this returns.
     func endSession() {
         sessionGeneration += 1
+        isTyping = false
         voiceInput.stopListening()
         voiceOutput.stop()
         ptvSimulationViewModel = nil
@@ -170,6 +172,7 @@ final class TaskPlannerEngine: ObservableObject {
             plannerState = .idle
             return
         }
+        lastErrorMessage = nil
         plannerState = .listening
         liveTranscript = ""
 

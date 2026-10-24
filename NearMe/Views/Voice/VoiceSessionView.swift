@@ -7,6 +7,7 @@ struct VoiceSessionView: View {
     let onEndSession: () -> Void
     @State private var typedText = ""
     @FocusState private var textEntryFocused: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ScreenScaffold {
@@ -21,8 +22,8 @@ struct VoiceSessionView: View {
 
                 VoiceOrbView(state: orbState)
                     .onTapGesture {
-                        if !engine.isTyping, case .idle = engine.plannerState {
-                            engine.userTappedToTalk()
+                        if case .idle = engine.plannerState {
+                            useVoiceInput()
                         }
                     }
 
@@ -42,13 +43,21 @@ struct VoiceSessionView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 if engine.isTyping {
-                    TextField("Type your answer", text: $typedText, axis: .vertical)
-                        .font(.body)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($textEntryFocused)
-                        .accessibilityLabel("Your answer")
-                        .submitLabel(.send)
-                        .onSubmit(sendTypedAnswer)
+                    typedInputLayout {
+                        TextField("Type your answer", text: $typedText)
+                            .font(.body)
+                            .textFieldStyle(.roundedBorder)
+                            .focused($textEntryFocused)
+                            .accessibilityLabel("Your answer")
+                            .submitLabel(.send)
+                            .onSubmit(sendTypedAnswer)
+                        Button(action: useVoiceInput) {
+                            Label("Use voice", systemImage: "mic")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(engine.plannerState != .idle)
+                    }
                     Button(action: sendTypedAnswer) {
                         Label("Send", systemImage: "paperplane.fill")
                             .frame(minWidth: 44, minHeight: 44)
@@ -83,11 +92,22 @@ struct VoiceSessionView: View {
         return !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private var typedInputLayout: AnyLayout {
+        dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+    }
+
     private func sendTypedAnswer() {
         guard canSend else { return }
         engine.submitTypedInput(typedText)
         typedText = ""
         textEntryFocused = false
+    }
+
+    private func useVoiceInput() {
+        textEntryFocused = false
+        engine.userTappedToTalk()
     }
 
     private var buttonTitle: String {

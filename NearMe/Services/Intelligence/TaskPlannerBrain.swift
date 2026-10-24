@@ -62,6 +62,11 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         let keywords = try await fallback.extractIntent(from: utterance).value
         var intent = answer.value
         var didFill = false
+        if intent.kind == .unknown, keywords.kind == .planJourney,
+           keywords.origin != nil || keywords.destination != nil {
+            intent.intent = .planJourney
+            didFill = true
+        }
         if intent.origin?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
            let origin = keywords.origin {
             intent.origin = origin
@@ -84,12 +89,27 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
     }
 
     func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
+        let modelAnswer: BrainAnswer<String?>
         do {
-            return try await primary.extractPlace(from: answer, for: slot)
+            modelAnswer = try await primary.extractPlace(from: answer, for: slot)
         } catch {
             PlannerDiagnostics.fallback(after: error)
             return try await fallback.extractPlace(from: answer, for: slot)
         }
+
+        // The model can return a whole sentence rather than just the place.
+        var place: String?
+        if let modelPlace = modelAnswer.value {
+            place = try await fallback.extractPlace(from: modelPlace, for: slot).value
+        }
+        if place == nil {
+            place = try await fallback.extractPlace(from: answer, for: slot).value
+        }
+        let didFill = place != modelAnswer.value
+        if didFill {
+            PlannerDiagnostics.logger.debug("Model place extraction supplemented by keyword fill")
+        }
+        return BrainAnswer(value: place, source: didFill ? .onDeviceModelWithKeywordFill : modelAnswer.source)
     }
 
     func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {

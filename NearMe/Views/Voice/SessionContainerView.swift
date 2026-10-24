@@ -47,7 +47,7 @@ struct SessionContainerView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
-                .background(Color(uiColor: .systemBackground))
+                .background(.background)
                 .accessibilityLabel("Brain source: \(engine.latestBrainSource.label)")
         }
         #endif

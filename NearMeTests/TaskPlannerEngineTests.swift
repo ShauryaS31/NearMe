@@ -22,6 +22,7 @@ final class TaskPlannerEngineTests: XCTestCase {
         XCTAssertEqual(input.startCount, 0)
         XCTAssertEqual(engine.conversation.filter { $0.speaker == .user }.count, 2)
         engine.endSession()
+        XCTAssertFalse(engine.isTyping)
     }
 
     func testInvalidOriginFollowUpRetriesOnceThenClearsTrip() async {
@@ -64,6 +65,8 @@ final class TaskPlannerEngineTests: XCTestCase {
         await submit("to Holsworthy", to: engine)
         await submit("um", to: engine)
         engine.cancelCurrentAction()
+        XCTAssertFalse(engine.isTyping)
+        engine.useTypedInput()
         await submit("to Town Hall", to: engine)
         XCTAssertNil(engine.currentIntent.origin)
         XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
