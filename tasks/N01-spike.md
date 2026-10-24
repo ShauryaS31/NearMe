@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct 13:00 to 14:00 |
 | Depends on | N00 |
 | Assignee | codex, then owner on Mac |
@@ -77,3 +77,17 @@ xcodegen && xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING
   7. Activate Finder, return to NearMe, and verify the target changes to Finder and old ring/results clear. Activate System Settings again and verify the target switches back. During a pending model request, activate a different app and confirm its predecessor's result is discarded.
   8. Try an unrelated/unavailable goal and confirm clarification or a caught error leaves no ring. On a Mac with Foundation Models unavailable, confirm the availability reason/error is visible and the app remains responsive. Revoke Accessibility and try Next step to verify the permission path. Record any errors or partial-read warning alongside the kill-rule result.
 - Not done / risks / questions: This machine has no Swift or Xcode. GitHub CI remains the compile gate; neither Swift 6 compilation nor the new tests are verified here. The real System Settings AX labels, enabled attributes, 300 ms budget, content-container prioritization, model context capacity/accuracy, and ring focus/placement need Mac validation. Missing enabled attributes on actionable controls are treated conservatively as disabled; row static text can inherit an enabled parent. Labels exposed only through AXValue are deliberately unavailable. The 300 ms watchdog bounds the caller's wait subject to OS scheduling; synchronous AX IPC cannot be forcibly interrupted, but worker cancellation and per-message timeouts bound subsequent work. This spike does not observe same-app window changes during model inference; keep the target window still until a result, and use Clear ring/Next step after changes. No real kill-rule result or latency has been fabricated.
+
+## Review (round 1)
+- Date: 2026-10-24 12:40 AEDT
+- Verdict: CHANGES
+- CI run 40050658883 FAILED: NearMeCore does not compile (`CGRect` has no member minX/maxY/width/height; `ScreenElement` does not conform to Equatable; StepValidator.swift:14).
+
+Fixes (address every one):
+1. Compile: add `import CoreGraphics` to every NearMeCore source file and test file that uses CGRect/CGFloat (ElementList.swift, StepValidator.swift, GuidanceTests.swift). Keep Foundation. Then re-check every NearMeCore file and the app target for other compile errors you can spot by reading.
+2. AXReader.swift:34-38 and :63-65: the 300 ms watchdog and the walk's own 300 ms deadline race, so a partial walk is often discarded as timed out. Make the walk stop at 250 ms measured from one shared start time, and keep the watchdog at 300 ms from that same start as a backstop only. A walk that hits its budget returns its partial ElementList (panel notes "truncated"), not an error.
+3. AXReader.swift:139: a missing AXEnabled attribute must mean enabled (`?? true`). Only an explicit false marks an element disabled.
+4. AXReader.swift:131-132, labels (manager decision, logged in PLAN.md): for AXStaticText only, use AXValue as its label, because that is its visible text. Never read AXValue for any other role (no text fields, secure fields, sliders, checkboxes). For AXRow and AXCell with an empty title and description, label them from their first AXStaticText descendant (max 3 levels down, same budget).
+5. Breadcrumb: keep only the nearest labelled ancestor (one level) to keep the prompt well under the on-device context limit.
+6. Remove every em dash character (U+2014) from code and UI strings (DebugViewModel.swift:13, :15, :139; ContentView.swift:23, :66). Use "-" for blank values.
+7. Add unit tests if any NearMeCore behaviour changes. Nits, optional: drop `isFloatingPanel`; don't set `truncated` on cancellation.
