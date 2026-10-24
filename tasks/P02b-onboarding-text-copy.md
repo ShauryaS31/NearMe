@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (waits for the owner's Mac compile check of P02a) |
+| Status | todo (after P02c) |
 | Window | Sat 24 Oct, after P02a, before P03 |
-| Depends on | P02a |
+| Depends on | P02c |
 | Assignee | codex |
 | Branch | task/P02b-onboarding-text-copy |
 
@@ -27,6 +27,10 @@ AGENTS.md; docs/design/HIG-NOTES.md rules 2, 3, 7, 11, 12 and 13. Files: `NearMe
 - [ ] Explainer copy is exactly: "NearMe shows you practice copies of everyday apps, so you can learn safely. It never looks at your other apps."
 - [ ] The screen-permission step becomes an explainer, not a permission request: heading "How NearMe works" (or similar plain heading), one primary "continue" button, no "allow" / "don't allow". Rename `ScreenPermissionView` to `HowItWorksView`, the route `.screenPermission` to `.howItWorks`, and replace `resolveScreenPermission(granted:)` with a plain advance. Remove `didGrantScreenGuidancePermission` (set but never read)
 - [ ] No other screen or spoken line claims NearMe watches, sees or reads the screen or other apps (`git grep -n -i -E "see your screen|watch(es|ing)? (what|your)|on screen while"` over `NearMe/` returns nothing)
+
+### 7. Faster Mac runs: `quick` mode in scripts/mac-run.sh
+- [ ] `bash scripts/mac-run.sh quick`: no git checkout or pull (builds whatever is checked out); runs `xcodegen` only when `project.yml` or the list of files under `NearMe/`, `Shared/` and `NearMeTests/` changed since the last generation (store a hash in `build/.xcodegen-hash`); reuses the already booted simulator (boots only if none is booted); incremental build into `build/` (no clean); install and launch. Prints the elapsed seconds at the end
+- [ ] Usage line, README table and docs/MAC-TESTING.md list `quick`
 
 ## Verify (Mac)
 ```

@@ -32,3 +32,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 14:53 AEDT | P02a | codex | dev-report r2 | Addressed all seven review fixes; added five regression tests and typing-reset assertions; committed 126462a. Static checks passed; Swift/Xcode unavailable, Mac tests and runtime validation pending owner gate.
 - 2026-10-24 14:53 AEDT | P02a | claude | review r2 PASS | static review; merged to main; waiting for owner Mac compile before anything else
 - 2026-10-24 14:53 AEDT | P02b | claude | queued | onboarding at largest accessibility sizes; explainer copy 'never looks at your other apps'; screen-permission step becomes How NearMe works; waits for owner P02a compile check
+- 2026-10-24 15:13 AEDT | P02a | owner | mac compile OK | Foundation Models available in simulator; real-model test ran over 9 min, context size exceeded at about 7 min, fell back to keywords
+- 2026-10-24 15:13 AEDT | P02c | claude | dispatch r1 | sessions already fresh per call, so cause is a runaway response: token caps, greedy sampling, 10 s timeout, latency in log and badge, model eval behind NEARME_MODEL_EVAL=1, eval mode; branch task/P02c-model-calls-eval

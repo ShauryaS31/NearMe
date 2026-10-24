@@ -8,7 +8,7 @@ How we work: code is written on Windows by the factory (Claude Code manager, Cod
 | When | What |
 |---|---|
 | Sat 24 Oct | P01 import, P02 baseline on the Mac |
-| After P02 review | P02a, P02b, then P03; owner compile check after each merge |
+| After P02 review | P02a, P02c, P02b, then P03 |
 | Sun 25 Oct 13:00 | Freeze: no new features |
 | Sun 25 Oct 14:00 | Judging: submit to Community (primary) and Enterprise |
 
@@ -20,7 +20,8 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P01](../tasks/P01-ios-import.md) | Import the prior iPhone prototype as NearMe | - | codex, manager | done (Mac: 4/4 tests pass) |
 | [P02](../tasks/P02-baseline.md) | Baseline test on Mac (simulator + iPhone if available): what works, what breaks | P01 | owner, manager | done |
 | [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | done (Mac compile pending) |
-| [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy (no screen watching) | P02a | codex | todo (after owner's P02a compile check) |
+| [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | in_progress |
+| [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | todo |
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | todo |
 
 After P03: owner retests on the Mac before anything else is planned.
@@ -35,6 +36,8 @@ After P03: owner retests on the Mac before anything else is planned.
 
 - 2026-10-24 (owner): P02a now (debug badge, real errors, Type instead, parsing fixes, no invented facts), then P03 (generic Trip planner, Sydney places). Gate: builds on the Mac; owner retests.
 - 2026-10-24 (owner): no CI. After each merge, stop and wait for the owner's Mac compile check before the next task. P02b (large text onboarding, honest explainer) added after P02a, before P03.
+
+- 2026-10-24 (owner): Mac compile of P02a OK; Foundation Models is available in the simulator. The real-model test ran over 9 minutes and hit "transcript exceeded the model's context size" at about 7 minutes. P02c fixes this before P02b: fresh bounded session per call, latency logging and badge, model eval behind NEARME_MODEL_EVAL=1 with an `eval` mode. Then P02b (with `quick` mode), then P03.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
