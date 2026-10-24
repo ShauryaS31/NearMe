@@ -15,7 +15,8 @@
   "steps": [
     {
       "instruction": "Swipe down from the top-right corner of the screen.",
-      "ui_label_hint": "battery icon"
+      "ui_label_hint": "battery icon",
+      "label_is_nearby": true
     },
     {
       "instruction": "Touch and hold \"Focus\".",

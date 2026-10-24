@@ -27,7 +27,8 @@
     },
     {
       "instruction": "Tap the name of the network you want to join.",
-      "ui_label_hint": "Wi-Fi"
+      "ui_label_hint": "Wi-Fi",
+      "label_is_nearby": true
     },
     {
       "instruction": "Type the Wi-Fi password, then tap \"Join\".",

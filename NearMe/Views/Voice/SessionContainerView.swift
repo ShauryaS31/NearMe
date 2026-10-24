@@ -4,14 +4,10 @@ import SwiftUI
 
 struct SessionContainerView: View {
     @StateObject private var engine: TaskPlannerEngine
-    /// Called once the user taps "end session" (and the engine has finished
-    /// tearing down). There's no dedicated "session ended" screen in the
-    /// mockups — the caller (AppCoordinator, via ContentView) is expected to
-    /// navigate back to onboarding immediately.
-    let onSessionEnded: () -> Void
-
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var didRestore = false
     @MainActor
-    init(userName: String, onSessionEnded: @escaping () -> Void) {
+    init(userName: String) {
         let permissions = PermissionsManager()
         _engine = StateObject(wrappedValue: TaskPlannerEngine(
             brain: TaskPlannerBrainFactory.makeDefault(),
@@ -20,12 +16,15 @@ struct SessionContainerView: View {
             permissions: permissions,
             userName: userName
         ))
-        self.onSessionEnded = onSessionEnded
     }
 
     var body: some View {
         Group {
-            if let simulation = engine.tripPlannerPracticeViewModel {
+            if engine.isHome {
+                HelpHomeView(engine: engine)
+            } else if engine.coach != nil {
+                CoachView(engine: engine)
+            } else if let simulation = engine.tripPlannerPracticeViewModel {
                 TripPlannerPracticeView(viewModel: simulation,
                                         onRepeat: { engine.repeatPracticeCaption() },
                                         onSlower: { engine.repeatPracticeCaption(slower: true) },
@@ -37,19 +36,16 @@ struct SessionContainerView: View {
                                         onTalk: engine.userTappedToTalk,
                                         onTypeInstead: engine.useTypedInput, onEndSession: {
                     engine.endSession()
-                    onSessionEnded()
                 })
             } else if engine.plannerState == .openingApp {
                 OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
             } else {
                 VoiceSessionView(engine: engine, onEndSession: {
                     engine.endSession()
-                    onSessionEnded()
                 })
             }
         }
-        // Only the practice screens have moved to adaptive system colours.
-        .preferredColorScheme(isGuiding || engine.plannerState == .openingApp ? nil : .light)
+        .preferredColorScheme(nil)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
             Text("\(brainBadge) | \(engine.latestVoice ?? "Voice pending")\n\(engine.timingBadge)")
@@ -62,15 +58,19 @@ struct SessionContainerView: View {
                 .accessibilityLabel("Brain source: \(brainBadge). Voice: \(engine.latestVoice ?? "pending"). \(engine.timingBadge)")
         }
         #endif
-        .onAppear { engine.beginSession() }
-        .animation(.easeInOut(duration: 0.2), value: isGuiding)
+        .onAppear {
+            guard !didRestore else { return }
+            didRestore = true
+            engine.restoreCoach()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .background { engine.appEnteredBackground() }
+            if phase == .active { engine.appBecameActive() }
+        }
     }
 
     #if DEBUG
     private var brainBadge: String { engine.latestBrainSource.label }
     #endif
 
-    private var isGuiding: Bool {
-        engine.tripPlannerPracticeViewModel != nil
-    }
 }

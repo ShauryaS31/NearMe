@@ -27,7 +27,8 @@ final class OnDeviceVoiceInputTests: XCTestCase {
         let capability = FakeSpeechCapability()
         let router = VoiceInputRouter(capabilities: capability, locales: [Locale(identifier: "en-AU"), Locale(identifier: "fr-FR")])
         let engine = TaskPlannerEngine(brain: KeywordFallbackBrain(), voiceInput: router,
-                                       voiceOutput: InputTestOutput(), permissions: PermissionsManager(), userName: "")
+                                       voiceOutput: InputTestOutput(), permissions: PermissionsManager(), userName: "",
+                                       helpRouter: PracticeOnlyTestRouter(), coachService: CoachModelService(brain: nil))
         let typing = expectation(description: "Switches directly to typing")
         let subscription = engine.$isTyping.filter { $0 }.prefix(1).sink { _ in typing.fulfill() }
         engine.beginSession()

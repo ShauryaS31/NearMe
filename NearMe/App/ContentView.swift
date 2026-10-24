@@ -15,9 +15,7 @@ struct ContentView: View {
             case .howItWorks:
                 HowItWorksView()
             case .session:
-                SessionContainerView(userName: coordinator.userName) {
-                    coordinator.restartOnboarding()
-                }
+                SessionContainerView(userName: coordinator.userName)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: coordinator.route)

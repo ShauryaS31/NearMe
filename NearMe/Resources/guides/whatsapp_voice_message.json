@@ -24,7 +24,8 @@
     },
     {
       "instruction": "Tap the chat with the person you want to message.",
-      "ui_label_hint": "Chats"
+      "ui_label_hint": "Chats",
+      "label_is_nearby": true
     },
     {
       "instruction": "Slide your finger up from the microphone icon to the padlock to keep recording without holding it.",
@@ -34,7 +35,8 @@
     {
       "instruction": "Say your message while the recording timer is moving.",
       "ui_label_hint": "recording timer",
-      "verify": true
+      "verify": true,
+      "label_is_nearby": true
     },
     {
       "instruction": "Tap the paper plane icon to send your voice message.",

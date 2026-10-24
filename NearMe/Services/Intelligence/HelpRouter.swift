@@ -1,0 +1,124 @@
+import Foundation
+import NaturalLanguage
+
+nonisolated enum HelpRoute: Equatable, Sendable {
+    case practiceTripPlanner
+    case guide(String)
+    case general
+    var description: String {
+        switch self {
+        case .practiceTripPlanner: return "practiceTripPlanner"
+        case .guide(let id): return id
+        case .general: return "general"
+        }
+    }
+}
+
+nonisolated struct HelpChoice: Equatable, Sendable {
+    let route: HelpRoute
+    var person: String? = nil
+}
+
+nonisolated struct GuideCandidate: Sendable {
+    let id: String
+    let title: String
+    let aliases: [String]
+    let score: Double
+}
+
+nonisolated enum GuidePrefilter {
+    static let fallbackThreshold = 0.56
+
+    static func cosine(_ a: [Double], _ b: [Double]) -> Double {
+        guard a.count == b.count, !a.isEmpty else { return 0 }
+        let norm = sqrt(a.reduce(0) { $0 + $1 * $1 } * b.reduce(0) { $0 + $1 * $1 })
+        guard norm > 0 else { return 0 }
+        return zip(a, b).reduce(0) { $0 + $1.0 * $1.1 } / norm
+    }
+
+    static func words(_ text: String) -> Set<String> {
+        let synonyms = ["image": "photo", "images": "photo", "picture": "photo", "pictures": "photo",
+                        "photos": "photo", "writing": "text", "letters": "text", "larger": "bigger",
+                        "small": "bigger", "tiny": "bigger", "bhejna": "send", "bhejni": "send"]
+        let ignored = Set("i my me your the a an to on in with of for is it do how can you help want please hai pe ki karna".split(separator: " ").map(String.init))
+        return Set(text.lowercased().components(separatedBy: .alphanumerics.inverted)
+            .filter { !$0.isEmpty && !ignored.contains($0) }.map { synonyms[$0] ?? $0 })
+    }
+
+    static func keywordScore(_ request: String, guide: Guide) -> Double {
+        let query = words(request)
+        let aliasScore = ([guide.title] + guide.aliases).map { alias -> Double in
+            let tokens = words(alias)
+            guard !tokens.isEmpty else { return 0 }
+            return Double(query.intersection(tokens).count) / Double(max(tokens.count, query.count))
+        }.max() ?? 0
+        var score = aliasScore
+        if guide.id == "whatsapp_send_photo", query.contains("photo"), query.contains("send") {
+            score = max(score, query.contains("whatsapp") ? 1 : 0.9)
+        }
+        if guide.id == "whatsapp_video_call", query.isSuperset(of: ["video", "call"]) {
+            score = max(score, query.contains("facetime") ? 0.3 : 0.95)
+        }
+        if guide.id == "iphone_text_bigger", query.contains("text"), query.contains("bigger") {
+            score = 1
+        }
+        return score
+    }
+
+    /// Pure ranking: callers provide optional sentence vectors; tests need no model assets.
+    static func rank(request: String, guides: [Guide], requestVector: [Double]? = nil,
+                     guideVectors: [String: [Double]]? = nil) -> [GuideCandidate] {
+        guides.map { guide in
+            let keyword = keywordScore(request, guide: guide)
+            let score: Double
+            if let requestVector, let vector = guideVectors?[guide.id] {
+                score = 0.8 * keyword + 0.2 * max(0, cosine(requestVector, vector))
+            } else { score = keyword }
+            return GuideCandidate(id: guide.id, title: guide.title, aliases: guide.aliases, score: score)
+        }.sorted { $0.score == $1.score ? $0.id < $1.id : $0.score > $1.score }.prefix(3).map { $0 }
+    }
+
+    static func fallback(request: String, candidates: [GuideCandidate]) -> HelpChoice {
+        let route: HelpRoute
+        if let top = candidates.first, top.score >= fallbackThreshold { route = .guide(top.id) }
+        else if CoachText.matches(request, #"(?i)\b(trip|train|travel|journey|station|tram|bus)\b|\bfrom\s+.+\s+to\b|^to\s+|\bget to\b"#) { route = .practiceTripPlanner }
+        else { route = .general }
+        return HelpChoice(route: route, person: PersonNormalization.extract(from: request))
+    }
+}
+
+@MainActor
+protocol HelpRouting {
+    func route(_ request: String) async -> BrainAnswer<HelpChoice>
+}
+
+@MainActor
+final class HelpRouter: HelpRouting {
+    private let guides: [Guide]
+    private let service: CoachModelService
+    private let embedding: NLEmbedding?
+    private var vectors: [String: [Double]] = [:]
+
+    init(guides: [Guide], service: CoachModelService, useEmbeddings: Bool = true) {
+        self.guides = guides
+        self.service = service
+        embedding = useEmbeddings ? NLEmbedding.sentenceEmbedding(for: .english) : nil
+        for guide in guides {
+            vectors[guide.id] = embedding?.vector(for: ([guide.title] + guide.aliases).joined(separator: ". "))
+        }
+    }
+
+    func route(_ request: String) async -> BrainAnswer<HelpChoice> {
+        let candidates = GuidePrefilter.rank(request: request, guides: guides,
+                                            requestVector: embedding?.vector(for: request), guideVectors: vectors)
+        let fallback = GuidePrefilter.fallback(request: request, candidates: candidates)
+        return await service.perform("router", fallback: fallback) { brain in
+            let choice = try await brain.route(request: request, candidates: candidates)
+            let route: HelpRoute
+            if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }) { route = .general }
+            else { route = choice.route }
+            return HelpChoice(route: route, person: PersonNormalization.normalize(choice.person)
+                              ?? PersonNormalization.extract(from: request))
+        }
+    }
+}

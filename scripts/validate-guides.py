@@ -180,9 +180,11 @@ def validate_guide(data, path):
         if not isinstance(step, dict):
             problem(location, "must be an object")
             continue
-        fields(step, STEP_REQUIRED, {"verify"}, location)
+        fields(step, STEP_REQUIRED, {"verify", "label_is_nearby"}, location)
         if "verify" in step and type(step["verify"]) is not bool:
             problem(location + ".verify", "must be a boolean")
+        if "label_is_nearby" in step and type(step["label_is_nearby"]) is not bool:
+            problem(location + ".label_is_nearby", "must be a boolean")
         hint = step.get("ui_label_hint")
         if nonempty(hint, location + ".ui_label_hint") and '"' in hint:
             problem(location + ".ui_label_hint", "must not contain quote delimiters")

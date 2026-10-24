@@ -96,10 +96,12 @@ final class TaskPlannerEngineTests: XCTestCase {
     // Defaults are built in the body: default arguments are evaluated outside the main actor.
     private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain? = nil) -> TaskPlannerEngine {
         TaskPlannerEngine(brain: brain ?? CannedEngineBrain(), voiceInput: input ?? SilentInput(),
-                          voiceOutput: SilentOutput(), permissions: PermissionsManager(), userName: "")
+                          voiceOutput: SilentOutput(), permissions: PermissionsManager(), userName: "",
+                          helpRouter: PracticeOnlyTestRouter(), coachService: CoachModelService(brain: nil))
     }
 
-    private func submit(_ text: String, to engine: TaskPlannerEngine, until expected: TaskPlannerState = .idle) async {
+    private func submit(_ text: String, to engine: TaskPlannerEngine, until state: TaskPlannerState? = nil) async {
+        let expected = state ?? .idle
         let ready = expectation(description: "Planner reaches \(expected)")
         let subscription = engine.$plannerState.dropFirst().filter { $0 == expected }.prefix(1).sink { _ in
             ready.fulfill()

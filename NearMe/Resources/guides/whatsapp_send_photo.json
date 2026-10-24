@@ -24,7 +24,8 @@
     },
     {
       "instruction": "Tap the chat with the person you want to send the photo to.",
-      "ui_label_hint": "Chats"
+      "ui_label_hint": "Chats",
+      "label_is_nearby": true
     },
     {
       "instruction": "Tap \"+\" beside the message box.",
