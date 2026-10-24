@@ -13,7 +13,8 @@ cd ~/NearMe
 bash scripts/mac-run.sh          # newest iPhone simulator: build, boot, install, launch
 bash scripts/mac-run.sh quick    # current checkout, cached generation, booted iPhone, incremental build
 bash scripts/mac-run.sh test     # NearMeTests on the simulator
-bash scripts/mac-run.sh device   # connected iPhone (cable, unlocked, Trust this computer)
+bash scripts/mac-run.sh device   # connected iPhone (cable, unlocked, Trust this computer); never a simulator
+bash scripts/mac-run.sh device --device="Shaurya's iPhone"   # pick one when several are connected
 ```
 Add `--current` to test a task branch you have checked out. Build output is in `build/xcodebuild.log`; errors are printed on failure.
 

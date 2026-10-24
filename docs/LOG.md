@@ -74,3 +74,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:12 AEDT | P04b | claude | review r2 PASS | static; merged to main; next: P07 (top priority)
 - 2026-10-24 17:12 AEDT | P07 | claude | dispatch r1 | top priority; branch task/P07-guided-coach (P07a guides on main)
 - 2026-10-24 17:14 AEDT | P04b | claude (mac) | macfix | compile-only: SpeechTurn.swift:35 closestPlaces chain split into typed steps (Swift 6.4 type-check timeout), same logic; 101 tests, 100 pass, 1 skip
+- 2026-10-24 17:19 AEDT | P04b | claude | macfix review | 4110302 compile-only (closestPlaces chain split into typed steps, same filter, sort and tie-break), OK; Mac: 101 tests, 100 pass, 1 skip
+- 2026-10-24 17:19 AEDT | - | claude | tooling fix | mac-run.sh device: connected-iphone.py rejects simulators (reality, platform, simctl UDID cross-check), connected-only, --device=NAME option; 6 new script tests pass

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # NearMe Mac test helper.
-# Usage: bash scripts/mac-run.sh [sim|quick|device|test|eval|report] [--current]
+# Usage: bash scripts/mac-run.sh [sim|quick|device|test|eval|report] [--current] [--device=NAME]
 #   sim (default)  build for the newest iPhone simulator, boot it, install and launch
 #   quick          incremental build of the current checkout; reuse a booted iPhone
 #   device         build, install and launch on a connected iPhone (needs Config/Team.xcconfig)
@@ -8,6 +8,7 @@
 #   eval           run the three opt-in real-model sentences on that simulator
 #   report         write docs/mac-results/<timestamp>.md, then commit and push it
 #   --current      build the checked-out branch without switching to main or pulling
+#   --device=NAME  device mode: use this iPhone (name or id) when several are connected
 set -euo pipefail
 # Bash 4.4+ retains errexit inside command substitutions. macOS's Bash 3.2
 # lacks this option, so simulator helpers also check each fallible command.
@@ -15,12 +16,13 @@ shopt -s inherit_errexit 2>/dev/null || true
 SECONDS=0
 cd "$(dirname "$0")/.."
 
-mode="sim"; current=0
+mode="sim"; current=0; device_choice=""
 for arg in "$@"; do
   case "$arg" in
     sim|quick|device|test|eval|report) mode="$arg" ;;
     --current) current=1 ;;
-    *) echo "Usage: bash scripts/mac-run.sh [sim|quick|device|test|eval|report] [--current]"; exit 1 ;;
+    --device=*) device_choice="$arg" ;;
+    *) echo "Usage: bash scripts/mac-run.sh [sim|quick|device|test|eval|report] [--current] [--device=NAME]"; exit 1 ;;
   esac
 done
 
@@ -138,11 +140,13 @@ case "$mode" in
   device)
     [[ -f Config/Team.xcconfig ]] || {
       echo "Copy Config/Team.xcconfig.example to Config/Team.xcconfig and set your Personal Team ID."; exit 1; }
-    devices_json="$(mktemp)"
+    devices_json="$(mktemp)"; sims_json="$(mktemp)"
     xcrun devicectl list devices --json-output "$devices_json" > /dev/null
-    device="$(python3 scripts/connected-iphone.py "$devices_json")"
+    # Simulator UDIDs let the helper reject simulators even if devicectl lists them.
+    xcrun simctl list devices -j > "$sims_json" 2>/dev/null || echo '{}' > "$sims_json"
+    device="$(python3 scripts/connected-iphone.py "$devices_json" "$sims_json" ${device_choice:+"$device_choice"})" || { rm -f "$devices_json" "$sims_json"; exit 1; }
     [[ -n "$device" ]] || { echo "No connected iPhone id returned." >&2; exit 1; }
-    rm -f "$devices_json"
+    rm -f "$devices_json" "$sims_json"
     run_build -scheme NearMe -configuration Debug -destination "generic/platform=iOS" -derivedDataPath build -allowProvisioningUpdates build
     xcrun devicectl device install app --device "$device" build/Build/Products/Debug-iphoneos/NearMe.app
     xcrun devicectl device process launch --device "$device" au.nearme.ios
