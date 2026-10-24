@@ -8,7 +8,6 @@ enum BrainSource: String, Sendable {
     case onDeviceModelWithKeywordFill
     case keywordFallback
     case template
-    case practiceCard
 
     var label: String {
         switch self {
@@ -16,7 +15,6 @@ enum BrainSource: String, Sendable {
         case .onDeviceModelWithKeywordFill: return "On-device model + keyword fill"
         case .keywordFallback: return "Keyword fallback"
         case .template: return "Template"
-        case .practiceCard: return "practice card"
         }
     }
 }

@@ -26,7 +26,9 @@ struct TripPlannerPracticeView: View {
                 }
                 .overlayPreferenceValue(PracticeTargetPreference.self) { targets in
                     PracticeHighlightLayer(targets: targets,
-                        label: viewModel.step.targetLabel(destination: viewModel.destinationDisplayName))
+                        label: viewModel.step.targetLabel(destination: viewModel.destinationDisplayName),
+                        repeatRevision: viewModel.highlightRepeatRevision)
+                        .id(viewModel.step)
                 }
                 .clipped()
 

@@ -39,11 +39,13 @@ private struct PracticeTargetHint: ViewModifier {
 struct PracticeHighlightLayer: View {
     let targets: [String: PracticeTargetAnchor]
     let label: String
+    let repeatRevision: Int
 
     var body: some View {
         GeometryReader { proxy in
             if let target = targets[label] {
-                PracticeHighlight(frame: proxy[target.bounds], cornerRadius: target.cornerRadius)
+                PracticeHighlight(frame: proxy[target.bounds], cornerRadius: target.cornerRadius,
+                                  targetID: label, repeatRevision: repeatRevision)
             }
         }
         .allowsHitTesting(false)
@@ -54,6 +56,8 @@ struct PracticeHighlightLayer: View {
 struct PracticeHighlight: View {
     let frame: CGRect
     let cornerRadius: CGFloat
+    let targetID: String
+    let repeatRevision: Int
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
 
@@ -73,14 +77,16 @@ struct PracticeHighlight: View {
             }
             .fill(.black.opacity(0.25), style: FillStyle(eoFill: true))
 
-            if reduceMotion {
-                ring
-            } else {
-                ring.modifier(PracticeRingPulse())
-            }
+            ring.modifier(PracticeRingPulse(request: pulseRequest))
+                // Repeat starts from a fresh, fully opaque ring, even mid-cycle.
+                .id(repeatRevision)
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    private var pulseRequest: PracticePulseRequest {
+        PracticePulseRequest(targetID: targetID, repeatRevision: repeatRevision, reduceMotion: reduceMotion)
     }
 
     private var ring: some View {
@@ -91,14 +97,70 @@ struct PracticeHighlight: View {
     }
 }
 
+nonisolated struct PracticePulseRequest: Equatable {
+    let targetID: String
+    let repeatRevision: Int
+    let reduceMotion: Bool
+}
+
+/// Pure state: layout updates do not restart pulses; only a new target or Repeat does.
+nonisolated struct PracticeHighlightState {
+    private var request: PracticePulseRequest?
+    private(set) var pulsesRemaining = 0
+
+    mutating func update(_ next: PracticePulseRequest) {
+        let shouldRestart = request?.targetID != next.targetID
+            || request?.repeatRevision != next.repeatRevision
+        request = next
+        if next.reduceMotion {
+            pulsesRemaining = 0
+        } else if shouldRestart {
+            pulsesRemaining = 3
+        }
+    }
+
+    mutating func completeCycle() {
+        pulsesRemaining = max(0, pulsesRemaining - 1)
+    }
+}
+
 private struct PracticeRingPulse: ViewModifier {
+    let request: PracticePulseRequest
+    @State private var highlightState = PracticeHighlightState()
     @State private var dimmed = false
 
     func body(content: Content) -> some View {
         content
-            .opacity(dimmed ? 0.76 : 1)
-            // Two 0.6-second legs make one 1.2-second pulse; only the ring animates.
-            .animation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true), value: dimmed)
-            .onAppear { dimmed = true }
+            .opacity(request.reduceMotion ? 1 : (dimmed ? 0.76 : 1))
+            .task(id: request) { await pulse(for: request) }
+    }
+
+    @MainActor
+    private func pulse(for request: PracticePulseRequest) async {
+        guard !Task.isCancelled else { return }
+        highlightState.update(request)
+        var reset = Transaction(animation: nil)
+        reset.disablesAnimations = true
+        withTransaction(reset) { dimmed = false }
+
+        do {
+            guard highlightState.pulsesRemaining > 0 else { return }
+            // Let the opaque starting frame appear before the first animated leg.
+            try await Task.sleep(for: .milliseconds(50))
+            try Task.checkCancellation()
+            while highlightState.pulsesRemaining > 0 {
+                // Two 0.6-second legs make one cycle; only ring opacity changes.
+                withAnimation(.easeInOut(duration: 0.6)) { dimmed = true }
+                try await Task.sleep(for: .milliseconds(600))
+                try Task.checkCancellation()
+                withAnimation(.easeInOut(duration: 0.6)) { dimmed = false }
+                try await Task.sleep(for: .milliseconds(600))
+                try Task.checkCancellation()
+                highlightState.completeCycle()
+            }
+        } catch {
+            // A new target, Repeat, Reduce Motion or removal cancels this run.
+            // Do not let an old task mutate the replacement run's state.
+        }
     }
 }

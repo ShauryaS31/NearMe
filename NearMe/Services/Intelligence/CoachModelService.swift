@@ -69,7 +69,7 @@ final class CoachModelService {
     }
 
     func generalStuck(step: String) async -> BrainAnswer<String> {
-        await perform("stuck", fallback: CoachText.generalFallback) { brain in
+        await perform("generalStuck", fallback: CoachText.generalFallback) { brain in
             let text = try await brain.generalStuck(step: step)
             guard CoachText.validGeneral([text]) else { throw CoachModelError.invalid }
             return text

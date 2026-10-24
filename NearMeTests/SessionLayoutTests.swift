@@ -4,6 +4,105 @@ import XCTest
 
 @MainActor
 final class SessionLayoutTests: XCTestCase {
+    func testNewHighlightRunsExactlyThreeCyclesThenStaysStatic() {
+        var state = PracticeHighlightState()
+        let request = PracticePulseRequest(targetID: "Journey Planner", repeatRevision: 0, reduceMotion: false)
+        state.update(request)
+        XCTAssertEqual(state.pulsesRemaining, 3)
+        for remaining in [2, 1, 0] {
+            state.completeCycle()
+            XCTAssertEqual(state.pulsesRemaining, remaining)
+            state.update(request) // An anchor/layout update must not restart the sequence.
+            XCTAssertEqual(state.pulsesRemaining, remaining)
+        }
+        state.completeCycle()
+        XCTAssertEqual(state.pulsesRemaining, 0)
+    }
+
+    func testRepeatResetsHighlightDuringAndAfterPulsing() {
+        var state = PracticeHighlightState()
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 0, reduceMotion: false))
+        state.completeCycle()
+        XCTAssertEqual(state.pulsesRemaining, 2)
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 1, reduceMotion: false))
+        XCTAssertEqual(state.pulsesRemaining, 3)
+        for _ in 0..<3 { state.completeCycle() }
+        XCTAssertEqual(state.pulsesRemaining, 0)
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 2, reduceMotion: false))
+        XCTAssertEqual(state.pulsesRemaining, 3)
+    }
+
+    func testReduceMotionSuppressesNewTargetRepeatAndAnActivePulse() {
+        var state = PracticeHighlightState()
+        state.update(PracticePulseRequest(targetID: "Journey Planner", repeatRevision: 0, reduceMotion: true))
+        XCTAssertEqual(state.pulsesRemaining, 0)
+        state.update(PracticePulseRequest(targetID: "Journey Planner", repeatRevision: 1, reduceMotion: true))
+        XCTAssertEqual(state.pulsesRemaining, 0)
+        state.update(PracticePulseRequest(targetID: "Choose origin", repeatRevision: 1, reduceMotion: true))
+        state.completeCycle()
+        XCTAssertEqual(state.pulsesRemaining, 0)
+
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 1, reduceMotion: false))
+        XCTAssertEqual(state.pulsesRemaining, 3)
+        state.completeCycle()
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 1, reduceMotion: true))
+        XCTAssertEqual(state.pulsesRemaining, 0)
+        state.update(PracticePulseRequest(targetID: "Search", repeatRevision: 1, reduceMotion: false))
+        XCTAssertEqual(state.pulsesRemaining, 0, "Disabling Reduce Motion alone does not request another pulse")
+    }
+
+    func testChangingPracticeStepResetsPulsesForItsNewTarget() {
+        let intent = JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: "Central", mode: nil)
+        let practice = TripPlannerPracticeViewModel(intent: intent)
+        var state = PracticeHighlightState()
+        for step in PracticeStep.allCases {
+            XCTAssertEqual(practice.step, step)
+            let targetID = practice.step.targetLabel(destination: practice.destinationDisplayName)
+            state.update(PracticePulseRequest(targetID: targetID, repeatRevision: practice.highlightRepeatRevision,
+                                             reduceMotion: false))
+            XCTAssertEqual(state.pulsesRemaining, 3, "\(step)")
+            for _ in 0..<3 { state.completeCycle() }
+            XCTAssertEqual(state.pulsesRemaining, 0)
+            practice.completeCurrentStep()
+        }
+    }
+
+    func testFreshEngineShowsPendingUntilFirstUnderstanding() async {
+        let engine = makeEngine(brain: LayoutBrain(source: .onDeviceModel))
+        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.debugBadge.lines[0], "Understood: Pending | reply: template")
+        engine.useTypedInput()
+        await submit("to Town Hall", to: engine)
+        XCTAssertEqual(engine.latestBrainSource, .onDeviceModel)
+        engine.endSession()
+    }
+
+    func testSpokenRepeatAndPracticeRepeatReplayCurrentHighlight() async throws {
+        let input = LayoutInput()
+        let output = LayoutOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        let practice = try XCTUnwrap(engine.tripPlannerPracticeViewModel)
+        output.suspend = true
+
+        engine.repeatPracticeCaption()
+        XCTAssertEqual(practice.highlightRepeatRevision, 1)
+        await eventually { output.pending != nil }
+        engine.stopSessionSpeech()
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        let transcript = try XCTUnwrap(input.pending)
+        input.pending = nil
+        transcript.resume(returning: "repeat")
+        await eventually { output.pending != nil }
+        XCTAssertEqual(practice.highlightRepeatRevision, 2)
+        XCTAssertEqual(practice.step, .forYouOpened)
+        XCTAssertEqual(output.lines.last, practice.currentCaption)
+        engine.endSession()
+    }
+
     func testRouterFallbackReasonSurvivesCoachReplyAndClearsOnCommand() async throws {
         let engine = makeEngine(router: LayoutFallbackRouter(), guides: try GuideLibrary.load())
         engine.useTypedInput()
@@ -92,8 +191,10 @@ final class SessionLayoutTests: XCTestCase {
         await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
         let practice = try XCTUnwrap(engine.tripPlannerPracticeViewModel)
         XCTAssertEqual(SessionDockAction.allCases.map(\.title), ["Repeat", "Slower", "Type instead", "End session"])
+        XCTAssertEqual(practice.highlightRepeatRevision, 0)
         output.suspend = true
         engine.performDockAction(.repeatStep)
+        XCTAssertEqual(practice.highlightRepeatRevision, 1)
         await eventually { output.pending != nil }
         XCTAssertTrue(engine.isVoiceOutputActive)
         XCTAssertEqual(output.lines.last, practice.currentCaption)
@@ -105,6 +206,7 @@ final class SessionLayoutTests: XCTestCase {
         XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
         XCTAssertEqual(practice.step, .forYouOpened)
         engine.performDockAction(.slower)
+        XCTAssertEqual(practice.highlightRepeatRevision, 1)
         await eventually { output.pending != nil }
         XCTAssertTrue(output.slower)
         XCTAssertEqual(output.lines.last, practice.currentCaption)
@@ -116,6 +218,7 @@ final class SessionLayoutTests: XCTestCase {
         XCTAssertTrue(engine.canSubmitTypedInput)
         engine.submitTypedInput("repeat")
         await eventually { output.pending != nil }
+        XCTAssertEqual(practice.highlightRepeatRevision, 2)
         engine.performDockAction(.endSession)
         XCTAssertTrue(engine.isHome)
         XCTAssertNil(engine.tripPlannerPracticeViewModel)
