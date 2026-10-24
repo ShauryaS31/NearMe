@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done |
 | Window | Sat 24 Oct 14:00 to 15:00 |
 | Depends on | N01 |
 | Assignee | codex |
@@ -50,3 +50,10 @@ swift test --package-path NearMeCore
   4. Change the fixture title using `sed -i '' 's/Bankstown/Payment/' /tmp/nearme-privacy.html`; reload Safari with Command-R and request another step. Expect blocking before either breakpoint and one explanation. Repeat with each keyword from criterion 5, including uppercase and `card number`/`one-time code`; restore Bankstown and confirm guidance resumes.
   5. While blocked speech is playing, press Clear ring or activate a different target app; speech must stop. On a safe System Settings window, request a normal step and confirm normal guidance still works. Repeat contact/truncation checks from the unit suite on the Mac before accepting the change.
 - Not done / risks / questions: Runtime/strict-concurrency compilation, detector behaviour on the target OS, AX latency, and audible once-only behaviour require Mac/CI verification. Contact detection is heuristic, not arbitrary-secret anonymisation. The task supplies six password/security-app bundle IDs but no banking-app bundle IDs; the exact supplied list is implemented and banking screens are covered by the specified title keywords. The existing spike reads manually; continuously detecting a same-app window change while planning is outside N03. The new fail-closed title policy may reject apps that do not expose a title.
+
+## Review (round 1)
+- Date: 2026-10-24 13:50 AEDT
+- Verdict: PASS
+- CI run 40055664698 green: 17 NearMeCore tests passed, BUILD SUCCEEDED (only the 3 known unsafeBitCast style hints).
+- Criteria: secure fields dropped (reader and sanitise); block list exact ids and whole-word title regex; bundle block happens before any AX message, title block before the tree walk, and an unreadable title fails closed; sanitise masks then truncates to 80; goal, instruction and errors masked; blocked state clears ring, skips the model, speaks once. Tests cover every listed case including "Bankstown".
+- PENDING MAC: M7 in PLAN.md.
