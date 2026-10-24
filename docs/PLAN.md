@@ -30,10 +30,10 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | done (owner verify-step check pending) |
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
 | [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | done (owner compile and phrase-1 check pending) |
-| [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | in_progress |
+| [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | done (Mac check pending) |
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | todo |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P09 | codex | todo (only if done by Sun 12:00) |
-| [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | todo |
+| [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | in_progress |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo (after P11; owner recording the voice clone) |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | dropped (privacy screen moved to P05) |
 | [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | dropped |

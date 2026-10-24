@@ -99,3 +99,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:14 AEDT | N07c | codex | dev-report r1 | three-cycle practice pulse, Repeat replay, Reduce Motion and P07b nits; commit 5ef50d8; Mac test and visual gate pending
 - 2026-10-24 18:14 AEDT | P07c | codex | dev-report r1 | pulse 3 cycles then static, Repeat replays, Reduce Motion static, nits (committed by manager)
 - 2026-10-24 18:14 AEDT | P07c | claude | review r1 PASS | static; merged to main; next P11 in parallel with owner's compile and phrase-1 check
+- 2026-10-24 18:15 AEDT | P11 | claude | dispatch r1 | Live Activity coach; owner checks P07b/P07c compile and phrase 1 in parallel (macfix allowed)

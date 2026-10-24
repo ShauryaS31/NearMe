@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (after P07b) |
+| Status | in_progress |
 | Window | Sat 24 Oct evening |
 | Depends on | P07b |
 | Assignee | codex, then owner on a real iPhone |
