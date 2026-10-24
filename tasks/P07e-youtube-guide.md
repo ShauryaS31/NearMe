@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | done (iPhone check pending) |
+| Status | done (iPhone PASS) |
 | Window | Sat 24 Oct, target merged by 19:35 (venue closes 19:55) |
 | Depends on | P11 |
 | Assignee | codex (main folder, Lane A, highest priority) |

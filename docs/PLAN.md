@@ -35,7 +35,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | in_progress (lane worker, worktree ../NearMe-p09, task/P09-ui-polish) |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P11 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | done (combined iPhone check pending) |
-| [P07e](../tasks/P07e-youtube-guide.md) | YouTube guide: play a song (song name, auto-open youtube://) | P11 | codex (Lane A) | done (iPhone check pending) |
+| [P07e](../tasks/P07e-youtube-guide.md) | YouTube guide: play a song (song name, auto-open youtube://) | P11 | codex (Lane A) | done (iPhone PASS) |
 | [P13](../tasks/P13-see-my-screen.md) | See my screen: broadcast extension, on-device text recognition, page-aware coaching | P07e, P11 | codex, owner | done (spike; owner signed build pending) |
 | [P13b](../tasks/P13b-observe-recheck.md) | Observe-recheck loop, YouTube only: snapshots with on-device text recognition, ScreenInterpreter, page-driven coaching, honest copy | P13 | codex | in_progress (overnight) |
 | [P12](../tasks/P12-video-practice.md) | Video app practice (unbranded), offered after the YouTube guide | P11 | codex (Lane B, worktree) | parked (merged 19:17, reverted 271bb84; branch kept) |
@@ -104,3 +104,4 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P07c: each practice step's ring pulses 3 times (about 3.6 s) then holds still; dock Repeat and spoken "repeat" pulse again, Slower does not; Reduce Motion on: ring never moves, 6 pt; Debug badge shows Pending before the first turn.
 - [ ] P13 spike (device build tonight if possible): Personal Team signs the App Group for app and broadcast extension; the picker starts the broadcast; the Debug badge shows the heartbeat.
 - [ ] P13b (iPhone, signed): start sharing, "play tum hi ho on youtube": instructions follow the observed page (home, search, results, watching), Done on an unchanged screen re-prompts instead of advancing, a sign-in prompt is handled first, leaving YouTube offers reopen, stopping sharing gives "I can't see your screen right now" and manual mode; debug line shows age, app, page, evidence; Console shows extension memory well under the limit.
+- [x] P07e (iPhone, 19:34): YouTube guide works; song name used in the steps; YouTube auto-opens; the Island shows the steps over YouTube; "play this song" asks which song.
