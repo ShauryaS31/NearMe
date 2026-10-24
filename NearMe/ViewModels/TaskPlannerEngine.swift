@@ -114,7 +114,6 @@ final class TaskPlannerEngine: ObservableObject {
         guidanceSpeechGeneration += 1
         voiceInput.stopListening()
         stopOutput()
-        tripPlannerPracticeViewModel = nil
         plannerState = .idle
         isStartingListening = true
         isTyping = false
@@ -234,17 +233,8 @@ final class TaskPlannerEngine: ObservableObject {
 
     // MARK: - Core loop
 
-    /// FIX: `updatesPlannerState` defaults to `true` for the plain voice loop
-    /// (idle/listening/thinking screens, which rely on `.speaking(text)` to
-    /// show the right orb state and subtitle). The two guided-walkthrough
-    /// call sites below pass `false`: they set `plannerState = .guiding(step)`
-    /// immediately before calling this, and `TripPlannerPracticeView` already shows
-    /// its own caption via `viewModel.currentCaption` — so if this function
-    /// were allowed to overwrite `plannerState` to `.speaking(text)` here, it
-    /// would immediately un-set `.guiding`, and `SessionContainerView` would
-    /// switch straight back to the plain voice screen before the simulated
-    /// trip planner screen was ever actually visible. That was the root cause of the
-    /// guided walkthrough never visibly appearing.
+    /// Plain voice turns publish their spoken text through the planner state.
+    /// Practice captions keep the guiding state and use the practice's own caption.
     private func speak(_ text: String, generation: Int, updatesPlannerState: Bool = true, greeting: Bool = false) async {
         guard isCurrent(generation) else { return }
         if updatesPlannerState {
@@ -348,6 +338,15 @@ final class TaskPlannerEngine: ObservableObject {
         lastErrorMessage = nil
         VoiceDiagnostics.logger.debug("User input: \(transcript, privacy: .private)")
         conversation.append(ConversationTurn(speaker: .user, text: transcript))
+        if tripPlannerPracticeViewModel != nil {
+            let command = transcript.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters)).lowercased()
+            switch command {
+            case "stop", "end": cancelCurrentAction()
+            case "slower": repeatPracticeCaption(slower: true)
+            default: repeatPracticeCaption()
+            }
+            return
+        }
         await handle(transcript: transcript, generation: generation)
     }
 
@@ -448,7 +447,9 @@ final class TaskPlannerEngine: ObservableObject {
         let simulation = TripPlannerPracticeViewModel(intent: currentIntent)
         simulation.onStepAdvanced = { [weak self] step in
             guard let self else { return }
-            self.guidanceSpeechGeneration += 1
+            // A voice interruption changes the session generation but keeps this practice.
+            self.stopPracticeSpeech()
+            let generation = self.sessionGeneration
             let speechGeneration = self.guidanceSpeechGeneration
             Task { await self.handleGuidanceAdvanced(step, generation: generation, speechGeneration: speechGeneration) }
         }
@@ -477,9 +478,14 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func stopPracticeSpeech() {
-        guard tripPlannerPracticeViewModel != nil else { return }
+        guard let practice = tripPlannerPracticeViewModel else { return }
+        sessionGeneration += 1
         guidanceSpeechGeneration += 1
+        voiceInput.stopListening()
         stopOutput()
+        isPreparingSpeech = false
+        lastErrorMessage = nil
+        plannerState = .guiding(practice.step)
     }
 
     private func stopOutput() {
@@ -573,11 +579,15 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func repeatPracticeCaption(slower: Bool = false) {
-        guard let step = tripPlannerPracticeViewModel?.step else { return }
+        guard let practice = tripPlannerPracticeViewModel else { return }
+        stopPracticeSpeech()
         voiceOutput.setSlower(slower)
         let generation = sessionGeneration
-        guidanceSpeechGeneration += 1
         let speechGeneration = guidanceSpeechGeneration
-        Task { await handleGuidanceAdvanced(step, generation: generation, speechGeneration: speechGeneration) }
+        Task {
+            guard self.isCurrent(generation), speechGeneration == self.guidanceSpeechGeneration else { return }
+            // Repeating a caption must not advance or finish the practice, even on its last step.
+            await self.speak(practice.currentCaption, generation: generation, updatesPlannerState: false)
+        }
     }
 }

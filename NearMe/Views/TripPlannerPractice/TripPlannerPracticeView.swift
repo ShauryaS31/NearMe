@@ -8,6 +8,9 @@ struct TripPlannerPracticeView: View {
     var onSlower: () -> Void = {}
     var onStop: () -> Void = {}
     var isSpeaking = false
+    var plannerState: TaskPlannerState
+    var isStartingListening = false
+    var lastErrorMessage: String?
     var onTalk: () -> Void = {}
     var onTypeInstead: () -> Void = {}
     var onEndSession: () -> Void = {}
@@ -17,7 +20,14 @@ struct TripPlannerPracticeView: View {
             VStack(spacing: TTSpacing.md) {
                 CaptionBubble(text: viewModel.currentCaption, onDismiss: nil)
                     .padding(.horizontal, TTSpacing.md)
-                VoiceOrbButton(state: isSpeaking ? .speaking : .idle, action: onTalk)
+                VoiceOrbButton(state: orbState, instruction: orbInstruction, action: onTalk)
+                    .disabled(plannerState == .finishing || plannerState == .thinking || isStartingListening)
+                if let lastErrorMessage {
+                    Text(lastErrorMessage)
+                        .font(.body)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Group {
                     switch viewModel.step.screen {
                     case .forYou:
@@ -48,5 +58,16 @@ struct TripPlannerPracticeView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .accessibilityElement(children: .contain)
+    }
+
+    private var orbState: VoiceOrbState {
+        if plannerState == .listening { return .listening }
+        return isSpeaking ? .speaking : .idle
+    }
+
+    private var orbInstruction: String {
+        if isStartingListening { return "Getting ready to listen..." }
+        if plannerState == .finishing { return "Finishing..." }
+        return orbState.instruction
     }
 }

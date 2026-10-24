@@ -25,23 +25,23 @@ struct SessionContainerView: View {
 
     var body: some View {
         Group {
-            switch engine.plannerState {
-            case .guiding:
-                if let simulation = engine.tripPlannerPracticeViewModel {
-                    TripPlannerPracticeView(viewModel: simulation,
-                                            onRepeat: { engine.repeatPracticeCaption() },
-                                            onSlower: { engine.repeatPracticeCaption(slower: true) },
-                                            onStop: engine.stopPracticeSpeech,
-                                            isSpeaking: engine.isVoiceOutputActive,
-                                            onTalk: engine.userTappedToTalk,
-                                            onTypeInstead: engine.useTypedInput, onEndSession: {
-                        engine.endSession()
-                        onSessionEnded()
-                    })
-                }
-            case .openingApp:
+            if let simulation = engine.tripPlannerPracticeViewModel {
+                TripPlannerPracticeView(viewModel: simulation,
+                                        onRepeat: { engine.repeatPracticeCaption() },
+                                        onSlower: { engine.repeatPracticeCaption(slower: true) },
+                                        onStop: engine.stopPracticeSpeech,
+                                        isSpeaking: engine.isVoiceOutputActive,
+                                        plannerState: engine.plannerState,
+                                        isStartingListening: engine.isStartingListening,
+                                        lastErrorMessage: engine.lastErrorMessage,
+                                        onTalk: engine.userTappedToTalk,
+                                        onTypeInstead: engine.useTypedInput, onEndSession: {
+                    engine.endSession()
+                    onSessionEnded()
+                })
+            } else if engine.plannerState == .openingApp {
                 OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
-            default:
+            } else {
                 VoiceSessionView(engine: engine, onEndSession: {
                     engine.endSession()
                     onSessionEnded()
@@ -71,7 +71,6 @@ struct SessionContainerView: View {
     #endif
 
     private var isGuiding: Bool {
-        if case .guiding = engine.plannerState { return true }
-        return false
+        engine.tripPlannerPracticeViewModel != nil
     }
 }

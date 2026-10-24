@@ -90,25 +90,125 @@ final class VoiceReviewTests: XCTestCase {
         engine.endSession()
     }
 
-    func testBargeInDuringPracticeCaptionStopsAndListens() async {
+    func testBargeInDuringPracticeCaptionKeepsViewModelAndStepAndListens() async {
         let input = ReviewInput()
         let output = ReviewOutput()
         let engine = makeEngine(input: input, output: output)
         engine.useTypedInput()
         engine.submitTypedInput("from Central to Town Hall")
         await eventually { engine.tripPlannerPracticeViewModel != nil && output.lines.count == 2 && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
         output.suspend = true
-        engine.repeatPracticeCaption()
+        practice.completeCurrentStep()
         await eventually { output.pending != nil }
+        XCTAssertEqual(practice.step, .tapFrom)
         let lines = output.lines
         let stops = output.stops
         engine.userTappedToTalk()
         XCTAssertEqual(output.stops, stops + 1)
         XCTAssertNil(output.pending)
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .tapFrom)
         await eventually { input.pending != nil }
         XCTAssertEqual(engine.plannerState, .listening)
         XCTAssertEqual(output.lines, lines, "Interrupted caption is never replayed")
-        XCTAssertNil(engine.tripPlannerPracticeViewModel)
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .tapFrom)
+        input.emit("repeat")
+        engine.userTappedToTalk()
+        XCTAssertEqual(engine.plannerState, .finishing)
+        engine.userTappedToTalk()
+        XCTAssertEqual(input.finishes, 1)
+        input.deliverResult()
+        await eventually { output.pending != nil }
+        XCTAssertEqual(output.lines.last, practice.currentCaption)
+        XCTAssertEqual(engine.plannerState, .guiding(.tapFrom))
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        engine.stopPracticeSpeech()
+        // The callback must use the new generation after barge-in.
+        practice.completeCurrentStep()
+        await eventually { output.pending != nil }
+        XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
+        XCTAssertEqual(output.lines.last, practice.currentCaption)
+        engine.endSession()
+    }
+
+    func testPracticeVoiceCommandsRepeatCurrentFinalCaptionWithoutCallingBrain() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let brain = ReviewBrain()
+        let engine = makeEngine(input: input, output: output, brain: brain)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        output.suspend = true
+        while practice.step != .showingResults { practice.completeCurrentStep() }
+        await eventually { output.pending != nil }
+        for command in [" Slower! ", "Repeat.", "Where should I tap?"] {
+            engine.userTappedToTalk()
+            await eventually { input.pending != nil }
+            output.suspend = false
+            let count = output.lines.count
+            engine.userTappedToTalk()
+            input.deliverResult(command)
+            await eventually { output.lines.count == count + 1 && !engine.isVoiceOutputActive }
+            // A repeated final caption must not trigger the normal completion delay.
+            try? await Task.sleep(for: .milliseconds(450))
+            XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+            XCTAssertEqual(practice.step, .showingResults)
+            XCTAssertEqual(engine.plannerState, .guiding(.showingResults))
+            XCTAssertEqual(output.lines.last, practice.currentCaption)
+            XCTAssertEqual(input.starts, input.finishes, "No automatic re-listen")
+        }
+        XCTAssertEqual(output.slowerValues, [true, false, false])
+        XCTAssertEqual(brain.intentCalls, 1, "Practice input bypasses journey extraction")
+        XCTAssertEqual(brain.placeCalls, 0)
+        engine.endSession()
+    }
+
+    func testSpokenStopAndEndExitPractice() async {
+        for command in ["Stop.", " END! "] {
+            let input = ReviewInput()
+            let output = ReviewOutput()
+            let brain = ReviewBrain()
+            let engine = makeEngine(input: input, output: output, brain: brain)
+            engine.useTypedInput()
+            engine.submitTypedInput("from Central to Town Hall")
+            await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+            let lines = output.lines
+            engine.userTappedToTalk()
+            await eventually { input.pending != nil }
+            engine.userTappedToTalk()
+            input.deliverResult(command)
+            await eventually { engine.tripPlannerPracticeViewModel == nil }
+            XCTAssertEqual(engine.plannerState, .idle)
+            XCTAssertEqual(engine.currentIntent.kind, .unknown)
+            XCTAssertEqual(output.lines, lines)
+            XCTAssertEqual(input.starts, 1)
+            XCTAssertEqual(brain.intentCalls, 1)
+            engine.endSession()
+        }
+    }
+
+    func testNoWordsDuringPracticeKeepsStepAndStaysIdle() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        engine.userTappedToTalk()
+        input.deliverResult()
+        await eventually { engine.plannerState == .idle }
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .forYouOpened)
+        XCTAssertEqual(input.starts, 1)
+        XCTAssertEqual(engine.lastErrorMessage, "I didn't hear anything. Tap and try again, or type instead.")
+        XCTAssertEqual(output.lines.last, engine.lastErrorMessage)
         engine.endSession()
     }
 
@@ -773,6 +873,7 @@ private final class ReviewInput: VoiceInputService {
 @MainActor
 private final class ReviewOutput: VoiceOutputService {
     var lines: [String] = []
+    var slowerValues: [Bool] = []
     var onPlaybackStarted: (() -> Void)?
     var suspend = false
     var stops = 0
@@ -782,6 +883,7 @@ private final class ReviewOutput: VoiceOutputService {
         if suspend { await withCheckedContinuation { pending = $0 } }
     }
     func stop() { stops += 1; let continuation = pending; pending = nil; continuation?.resume() }
+    func setSlower(_ slower: Bool) { slowerValues.append(slower) }
 }
 
 @MainActor
