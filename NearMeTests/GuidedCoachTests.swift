@@ -99,6 +99,9 @@ final class GuidedCoachTests: XCTestCase {
                 engine.useTypedInput()
                 engine.submitTypedInput(reply)
                 await eventually { engine.coach != nil && engine.plannerState == .idle }
+                XCTAssertTrue(engine.offersScreenSharing)
+                engine.declineScreenSharing()
+                await eventually { !engine.offersScreenSharing && engine.plannerState == .idle && engine.coach?.text != ScreenSharingCopy.offer }
                 for index in 1...2 {
                     engine.coachCommand(.next)
                     await eventually { engine.coach?.stepIndex == index && engine.plannerState == .idle }
@@ -607,7 +610,8 @@ final class GuidedCoachTests: XCTestCase {
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
             coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
-            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater())
+            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater(),
+            screenSource: FakeScreenSnapshotSource())
     }
 
     private func eventually(_ condition: () -> Bool) async {

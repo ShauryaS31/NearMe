@@ -142,6 +142,7 @@ final class VoiceReviewTests: XCTestCase {
         engine.submitTypedInput("from Central to Town Hall")
         await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
         guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        let slowerValuesAtPracticeStart = output.slowerValues.count
         output.suspend = true
         while practice.step != .showingResults { practice.completeCurrentStep() }
         await eventually { output.pending != nil }
@@ -161,7 +162,7 @@ final class VoiceReviewTests: XCTestCase {
             XCTAssertEqual(output.lines.last, practice.currentCaption)
             XCTAssertEqual(input.starts, input.finishes, "No automatic re-listen")
         }
-        XCTAssertEqual(output.slowerValues, [true, false, false])
+        XCTAssertEqual(Array(output.slowerValues.dropFirst(slowerValuesAtPracticeStart)), [true, false, false])
         XCTAssertEqual(brain.intentCalls, 1, "Practice input bypasses journey extraction")
         XCTAssertEqual(brain.placeCalls, 0)
         engine.endSession()

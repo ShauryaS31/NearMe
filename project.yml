@@ -86,6 +86,10 @@ targets:
     dependencies:
       - sdk: ReplayKit.framework
       - sdk: CoreMedia.framework
+      - sdk: Vision.framework
+      - sdk: CoreImage.framework
+      - sdk: CoreVideo.framework
+      - sdk: ImageIO.framework
   NearMeLiveActivity:
     type: app-extension
     platform: iOS

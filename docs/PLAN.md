@@ -37,8 +37,8 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | done (combined iPhone check pending) |
 | [P07e](../tasks/P07e-youtube-guide.md) | YouTube guide: play a song (song name, auto-open youtube://) | P11 | codex (Lane A) | done (iPhone PASS) |
 | [P13](../tasks/P13-see-my-screen.md) | See my screen: broadcast extension, on-device text recognition, page-aware coaching | P07e, P11 | codex, owner | done (App Group signs with Personal Team; heartbeat result pending) |
-| [P13b](../tasks/P13b-observe-recheck.md) | Observe-recheck loop, YouTube only: snapshots with on-device text recognition, ScreenInterpreter, page-driven coaching, honest copy | P13 | codex | in_progress (overnight) |
-| [P13c](../tasks/P13c-hands-free-voice.md) | Hands-free voice commands in the other app (background mic, short command list, recheck per command) | P13b | codex | todo (after P13b, same night) |
+| [P13b](../tasks/P13b-observe-recheck.md) | Observe-recheck loop, YouTube only: snapshots with on-device text recognition, ScreenInterpreter, page-driven coaching, honest copy | P13 | codex | done (device test Sun 10:00) |
+| [P13c](../tasks/P13c-hands-free-voice.md) | Hands-free voice commands in the other app (background mic, short command list, recheck per command) | P13b | codex | in_progress |
 | [P12](../tasks/P12-video-practice.md) | Video app practice (unbranded), offered after the YouTube guide | P11 | codex (Lane B, worktree) | parked (merged 19:17, reverted 271bb84; branch kept) |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo (after P11; owner recording the voice clone) |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | dropped (privacy screen moved to P05) |

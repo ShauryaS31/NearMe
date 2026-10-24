@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (after P13b, same night if possible) |
+| Status | in_progress |
 | Window | Sat 24 Oct night; owner device test Sun 25 Oct 10:00 |
 | Depends on | P13b |
 | Assignee | codex |
