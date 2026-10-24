@@ -1034,7 +1034,6 @@ final class TaskPlannerEngine: ObservableObject {
               let restored = coachStore.restore(guides: guides) else { return }
         coach = restored
         isHome = false
-        publishCoach(startIfNeeded: true)
         resumeCoach()
     }
 
@@ -1091,12 +1090,12 @@ final class TaskPlannerEngine: ObservableObject {
             if coach?.id == sessionID {
                 synchronizeSavedCoach()
                 isHome = false
+                publishCoach(startIfNeeded: true)
                 return
             }
             returnHome(clearingProgress: false)
             coach = restored
             isHome = false
-            publishCoach(startIfNeeded: true)
             resumeCoach()
         }
     }
@@ -1129,6 +1128,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func resumeCoach() {
         guard isSceneActive else { return }
+        publishCoach(startIfNeeded: true)
         if let session = coach, let guide = session.guide {
             PlannerDiagnostics.logger.notice("Auto-open guide=\(guide.id, privacy: .public) skipped=resuming existing session step=\(session.stepIndex + 1, privacy: .public)")
         }

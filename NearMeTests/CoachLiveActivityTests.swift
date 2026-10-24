@@ -6,10 +6,23 @@ import XCTest
 @MainActor
 final class FakeCoachActivityUpdater: CoachActivityUpdating {
     var updates: [CoachActivityUpdate] = []
+    var displayed: CoachActivitySnapshot?
+    var alerts: [AlertConfiguration] = []
     var onEnqueue: ((CoachActivityUpdate) -> Void)?
     func enqueue(_ update: CoachActivityUpdate) {
         onEnqueue?(update)
         updates.append(update)
+        if let alert = update.alertConfiguration(previous: displayed) { alerts.append(alert) }
+        switch update {
+        case .show(let snapshot, let startIfNeeded):
+            if startIfNeeded || displayed?.attributes.sessionID == snapshot.attributes.sessionID {
+                displayed = snapshot
+            }
+        case .finish, .stop:
+            displayed = nil
+        case .reconcile(let sessionID):
+            if displayed?.attributes.sessionID != sessionID { displayed = nil }
+        }
     }
     func flush() async {}
 }
@@ -25,12 +38,59 @@ private final class FakeCoachProgressStore: CoachProgressStoring {
 
 @MainActor
 final class CoachLiveActivityTests: XCTestCase {
+    func testAlertsRequireAnExistingActivityAndAChangedStep() throws {
+        let guide = try photoGuide()
+        var progress = CoachProgress(guideID: guide.id, stepIndex: 0, sessionID: UUID(), revision: 0)
+        let first = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
+        let updater = FakeCoachActivityUpdater()
+        updater.enqueue(.show(first, startIfNeeded: false))
+        XCTAssertNil(updater.displayed)
+        XCTAssertTrue(updater.alerts.isEmpty)
+        updater.enqueue(.show(first, startIfNeeded: true))
+        XCTAssertTrue(updater.alerts.isEmpty, "The initial request does not alert")
+
+        progress.stepIndex = 1
+        progress.revision = 1
+        let second = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
+        updater.enqueue(.show(second, startIfNeeded: true))
+        XCTAssertEqual(updater.alerts.count, 1)
+        updater.enqueue(.show(second, startIfNeeded: true))
+        progress.revision = 2
+        let repeated = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
+        updater.enqueue(.show(repeated, startIfNeeded: true))
+        XCTAssertEqual(updater.alerts.count, 1, "Same-step resume/revision changes are silent")
+
+        progress.stepIndex = 0
+        progress.revision = 3
+        let rollback = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
+        updater.enqueue(.show(rollback, startIfNeeded: true))
+        XCTAssertEqual(updater.alerts.count, 2, "A failed auto-open returning to step 1 is a step change")
+        let completed = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide, completed: true))
+        updater.enqueue(.finish(completed))
+        updater.enqueue(.stop(progress.sessionID))
+        updater.enqueue(.reconcile(nil))
+        updater.enqueue(.show(second, startIfNeeded: true))
+        XCTAssertEqual(updater.alerts.count, 2, "End, cleanup and recreation must not alert")
+
+        let otherProgress = CoachProgress(guideID: guide.id, stepIndex: 0, sessionID: UUID(), revision: 0)
+        let otherSession = try XCTUnwrap(CoachActivitySnapshot.build(progress: otherProgress, guide: guide))
+        updater.enqueue(.show(otherSession, startIfNeeded: true))
+        XCTAssertEqual(updater.alerts.count, 2, "Replacing a different session is an initial start")
+    }
+
+    func testSilentAlertSoundIsIncludedInTheHostAppBundle() throws {
+        let url = try XCTUnwrap(Bundle.main.url(forResource: "coach-step-silent", withExtension: "wav"))
+        let data = try Data(contentsOf: url)
+        XCTAssertGreaterThan(data.count, 44, "The named sound must be a real bundled WAV, not a missing-file fallback")
+    }
+
     func testDoneWithoutEnginePersistsBeforeUpdatingAndRejectsDuplicateStaleAndWrongSession() throws {
         let guide = try photoGuide()
         let progress = CoachProgress(guideID: guide.id, stepIndex: 1, sessionID: UUID(), revision: 4)
         let store = FakeCoachProgressStore()
         store.progress = progress
         let updater = FakeCoachActivityUpdater()
+        updater.displayed = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
         updater.onEnqueue = { _ in
             XCTAssertEqual(store.progress?.stepIndex, 2)
             XCTAssertEqual(store.progress?.revision, 5)
@@ -52,6 +112,11 @@ final class CoachLiveActivityTests: XCTestCase {
         XCTAssertFalse(start, "An intent updates existing activities; it does not create one in the background")
         XCTAssertEqual(snapshot.state.stepNumber, 3)
         XCTAssertEqual(snapshot.state.revision, 5)
+        XCTAssertEqual(updater.alerts.count, 1, "Only the accepted Done alerts")
+        let alert = try XCTUnwrap(updater.alerts.first)
+        XCTAssertEqual(String(localized: alert.title), guide.title)
+        XCTAssertEqual(String(localized: alert.body), guide.steps[2].instruction)
+        XCTAssertEqual(alert.sound, .named("coach-step-silent.wav"))
     }
 
     func testLastDoneWithoutEngineClearsSavedSessionAndEndsOnce() throws {
@@ -61,6 +126,7 @@ final class CoachLiveActivityTests: XCTestCase {
         let store = FakeCoachProgressStore()
         store.progress = progress
         let updater = FakeCoachActivityUpdater()
+        updater.displayed = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
         updater.onEnqueue = { _ in XCTAssertNil(store.load()) }
         XCTAssertEqual(CoachDoneAction.perform(sessionID: progress.sessionID, expectedRevision: 10,
             store: store, guides: [guide], updater: updater), .completed)
@@ -71,6 +137,7 @@ final class CoachLiveActivityTests: XCTestCase {
         XCTAssertEqual(snapshot.state.instruction, "Done, well done")
         XCTAssertTrue(snapshot.state.isComplete)
         XCTAssertEqual(snapshot.state.revision, 11)
+        XCTAssertTrue(updater.alerts.isEmpty, "Completion must not alert")
         XCTAssertEqual(CoachDeepLink.parse(try XCTUnwrap(CoachDeepLink.url(sessionID: progress.sessionID)),
                                          savedSessionID: store.load()?.sessionID), .home)
     }

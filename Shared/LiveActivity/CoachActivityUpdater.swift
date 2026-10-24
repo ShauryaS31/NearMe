@@ -30,6 +30,22 @@ enum CoachActivityLifecycle {
 }
 
 #if !NEARME_LIVE_ACTIVITY_EXTENSION
+extension CoachActivityUpdate {
+    /// Compare with the activity's displayed state, including after a cold launch.
+    /// Repeated publications/resume at the same step must not alert again.
+    func alertConfiguration(previous: CoachActivitySnapshot?) -> AlertConfiguration? {
+        guard case .show(let snapshot, _) = self,
+              let previous,
+              previous.attributes.sessionID == snapshot.attributes.sessionID,
+              !previous.state.isComplete, !snapshot.state.isComplete,
+              previous.state.stepNumber != snapshot.state.stepNumber else { return nil }
+        // ActivityKit requires a sound. This bundled PCM file contains only silence.
+        return AlertConfiguration(title: LocalizedStringResource("\(snapshot.attributes.guideTitle)"),
+                                  body: LocalizedStringResource("\(snapshot.state.instruction)"),
+                                  sound: .named("coach-step-silent.wav"))
+    }
+}
+
 // All ActivityKit mutations belong to the app, including background intent execution.
 @MainActor
 final class CoachActivityUpdater: CoachActivityUpdating {
@@ -68,7 +84,8 @@ final class CoachActivityUpdater: CoachActivityUpdating {
             }
             let content = ActivityContent(state: snapshot.state, staleDate: nil)
             if let matching {
-                await matching.update(content)
+                let previous = CoachActivitySnapshot(attributes: matching.attributes, state: matching.content.state)
+                await matching.update(content, alertConfiguration: update.alertConfiguration(previous: previous))
             } else if startIfNeeded, ActivityAuthorizationInfo().areActivitiesEnabled {
                 // Denied/unavailable activities never prevent the in-app guide from working.
                 _ = try? Activity<CoachActivityAttributes>.request(attributes: snapshot.attributes, content: content, pushType: nil)

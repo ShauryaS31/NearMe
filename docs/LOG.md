@@ -112,3 +112,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:50 AEDT | P07d | codex | dev-report r1 | strong-match router override, Mum personalisation, nearby wording, auto-open diagnostics, immediate acknowledgement and 76 step icons; commit ca0e2ec; Mac test/eval gate pending
 - 2026-10-24 18:51 AEDT | P07d | claude | review r1 PASS | static; merged to main first; P11 rebases on it next
 - 2026-10-24 18:52 AEDT | P11 | claude | merge main | P07d merged into P11 (3 additive conflicts in TaskPlannerEngine kept both sides); round 3 next
+- 2026-10-24 18:55 AEDT | P11 | codex | dev-report r3 | Generic silent Live Activity step alerts; P07d preserved; Git index.lock permission denied, uncommitted for manager.
