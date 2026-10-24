@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (iPhone check pending) |
 | Window | Sat 24 Oct, target merged by 19:35 (venue closes 19:55) |
 | Depends on | P11 |
 | Assignee | codex (main folder, Lane A, highest priority) |
@@ -61,3 +61,8 @@ iPhone check: "play tum hi ho on youtube": instant line, YouTube opens by itself
   6. Verify flagged steps separately: search icon position (2), search input (3), keyboard search button (4), first result (5), play control/autoplay (6). Confirm Island alerts stay generic. Restart NearMe at step 3 and confirm the song is not restored. On a simulator/device without YouTube, confirm "YouTube isn't on this phone." and no skipped opening step.
 - Not done / risks / questions: Swift 6.4 compilation, default XCTest run, real-model behaviour and phone UI verification require the Mac. Search/result layout and ads may vary. Existing LOG.md records unrelated SessionLayoutTests/VoiceReviewTests failures; they were not changed under P07e. `docs/ui-mockups/` and P12 work were not touched.
 - Commit result: `git add -- <explicit P07e files>` succeeded and `git diff --cached --check` reported no whitespace problems. `git commit -m "P07e: add session-private YouTube song coaching and auto-open"` failed: `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/index.lock': Permission denied`. Git metadata writes are restricted by the sandbox. Everything remains uncommitted; the earlier staging succeeded, while this report correction and the final LOG.md entry are unstaged. The manager must stage those updates and commit. Stopped without retrying, merging or starting another task.
+
+## Review (round 1)
+- Date: 2026-10-24 19:16 AEDT
+- Verdict: PASS (static, one urgent round). Merged to main (Lane A first).
+- Guide youtube_play_song valid (16 guides, 0 problems); youtube in LSApplicationQueriesSchemes and CoachAppLaunch; song extracted (model field plus keyword fallback, placeholders ignored) and used in step 3; "Which song would you like to play?" asked once when missing, empty answer continues unchanged; lines containing a song title use the system voice so personal titles never enter the ElevenLabs cache; Live Activity keeps guide text only. Default-argument scan clean.
