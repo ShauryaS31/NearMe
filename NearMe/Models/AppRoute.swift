@@ -5,6 +5,6 @@ import Foundation
 enum AppRoute: Equatable {
     case welcome
     case goodMorning
-    case screenPermission
+    case howItWorks
     case session // voice session + PTV simulation live inside here, driven by TaskPlannerState
 }

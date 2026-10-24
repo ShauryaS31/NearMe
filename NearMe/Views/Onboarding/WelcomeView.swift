@@ -4,6 +4,8 @@ import SwiftUI
 
 struct WelcomeView: View {
     @EnvironmentObject private var coordinator: AppCoordinator
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .largeTitle) private var logoSize = 44.0
 
     var body: some View {
         ScreenScaffold {
@@ -19,7 +21,10 @@ struct WelcomeView: View {
                         .font(TTFont.title())
                         .foregroundStyle(TTColor.ink)
 
-                    HStack(spacing: TTSpacing.xs) {
+                    let wordmarkLayout = dynamicTypeSize.isAccessibilitySize
+                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: TTSpacing.sm))
+                        : AnyLayout(HStackLayout(spacing: TTSpacing.xs))
+                    wordmarkLayout {
                         Text("Near")
                             .font(TTFont.display())
                             .foregroundStyle(TTColor.ink)
@@ -27,11 +32,12 @@ struct WelcomeView: View {
                         ZStack {
                             Circle()
                                 .fill(TTColor.ink)
-                                .frame(width: 44, height: 44)
+                                .frame(width: logoSize, height: logoSize)
                             Image(systemName: "waveform")
-                                .font(.system(size: 18, weight: .semibold))
+                                .font(.headline)
                                 .foregroundStyle(TTColor.buttonLabel)
                         }
+                        .accessibilityHidden(true)
 
                         Text("Me")
                             .font(TTFont.display())
@@ -48,11 +54,17 @@ struct WelcomeView: View {
                     coordinator.advanceFromWelcome()
                 }
             }
-            .frame(minHeight: 480)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
-#Preview {
+#Preview("Default") {
     WelcomeView().environmentObject(AppCoordinator())
+}
+
+#Preview("Accessibility XXXL") {
+    WelcomeView().environmentObject(AppCoordinator())
+        .dynamicTypeSize(.accessibility5)
 }

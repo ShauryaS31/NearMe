@@ -4,6 +4,7 @@ import SwiftUI
 
 struct GoodMorningView: View {
     @EnvironmentObject private var coordinator: AppCoordinator
+    @ScaledMetric(relativeTo: .largeTitle) private var symbolSize = 44.0
 
     private var greeting: String {
         let hour = Calendar.current.component(.hour, from: Date())
@@ -26,7 +27,7 @@ struct GoodMorningView: View {
 
                 VStack(spacing: TTSpacing.sm) {
                     Image(systemName: symbolName)
-                        .font(.system(size: 44))
+                        .font(.system(size: symbolSize))
                         .foregroundStyle(TTColor.ink)
                         .accessibilityHidden(true)
 
@@ -47,11 +48,17 @@ struct GoodMorningView: View {
                     }
                 }
             }
-            .frame(minHeight: 480)
+            .lineLimit(nil)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
 
-#Preview {
+#Preview("Default") {
     GoodMorningView().environmentObject(AppCoordinator())
+}
+
+#Preview("Accessibility XXXL") {
+    GoodMorningView().environmentObject(AppCoordinator())
+        .dynamicTypeSize(.accessibility5)
 }
