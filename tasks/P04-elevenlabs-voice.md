@@ -34,6 +34,13 @@ AGENTS.md; docs/SPEC.md section 4; docs/design/HIG-NOTES.md rules 2, 7, 14. File
 - [ ] Keep the single existing audio session configuration (`NearMeAudioSession`); no second session or category change per line
 - [ ] Never speak and listen at the same time: listening starts only after `speak` has returned or been stopped; Cancel, End session and Type instead stop voice output at once
 
+### 4b. Voice input on-device only (owner decision)
+- [ ] `VoiceInputRouter` always uses on-device Apple speech (`requiresOnDeviceRecognition = true`); the ElevenLabs speech-to-text path is removed, so recorded speech never leaves the phone. Delete `ElevenLabsScribeService.swift` and `AudioFileRecorder.swift` if nothing else uses them. If on-device recognition is unavailable, show the existing "Speech recognition isn't available right now. You can type instead." message; never fall back to a server
+- [ ] `git grep -n "speech-to-text\|ElevenLabsScribe"` over `NearMe/` returns nothing
+
+### 4c. Natural voice setting (logic only; the toggle UI comes in P05)
+- [ ] `VoiceSettings.naturalVoiceEnabled` (UserDefaults key `naturalVoiceEnabled`, default true). When false, ElevenLabs is never called (no speak, no prefetch) and every line uses the system voice; the voice log says "natural voice off"
+
 ### 5. Rough edges
 - [ ] Captions use exactly the same strings as the practice screens' field and button labels (for example "Choose origin", "Choose destination"): define each label once and use it in both the view and the caption
 - [ ] Practice screens (`NearMe/Views/TripPlannerPractice/`, `OpeningPracticeView.swift`): Dynamic Type text styles only (no `.font(.system(size:))` for text; icons via `@ScaledMetric`), no fixed heights on text containers (remove `.frame(minHeight: 480)`), content scrolls at Accessibility XXXL with the caption bar and primary controls reachable
@@ -46,6 +53,6 @@ AGENTS.md; docs/SPEC.md section 4; docs/design/HIG-NOTES.md rules 2, 7, 14. File
 bash scripts/mac-run.sh test --current
 bash scripts/mac-run.sh quick
 ```
-Mac checks: steps spoken in the ElevenLabs voice (needs `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in Secrets.xcconfig); a second run of the same flow starts speaking faster (cache); Wi-Fi off gives the system voice with no hang; the largest text size is usable on the practice screens.
+Mac checks: voice input still works with the key present (on-device; no ElevenLabs speech-to-text in the planner or voice logs); steps spoken in the ElevenLabs voice (needs `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in Secrets.xcconfig); a second run of the same flow starts speaking faster (cache); Wi-Fi off gives the system voice with no hang; the largest text size is usable on the practice screens.
 
 <!-- Dev Reports and Reviews appended below. -->

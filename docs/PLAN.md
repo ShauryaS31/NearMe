@@ -43,6 +43,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): Mac compile of P02a OK; Foundation Models is available in the simulator. The real-model test ran over 9 minutes and hit "transcript exceeded the model's context size" at about 7 minutes. P02c fixes this before P02b: fresh bounded session per call, latency logging and badge, model eval behind NEARME_MODEL_EVAL=1 with an `eval` mode. Then P02b (with `quick` mode), then P03.
 
 - 2026-10-24 (owner): new tasks P04 (ElevenLabs voice and rough edges), P05 (consented family voice), P06 (Core AI: router, grounded help, wrong-tap help, tap and hold, privacy). Start P04 once the current Mac check passes; stop after each task for the owner's Mac check. Gate for each: `bash scripts/mac-run.sh quick` builds and launches and default tests pass.
+- 2026-10-24 (owner): all P04 to P06 brief choices approved. Voice input is always on-device (ElevenLabs speech-to-text removed, in P04), because recorded speech must not leave the phone. Settings toggle "Natural voice (online)": off means only the system voice and nothing leaves the phone (logic in P04, toggle in P05). P06 privacy copy is the owner's exact wording, naming place names sent to ElevenLabs.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
