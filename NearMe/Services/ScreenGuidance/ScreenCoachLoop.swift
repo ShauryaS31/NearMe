@@ -21,11 +21,13 @@ nonisolated struct ScreenCoachLoop {
     private var otherSince: TimeInterval?
     private var offeredReopen = false
     private var saidCannotSee = false
+    private var hasSeenCapture = false
     private var askedSong = false
     private var previousInstruction: ScreenCoachInstruction?
 
     mutating func update(snapshot: ScreenSnapshot?, guideID: String, song: String?, now: TimeInterval,
-                         recheck: Bool = false, simplify: Bool = false) -> ScreenCoachInstruction? {
+                         recheck: Bool = false, simplify: Bool = false,
+                         allowsSongQuestion: Bool = true) -> ScreenCoachInstruction? {
         guard guideID == "youtube_play_song" else { return nil }
         guard let snapshot, snapshot.isFresh(at: now) else {
             manual = true
@@ -36,12 +38,13 @@ nonisolated struct ScreenCoachLoop {
             otherSince = nil
             offeredReopen = false
             previousInstruction = nil
-            guard !saidCannotSee else { return nil }
+            guard hasSeenCapture, !saidCannotSee else { return nil }
             saidCannotSee = true
             return instruction("I can't see your screen right now.", step: nil)
         }
         let wasManual = manual
         manual = false
+        hasSeenCapture = true
         saidCannotSee = false
         let current = ScreenInterpreter.read(snapshot, guideID: guideID, song: song)
         reading = current
@@ -62,7 +65,8 @@ nonisolated struct ScreenCoachLoop {
         otherSince = nil
         offeredReopen = false
         question = nil
-        let next = observedInstruction(snapshot: snapshot, reading: current, song: song)
+        let next = observedInstruction(snapshot: snapshot, reading: current, song: song,
+                                       allowsSongQuestion: allowsSongQuestion)
         let actionChanged = previousInstruction != next
         if wasManual || pageChanged || (changed && actionChanged) || recheck {
             previousInstruction = next
@@ -79,6 +83,8 @@ nonisolated struct ScreenCoachLoop {
 
     mutating func answered() { question = nil }
 
+    mutating func captureDidStart() { hasSeenCapture = true }
+
     /// Drop the cached text set immediately even if speech/input temporarily
     /// prevents delivery of the one-time manual-mode announcement.
     mutating func discardEvidence() {
@@ -92,7 +98,7 @@ nonisolated struct ScreenCoachLoop {
     }
 
     private mutating func observedInstruction(snapshot: ScreenSnapshot, reading: ScreenReading,
-                                               song: String?) -> ScreenCoachInstruction {
+                                               song: String?, allowsSongQuestion: Bool) -> ScreenCoachInstruction {
         switch reading.page {
         case .home:
             if let search = snapshot.lines.first(where: {
@@ -101,10 +107,10 @@ nonisolated struct ScreenCoachLoop {
             }) {
                 return instruction("Tap the magnifying glass at the \(search.box.position).", step: 1)
             }
-            question = .description
-            return instruction("I can see YouTube, but not the search control. Can you see a magnifying glass?", step: 1)
+            return instruction("Tap the magnifying glass at the top right.", step: 1)
         case .searchOpen:
             guard let song else {
+                guard allowsSongQuestion else { return instruction("Type the song name.", step: 2) }
                 question = .song
                 if !askedSong {
                     askedSong = true
@@ -124,7 +130,8 @@ nonisolated struct ScreenCoachLoop {
             return instruction("Tap the first result.", step: 4)
         case .watching:
             question = .playback
-            return instruction("It should be playing. Is the song playing?", step: 5)
+            return instruction("It should be playing. Is the song playing?", step: 5,
+                               activity: "Return to NearMe to confirm the song is playing.")
         case .prompt:
             if reading.evidence.contains("Not now") {
                 return instruction("A sign-in box has opened. Tap \"Not now\" to close it.", step: nil)
@@ -155,6 +162,7 @@ nonisolated struct ScreenCoachLoop {
     }
 
     private func instruction(_ text: String, step: Int?, activity: String? = nil) -> ScreenCoachInstruction {
-        ScreenCoachInstruction(text: text, stepIndex: step, activityText: activity ?? text)
+        let display = activity ?? (text.contains("?") ? "Return to NearMe to answer." : text)
+        return ScreenCoachInstruction(text: text, stepIndex: step, activityText: display)
     }
 }

@@ -60,8 +60,12 @@ nonisolated enum ScreenInterpreter {
         let songFound = songRow(in: snapshot, song: song) != nil
         let hasSearch = search.contains("Search YouTube")
         let keyboardOpen = search.count >= 2 && (hasSearch || texts.contains { matches($0, word: "search") })
-        let youtube = signaturesFound.count >= 2 || hasSearch || keyboardOpen || watching.count >= 3
-            || (results.count >= 2 && songFound)
+        let hasSignature: Bool = signaturesFound.count >= 2
+        let hasSearchUI: Bool = hasSearch || keyboardOpen
+        let hasPlayer: Bool = watching.count >= 3
+        let hasResults: Bool = results.count >= 2 && songFound
+        let hasPage: Bool = hasPlayer || hasResults
+        let youtube: Bool = hasSignature || hasSearchUI || hasPage
         if !prompt.isEmpty && (youtube || prompt.count >= 2) {
             return reading(youtube ? .knownApp : .unknown, .prompt, signaturesFound + prompt)
         }

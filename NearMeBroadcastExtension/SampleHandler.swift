@@ -1,6 +1,7 @@
 // Adapted from a prior prototype, used with permission.
 
 import Foundation
+import Dispatch
 import CoreFoundation
 import ReplayKit
 import CoreMedia
@@ -41,7 +42,7 @@ nonisolated final class SampleHandler: RPBroadcastSampleHandler {
 private nonisolated final class BroadcastSnapshotProcessor {
     private let lock = NSLock()
     private let logger = Logger(subsystem: "au.nearme.ios", category: "broadcast")
-    private let context = CIContext(options: [.cacheIntermediates: false])
+    private let context = CIContext(options: [.cacheIntermediates: false, .workingColorSpace: NSNull()])
     private let request: VNRecognizeTextRequest
     private var pool: CVPixelBufferPool?
     private var poolWidth = 0
@@ -49,11 +50,13 @@ private nonisolated final class BroadcastSnapshotProcessor {
     private var writer: ScreenSnapshotWriter?
     private var lastFrame = -Double.infinity
     private var lastLog = -Double.infinity
+    private var heartbeat: DispatchSourceTimer?
+    private var ocrFailures = 0
 
     init() {
         request = VNRecognizeTextRequest()
         request.recognitionLevel = .fast
-        request.recognitionLanguages = ["en"]
+        request.recognitionLanguages = ["en-US"]
         request.usesLanguageCorrection = false
     }
 
@@ -65,16 +68,32 @@ private nonisolated final class BroadcastSnapshotProcessor {
         try next.start()
         writer = next
         lastFrame = -Double.infinity
+        ocrFailures = 0
+        heartbeat?.cancel()
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "au.nearme.broadcast.heartbeat"))
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in self?.refreshSnapshot() }
+        heartbeat = timer
+        timer.resume()
     }
 
     func stop() {
         lock.lock()
         defer { lock.unlock() }
+        heartbeat?.cancel()
+        heartbeat = nil
         do { try writer?.stop() }
         catch { logger.error("Could not delete screen snapshot") }
         writer = nil
         pool = nil
         context.clearCaches()
+    }
+
+    private func refreshSnapshot() {
+        lock.lock()
+        defer { lock.unlock() }
+        do { try writer?.refresh(at: Date().timeIntervalSince1970) }
+        catch { logger.error("Could not refresh screen snapshot") }
     }
 
     func process(_ sample: CMSampleBuffer) {
@@ -86,7 +105,7 @@ private nonisolated final class BroadcastSnapshotProcessor {
         let timestamp = Date().timeIntervalSince1970
         autoreleasepool {
             do {
-                guard let source = CMSampleBufferGetImageBuffer(sample) else { return }
+                guard let source = CMSampleBufferGetImageBuffer(sample) else { throw CocoaError(.coderInvalidValue) }
                 let attachment = CMGetAttachment(sample, key: RPVideoSampleOrientationKey as CFString,
                                                  attachmentModeOut: nil) as? NSNumber
                 let orientation = CGImagePropertyOrientation(rawValue: attachment?.uint32Value ?? 1) ?? .up
@@ -95,7 +114,7 @@ private nonisolated final class BroadcastSnapshotProcessor {
                 let scale = min(1, 1_000 / max(extent.width, extent.height))
                 let width = max(1, Int(extent.width * scale))
                 let height = max(1, Int(extent.height * scale))
-                guard let buffer = scaledBuffer(width: width, height: height) else { return }
+                guard let buffer = scaledBuffer(width: width, height: height) else { throw CocoaError(.coderInvalidValue) }
                 let translated = image.transformed(by: CGAffineTransform(translationX: -extent.minX, y: -extent.minY))
                 let scaled = translated.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
                 context.render(scaled, to: buffer)
@@ -105,13 +124,14 @@ private nonisolated final class BroadcastSnapshotProcessor {
                 let lines: [ScreenSnapshot.Line] = observations.compactMap { observation in
                     guard let candidate = observation.topCandidates(1).first else { return nil }
                     let box = observation.boundingBox
-                    let normalised = ScreenSnapshot.Box(x: max(0, Double(box.minX)),
-                        y: max(0, Double(1 - box.maxY)), width: Double(box.width), height: Double(box.height))
+                    let normalised = ScreenSnapshot.Box(x: Double(box.minX),
+                        y: Double(1 - box.maxY), width: Double(box.width), height: Double(box.height))
                     return ScreenSnapshot.Line(text: candidate.string, box: normalised)
                 }
                 try writer.write(ScreenSnapshot(timestamp: timestamp, lines: lines))
             } catch {
-                // Age the last successful snapshot out. Never log OCR or error payloads.
+                ocrFailures += 1
+                try? writer.recognitionFailed(at: timestamp)
             }
         }
         let finished = ProcessInfo.processInfo.systemUptime
@@ -119,7 +139,7 @@ private nonisolated final class BroadcastSnapshotProcessor {
             lastLog = finished
             let available = os_proc_available_memory()
             let milliseconds = Int((finished - started) * 1_000)
-            logger.notice("available_memory_bytes=\(available, privacy: .public) processing_ms=\(milliseconds, privacy: .public)")
+            logger.notice("available_memory_bytes=\(available, privacy: .public) processing_ms=\(milliseconds, privacy: .public) ocr_failures=\(self.ocrFailures, privacy: .public)")
         }
     }
 

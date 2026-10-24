@@ -1,14 +1,28 @@
 import Foundation
 import Combine
 
-protocol ScreenSnapshotSource {
+nonisolated protocol ScreenSnapshotSource {
     nonisolated func latest() -> ScreenSnapshot?
 }
 
 nonisolated struct AppGroupScreenSnapshotSource: ScreenSnapshotSource {
     private let url: URL?
-    init(url: URL? = nil) { self.url = url ?? SharedScreenBridge.snapshotURL }
-    func latest() -> ScreenSnapshot? { url.flatMap { SharedScreenBridge.read(from: $0) } }
+    private let now: () -> TimeInterval
+    init(url: URL? = nil, now: (() -> TimeInterval)? = nil) {
+        self.url = url ?? SharedScreenBridge.snapshotURL
+        self.now = now ?? { Date().timeIntervalSince1970 }
+    }
+    func latest() -> ScreenSnapshot? {
+        guard let url, let snapshot = SharedScreenBridge.read(from: url) else { return nil }
+        if let age = snapshot.age(at: now()), age > 10 {
+            // Re-read before cleanup in case the extension refreshed during the first read.
+            if SharedScreenBridge.read(from: url)?.timestamp == snapshot.timestamp {
+                try? SharedScreenBridge.delete(at: url)
+            }
+            return nil
+        }
+        return snapshot
+    }
 }
 
 @MainActor
@@ -21,6 +35,20 @@ final class ScreenObserver: ObservableObject {
     private let now: () -> TimeInterval
     private var polling: Task<Void, Never>?
     private var previousTexts: Set<String>?
+    private var activeSince: TimeInterval?
+
+    /// The frozen observation is evaluated at activation, while live file age
+    /// independently determines whether sharing is still on.
+    var observationTime: TimeInterval { activeSince ?? now() }
+    var isHoldingObservation: Bool { activeSince != nil }
+
+    func sceneBecameActive() {
+        guard activeSince == nil else { return }
+        activeSince = now()
+        poll()
+    }
+
+    func sceneBecameInactive() { activeSince = nil }
 
     init(source: any ScreenSnapshotSource, now: @escaping () -> TimeInterval) {
         self.source = source
@@ -42,8 +70,12 @@ final class ScreenObserver: ObservableObject {
 
     func poll() {
         let latest = source.latest()
-        age = latest?.age(at: now())
-        let fresh = latest?.isFresh(at: now()) == true ? latest : nil
+        let time = now()
+        age = latest?.age(at: time)
+        var fresh = latest?.isFresh(at: time) == true ? latest : nil
+        if let activeSince, let candidate = fresh, candidate.timestamp > activeSince {
+            fresh = snapshot
+        }
         changed = fresh.map { $0.textSet != previousTexts } ?? false
         previousTexts = fresh?.textSet
         // Drop recognised text from memory on stop/staleness too.

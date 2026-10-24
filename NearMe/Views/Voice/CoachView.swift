@@ -67,13 +67,17 @@ struct CoachView: View {
             VStack(spacing: 0) {
                 ScrollView {
                     VStack(spacing: 12) {
-                        if let session = engine.coach {
+                        if engine.offersScreenSharing {
+                            ScreenSharingOffer(onNotNow: engine.declineScreenSharing)
+                        } else if let session = engine.coach {
                             CoachStepContent(session: session, onCommand: engine.coachCommand,
                                              manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode)
                                 .id(session.stepIndex)
                                 .transition(.opacity)
                         }
-                        ScreenBroadcastButton().padding(.horizontal)
+                        if !engine.offersScreenSharing {
+                            ScreenBroadcastButton().padding(.horizontal)
+                        }
                     }
                 }
                 .animation(stepAnimation, value: engine.coach?.stepIndex)

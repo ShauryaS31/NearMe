@@ -55,12 +55,19 @@ nonisolated struct CoachDoneIntent: LiveActivityIntent {
         let updater = CoachActivityUpdater.shared
         let store = CoachProgressStore()
         let guides = CoachActivityGuide.bundled()
+        var screenSpeech: String?
         _ = CoachDoneAction.perform(sessionID: id, expectedRevision: expectedRevision,
             store: store, guides: guides, updater: updater, recheck: { progress in
                 ScreenCoachIntentRecheck.perform(progress: progress, source: AppGroupScreenSnapshotSource(),
-                    now: Date().timeIntervalSince1970, store: store, guides: guides, updater: updater)
+                    now: Date().timeIntervalSince1970, store: store, guides: guides, updater: updater,
+                    speech: { screenSpeech = $0 })
             })
         await updater.flush()
+        if let screenSpeech {
+            // The warm engine owns speech when present; a cold launch has no engine.
+            let output = ElevenLabsVoiceOutput()
+            await output.speak(screenSpeech)
+        }
         #endif
         // The extension only supplies Button(intent:) metadata; execution is in the app.
         return .result()

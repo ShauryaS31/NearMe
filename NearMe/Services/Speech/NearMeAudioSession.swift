@@ -13,7 +13,7 @@ nonisolated enum NearMeAudioSession {
         let session = AVAudioSession.sharedInstance()
         if active {
             try session.setCategory(.playAndRecord, mode: .default,
-                                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetooth])
+                                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetoothA2DP])
             try session.setActive(true)
             isConfigured = true
         } else {

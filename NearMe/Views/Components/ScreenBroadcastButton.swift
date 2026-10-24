@@ -2,6 +2,7 @@ import SwiftUI
 import Foundation
 import ReplayKit
 import UIKit
+import OSLog
 
 struct ScreenBroadcastButton: View {
     @State private var showsPicker = false
@@ -48,6 +49,7 @@ private struct ScreenBroadcastPickerSheet: View {
                 }
             }
         }
+        .onAppear { ScreenBroadcastPresentation.logOpened() }
     }
 
     private var pickerContent: some View {
@@ -56,7 +58,38 @@ private struct ScreenBroadcastPickerSheet: View {
             SystemScreenBroadcastPicker()
                 .frame(width: 60, height: 60)
                 .frame(maxWidth: .infinity)
+            Text(ScreenSharingCopy.pickerFallback)
         }
+    }
+}
+
+/// Direct native picker on the guide offer, with consent facts before the tap.
+struct ScreenSharingOffer: View {
+    let onNotNow: () -> Void
+    @AppStorage("screenSharingExplanationSeen") private var explanationSeen = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text(ScreenSharingCopy.offer).font(.title2)
+            if !explanationSeen { Text(ScreenSharingCopy.explanation) }
+            SystemScreenBroadcastPicker()
+                .frame(width: 60, height: 60)
+                .accessibilityLabel("Let NearMe see my screen")
+            Text(ScreenSharingCopy.pickerFallback)
+            Button("Not now", action: onNotNow)
+                .buttonStyle(.bordered)
+                .frame(minHeight: 44)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(24)
+        .onAppear { ScreenBroadcastPresentation.logOpened() }
+        .onDisappear { explanationSeen = true }
+    }
+}
+
+private enum ScreenBroadcastPresentation {
+    static func logOpened() {
+        Logger(subsystem: "au.nearme.ios", category: "broadcast").notice("Screen broadcast picker sheet opened")
     }
 }
 

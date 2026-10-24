@@ -18,6 +18,17 @@ nonisolated struct ScreenSnapshot: Codable, Equatable, Sendable {
         let width: Double
         let height: Double
 
+        var clamped: Box? {
+            guard [x, y, width, height].allSatisfy({ $0.isFinite }), width >= 0, height >= 0 else { return nil }
+            let originInBounds: Bool = (0...1).contains(x) && (0...1).contains(y)
+            if originInBounds, x + width <= 1, y + height <= 1 { return self }
+            let left = min(1, max(0, x))
+            let top = min(1, max(0, y))
+            let right = min(1, max(left, x + width))
+            let bottom = min(1, max(top, y + height))
+            return Box(x: left, y: top, width: right - left, height: bottom - top)
+        }
+
         var isValid: Bool {
             let values = [x, y, width, height]
             return values.allSatisfy { $0.isFinite && (0...1).contains($0) }
@@ -50,12 +61,13 @@ nonisolated struct ScreenSnapshot: Codable, Equatable, Sendable {
 nonisolated enum ScreenSecretFilter {
     private static let patterns = [
         #"(?i)[A-Z0-9._%+\-]+@[A-Z0-9.\-]+\.[A-Z]{2,}"#,
-        #"(?<!\d)\d{4,8}(?!\d)"#,
         #"(?<!\d)(?:\d[ \-]?){12,18}\d(?!\d)"#,
         #"(?<!\w)\+?\d[\d ()\-]{5,}\d(?!\w)"#,
         #"(?i)(?<!\S)(?=\S*[A-Z])(?=\S*\d)\S{8,}(?!\S)"#
     ]
     private static let expressions = patterns.compactMap { try? NSRegularExpression(pattern: $0) }
+    private static let digits = try? NSRegularExpression(pattern: #"(?<!\d)\d{4,8}(?!\d)"#)
+    private static let codeLabel = try? NSRegularExpression(pattern: #"(?i)\b(pin|code|otp|verification)\b"#)
 
     static func filtered(_ lines: [ScreenSnapshot.Line]) -> [ScreenSnapshot.Line] {
         let ordered: [ScreenSnapshot.Line] = lines.sorted {
@@ -70,11 +82,11 @@ nonisolated enum ScreenSecretFilter {
                 || text.localizedCaseInsensitiveContains("passcode")
             let hidden = hideNext || isLabel || looksSecret(text)
             hideNext = isLabel
-            guard !hidden, !text.isEmpty, line.box.isValid else { continue }
+            guard !hidden, !text.isEmpty, let box = line.box.clamped else { continue }
             let singleLine = text.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "\r", with: " ")
             let bounded = String(singleLine.prefix(80))
             guard bounded.utf8.count <= 640 else { continue }
-            result.append(ScreenSnapshot.Line(text: bounded, box: line.box))
+            result.append(ScreenSnapshot.Line(text: bounded, box: box))
             if result.count == 60 { break }
         }
         return result
@@ -82,6 +94,10 @@ nonisolated enum ScreenSecretFilter {
 
     static func looksSecret(_ text: String) -> Bool {
         let range = NSRange(text.startIndex..., in: text)
+        let hasDigits = digits?.firstMatch(in: text, range: range) != nil
+        let isCode = codeLabel?.firstMatch(in: text, range: range) != nil
+        let letters = text.filter(\.isLetter).count
+        if hasDigits && (letters < 3 || isCode) { return true }
         return expressions.contains { $0.firstMatch(in: text, range: range) != nil }
     }
 }
@@ -124,6 +140,7 @@ nonisolated enum SharedScreenBridge {
 nonisolated final class ScreenSnapshotWriter {
     private let url: URL
     private var active = false
+    private var lastFilteredLines: [ScreenSnapshot.Line] = []
 
     init(url: URL) { self.url = url }
 
@@ -132,15 +149,29 @@ nonisolated final class ScreenSnapshotWriter {
         let legacy = url.deletingLastPathComponent().appendingPathComponent("screen-heartbeat.json")
         try SharedScreenBridge.delete(at: legacy)
         active = true
+        lastFilteredLines = []
     }
 
     func write(_ snapshot: ScreenSnapshot) throws {
         guard active else { return }
-        try SharedScreenBridge.write(snapshot, to: url)
+        lastFilteredLines = ScreenSecretFilter.filtered(snapshot.lines)
+        try refresh(at: snapshot.timestamp)
+    }
+
+    /// The caller serialises this heartbeat with OCR and stop. Only words are retained.
+    func refresh(at timestamp: TimeInterval) throws {
+        guard active else { return }
+        try SharedScreenBridge.write(ScreenSnapshot(timestamp: timestamp, lines: lastFilteredLines), to: url)
+    }
+
+    func recognitionFailed(at timestamp: TimeInterval) throws {
+        lastFilteredLines = []
+        try refresh(at: timestamp)
     }
 
     func stop() throws {
         active = false
+        lastFilteredLines = []
         try SharedScreenBridge.delete(at: url)
     }
 }

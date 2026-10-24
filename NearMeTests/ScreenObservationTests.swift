@@ -75,9 +75,9 @@ final class ScreenObservationTests: XCTestCase {
         XCTAssertEqual(loop.update(snapshot: ScreenSnapshot(timestamp: 101, lines: base + [right]),
             guideID: "youtube_play_song", song: nil, now: 101, recheck: true)?.text, "Tap the magnifying glass at the top right.")
         let missing = try XCTUnwrap(loop.update(snapshot: snapshot(["Home", "Shorts"], at: 102),
-            guideID: "youtube_play_song", song: nil, now: 102))
-        XCTAssertTrue(missing.text.contains("not the search control"))
-        XCTAssertFalse(missing.text.contains("top right"))
+            guideID: "youtube_play_song", song: nil, now: 102, recheck: true))
+        XCTAssertEqual(missing.text, "Tap the magnifying glass at the top right.")
+        XCTAssertNil(loop.question)
         let matching = ScreenSnapshot.Line(text: "Tum Hi Ho official", box: ScreenSnapshot.Box(x: 0.1, y: 0.8, width: 0.6, height: 0.04))
         let results = ScreenSnapshot(timestamp: 103, lines: snapshot(["Home", "Shorts", "views", "ago"]).lines + [matching])
         XCTAssertTrue(loop.update(snapshot: results, guideID: "youtube_play_song", song: "Tum Hi Ho", now: 103)?.text.contains("bottom centre") == true)
@@ -158,7 +158,7 @@ final class ScreenObservationTests: XCTestCase {
         XCTAssertTrue(filtered.isEmpty)
         let afterLimit = String(repeating: "a", count: 90) + " me@example.test"
         XCTAssertTrue(ScreenSecretFilter.filtered(snapshot([afterLimit]).lines).isEmpty)
-        let allowed = ["Home", "Shorts", "Search YouTube", "Tum Hi Ho", "10M views", "2 years ago"]
+        let allowed = ["Home", "Shorts", "Search YouTube", "Tum Hi Ho (2013)", "10M views", "2 years ago"]
         XCTAssertEqual(ScreenSecretFilter.filtered(snapshot(allowed).lines).map(\.text), allowed)
         let many = (0..<70).map { _ in String(repeating: "a", count: 100) }
         let bounded = ScreenSecretFilter.filtered(snapshot(many).lines)
@@ -179,7 +179,7 @@ final class ScreenObservationTests: XCTestCase {
         let next = snapshot(["Search YouTube"], at: 101)
         try writer.write(next)
         XCTAssertEqual(SharedScreenBridge.read(from: url), next)
-        XCTAssertEqual(AppGroupScreenSnapshotSource(url: url).latest(), next)
+        XCTAssertEqual(AppGroupScreenSnapshotSource(url: url, now: { 101 }).latest(), next)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["screen-snapshot.json"])
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
         XCTAssertEqual(Set(object.keys), Set(["timestamp", "lines"]))
@@ -222,6 +222,100 @@ final class ScreenObservationTests: XCTestCase {
         XCTAssertEqual(observer.age, 4)
         observer.stop()
         XCTAssertNil(observer.age)
+    }
+
+    func testHeartbeatRetainsFilteredWordsClearsFailureAndCannotRecreateStoppedFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("screen-snapshot.json")
+        let writer = ScreenSnapshotWriter(url: url)
+        try writer.start()
+        try writer.write(snapshot(["Home", "Shorts", "123456", "Password", "hidden"]))
+        for time in 101...120 { try writer.refresh(at: Double(time)) }
+        let refreshed = try XCTUnwrap(SharedScreenBridge.read(from: url))
+        XCTAssertEqual(refreshed.timestamp, 120)
+        XCTAssertEqual(refreshed.lines.map(\.text), ["Home", "Shorts"])
+        try writer.recognitionFailed(at: 121)
+        try writer.refresh(at: 122)
+        XCTAssertEqual(SharedScreenBridge.read(from: url)?.lines, [])
+        try writer.stop()
+        try writer.refresh(at: 123)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        try writer.start()
+        try writer.refresh(at: 124)
+        XCTAssertEqual(SharedScreenBridge.read(from: url)?.lines, [])
+    }
+
+    func testEdgeBoxesClampAndSongYearsSurviveWithoutAllowingCodes() throws {
+        let edge = ScreenSnapshot.Line(text: "Tum Hi Ho (2013)",
+            box: ScreenSnapshot.Box(x: 0.95, y: 0.98, width: 0.2, height: 0.1))
+        let line = try XCTUnwrap(ScreenSecretFilter.filtered([edge]).first)
+        XCTAssertEqual(line.text, edge.text)
+        XCTAssertEqual(line.box.width, 0.05, accuracy: 0.000001)
+        XCTAssertEqual(line.box.height, 0.02, accuracy: 0.000001)
+        XCTAssertTrue(line.box.isValid)
+        for text in ["1234", "12345678", "A1234", "PIN 1234", "code 123456", "abcd1234"] {
+            XCTAssertTrue(ScreenSecretFilter.looksSecret(text), text)
+        }
+        XCTAssertFalse(ScreenSecretFilter.looksSecret("Song title (2013)"))
+    }
+
+    func testSourceDeletesAbandonedSnapshotAfterTenSecondsButKeepsFreshFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("screen-snapshot.json")
+        var now = 100.0
+        let source = AppGroupScreenSnapshotSource(url: url, now: { now })
+        try SharedScreenBridge.write(snapshot(["Home"]), to: url)
+        now = 110
+        XCTAssertNotNil(source.latest())
+        now = 110.1
+        XCTAssertNil(source.latest())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        try SharedScreenBridge.write(snapshot(["Shorts"], at: now), to: url)
+        XCTAssertNotNil(source.latest())
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    func testActiveSceneHoldsExternalWordsButStillDetectsCaptureLossAndResumes() {
+        let source = FakeScreenSnapshotSource()
+        var now = 100.0
+        let observer = ScreenObserver(source: source, now: { now })
+        source.value = snapshot(["Subscribe", "Share", "Comments"])
+        observer.poll()
+        now = 101
+        observer.sceneBecameActive()
+        now = 120
+        source.value = snapshot(["NearMe", "Done"], at: now)
+        observer.poll()
+        XCTAssertTrue(observer.canSee)
+        XCTAssertEqual(observer.snapshot?.lines.map(\.text), ["Subscribe", "Share", "Comments"])
+        XCTAssertEqual(observer.observationTime, 101)
+        XCTAssertFalse(observer.changed)
+        now = 124
+        observer.poll()
+        XCTAssertFalse(observer.canSee)
+        XCTAssertNil(observer.snapshot)
+        observer.sceneBecameInactive()
+        source.value = snapshot(["Search YouTube"], at: now)
+        observer.poll()
+        XCTAssertTrue(observer.changed)
+        XCTAssertEqual(observer.snapshot?.lines.map(\.text), ["Search YouTube"])
+    }
+
+    func testInitialManualModeIsSilentAndActivityNeverAsksAQuestion() {
+        var loop = ScreenCoachLoop()
+        XCTAssertNil(loop.update(snapshot: nil, guideID: "youtube_play_song", song: nil, now: 100))
+        XCTAssertTrue(loop.manual)
+        let screens = [["Home", "Shorts"], ["Search YouTube"], ["Subscribe", "Share", "Comments"], ["Sign in", "Allow"], []]
+        for texts in screens {
+            let value = loop.update(snapshot: snapshot(texts), guideID: "youtube_play_song", song: nil,
+                                    now: 100, recheck: true, allowsSongQuestion: false)
+            XCTAssertFalse(value?.activityText.contains("?") == true)
+            if texts == ["Search YouTube"] { XCTAssertEqual(value?.text, "Type the song name.") }
+        }
     }
 
     #if DEBUG
