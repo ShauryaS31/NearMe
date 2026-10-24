@@ -95,3 +95,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:02 AEDT | P07b | codex | dev-report r3 | model availability checked per call, reasons logged and on badge, prewarm (committed by manager)
 - 2026-10-24 18:10 AEDT | P07b | claude | final review PASS | whole branch incl. overlapping r2 runs and r3 availability fix; merged to main; pulse and nits to P07c
 - 2026-10-24 18:10 AEDT | P07c | claude | dispatch r1 | pulse 3 cycles then static plus P07b nits; branch task/P07c-pulse
+- 2026-10-24 17:39 AEDT | P09-P10 | owner | decision | UI upgrade from HIG research (report moved to docs/design/UI-WIDGETS-REPORT.md); P09 UI polish, P10 Ask NearMe widget and Siri shortcut; after P07b, before P05; Live Activity deferred (later superseded by the owner's final order: P11 next, P09 Sunday morning, P10 if time)

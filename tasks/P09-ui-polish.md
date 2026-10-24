@@ -31,7 +31,7 @@ Out of scope: the practice screens' own content (they imitate a trip planner app
 - [ ] At accessibility text sizes (`dynamicTypeSize.isAccessibilitySize`) side-by-side buttons stack vertically
 
 ### 3. Home (idle voice screen)
-- [ ] Native title "NearMe" in a `NavigationStack`; toolbar button `gearshape` with visible label "Settings" only if a settings destination exists, otherwise omitted
+- [ ] Native title "NearMe" in a `NavigationStack`; no Settings toolbar button in P09 (no settings destination exists yet; P05 adds the gear)
 - [ ] Heading "What would you like help with?" (`.title2`), one example request under it ("Try: help me send a photo to Mum"), the talk control, then a bordered "Type instead" (`keyboard`) and a row "Practise a train trip" (`tram.fill`)
 - [ ] Talk control: full-width prominent button "Talk to NearMe" (`mic.fill`), minimum height 80 pt. It keeps exactly the P04b toggle behaviour, state labels and VoiceOver labels ("Start listening" / "Stop listening"); the large animated orb becomes a small state symbol beside the state text
 
@@ -46,11 +46,15 @@ Out of scope: the practice screens' own content (they imitate a trip planner app
 - [ ] "I'm stuck" opens one large sheet (`.presentationDetents([.large])`) with a visible "Close" button; no stacked sheets
 
 ### 6. Onboarding
-- [ ] Welcome and greeting merged into one screen if the greeting adds nothing unique: `hand.wave`, `.largeTitle` "A little help, one step at a time", two `.body` lines, prominent "Get started"
+- [ ] `WelcomeView` and `GoodMorningView` merged into one Welcome screen (owner decision): `hand.wave`, the existing time-of-day greeting with the user's name (for example "Good morning, Shaurya") as a `.title2` line when a name is known, omitted when not, `.largeTitle` "A little help, one step at a time", two `.body` lines, prominent "Get started". The onboarding flow has one fewer step; no other step is lost
 - [ ] Explainer: three rows, `mic.fill` "Tell NearMe what you want to do", `list.number` "Follow one step at a time", `hand.raised` "You stay in control", then prominent "Try it now" and bordered "Skip". Copy stays truthful (NearMe guides, never taps for you)
 - [ ] All onboarding screens scroll at Accessibility XXXL with nothing clipped
 
-### 7. Tests and checks (default run)
+### 7. Scope guard
+- [ ] No changes under `NearMe/Services/`, `NearMe/Models/` or the guide JSON resources. `NearMe/ViewModels/` changes only for presentation state (no routing, speech or timing logic). Under `NearMe/Views/TripPlannerPractice/` only `TripPlannerChrome.swift` may change, and only to use Theme tokens for NearMe's own chrome
+- [ ] The Dev Report pastes the exact grep commands for 1.1 and their output (zero hits), and `git diff --stat main` for the scope guard
+
+### 8. Tests and checks (default run)
 - [ ] Existing tests still pass; add a test that Theme exposes the tokens above and that `PrimaryButton` uses the stacked layout at an accessibility size (view-model or layout helper level, no snapshot library)
 - [ ] Debug-only SwiftUI previews for Home, conversation (each state), coach card and onboarding at default size and `.accessibility5`, light and dark
 
