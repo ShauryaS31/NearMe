@@ -58,3 +58,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:55 AEDT | P04a | owner | mac build FAILED | 2 errors, ElevenLabsVoiceOutput.swift:81-82 use optional init params (manager's P04a slip); Mac fixes it as the first macfix
 - 2026-10-24 16:55 AEDT | - | owner | decision | macfix rule: Mac may push compile-only fixes to main as 'macfix:' commits with a LOG line; manager reviews them on resume (CLAUDE.md, FACTORY.md, PLAN.md)
 - 2026-10-24 16:56 AEDT | P04a | claude (mac) | macfix | compile-only: ElevenLabsVoiceOutput.swift:81-82 use resolved self.player/self.fallback; VoiceReviewTests makeEngine defaults made optional and built in body (same MainActor default-arg issue); 78 tests, 77 pass, 1 skip
+- 2026-10-24 16:57 AEDT | P03a | claude | dispatch r1 | accept any place, Keep what I said, nil is not a place; branch task/P03a-fixes (rebase onto macfix before merge)
+- 2026-10-24 16:57 AEDT | P07a | claude | dispatch r1 | 15 guide JSON files, schema doc, validator, in worktree ../NearMe-p07a on task/P07a-guides (content only)

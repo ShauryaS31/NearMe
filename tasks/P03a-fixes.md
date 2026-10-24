@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (right after P04) |
+| Status | in_progress |
 | Window | Sat 24 Oct |
 | Depends on | P04 |
 | Assignee | codex |

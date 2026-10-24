@@ -4,7 +4,7 @@
 |---|---|
 | Status | todo (after P04 and its Mac check) |
 | Window | Sat 24 Oct |
-| Depends on | P04 |
+| Depends on | P03a, P07a |
 | Assignee | codex |
 | Branch | task/P07-guided-coach |
 
@@ -19,8 +19,8 @@ New `LanguageModelSession` per call, greedy sampling, `maximumResponseTokens` (r
 
 ## Acceptance criteria
 ### 1. Guide library
-- [ ] `NearMe/Resources/guides/<id>.json`, bundled as resources (add to project.yml), one file per guide, 15 guides: WhatsApp send a photo, WhatsApp video call, WhatsApp voice message, iPhone make text bigger, connect to Wi-Fi, take a screenshot, share a photo from Photos, FaceTime a contact, add a contact, turn on Do Not Disturb, check for iOS updates, set an alarm, call from Recents, turn on the torch, send a text message
-- [ ] Schema: `id`, `title`, `app` (display name), `app_url_scheme` (optional, see 5), `aliases` (5 to 10 ways people ask, plain words), `steps` [{`instruction`, `ui_label_hint`}], `source_note` (what UI version the steps describe, for example "iOS 26 Settings app" or "WhatsApp for iPhone, 2026"), `verified_on_device` (false for all until the owner checks). A `Guide` Codable model and a loader that validates every file at launch in Debug (assert) and in a unit test
+- [ ] The 15 guide files already exist from P07a (`NearMe/Resources/guides/<id>.json`, schema in docs/design/GUIDES.md). Bundle them as resources (add to project.yml); do not rewrite their content except to fix validator problems. Guides: WhatsApp send a photo, WhatsApp video call, WhatsApp voice message, iPhone make text bigger, connect to Wi-Fi, take a screenshot, share a photo from Photos, FaceTime a contact, add a contact, turn on Do Not Disturb, check for iOS updates, set an alarm, call from Recents, turn on the torch, send a text message
+- [ ] Schema as in docs/design/GUIDES.md: `id`, `title`, `app`, optional `app_url_scheme`, `aliases`, `steps` [{`instruction`, `ui_label_hint`, optional `verify`}], `source_note`, `last_checked`. A `Guide` Codable model and a loader that validates every file at launch in Debug (assert) and in a unit test (same rules as scripts/validate-guides.py). Steps with `verify: true` show a small "Check on your screen" note in Debug builds only
 - [ ] Steps: one action each, written for iOS 26/27 and current WhatsApp, using the exact on-screen label in `ui_label_hint` (for example "Settings", "Accessibility", "Display & Text Size", "Larger Text"). No guessing beyond what you are confident of; where an app differs between versions, say so in `source_note`. Plain words, no jargon
 
 ### 2. Router

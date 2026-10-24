@@ -25,8 +25,9 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
 | [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | done (Mac check pending) |
 | [P04a](../tasks/P04a-build-fix.md) | Build fix for Xcode 27.1 / Swift 6.4 (MainActor default arguments), Info.plist no longer blocks pull | P04 | manager | done (owner rebuild pending) |
-| [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | todo |
-| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P03a | codex | todo |
+| [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | in_progress |
+| [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | in_progress |
+| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P03a, P07a | codex | todo |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | todo |
 | [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | todo (only after P07 passes) |
@@ -54,6 +55,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): Did you mean accepts any place the user says (practice, any destination is fine); suggestions only on low recogniser confidence or no recognisable place, showing the transcript, up to 2 closest matches and Keep what I said. In P03a, right after P04. Order: P04, P03a, P07, P05, P06, P08.
 - 2026-10-24 (owner): P04 build failed on Xcode 27.1 / Swift 6.4 (default arguments constructing MainActor types). P04a fixes all instances (manager hotfix, smallest change). The model returning "nil" as a place goes into P03a.
 - 2026-10-24 (owner): macfix rule. The Mac tester may fix compile-only errors (no behaviour or logic change) directly on main with commit prefix `macfix:`, push and log a line in docs/LOG.md; the manager reviews every macfix commit on resume. Anything beyond a compile fix comes to the manager. First use: ElevenLabsVoiceOutput.swift:81-82 (P04a used the optional init parameters instead of self.player and self.fallback).
+- 2026-10-24 (owner): start P03a now from main (rebase onto the macfix commit before merging). In parallel, P07a writes the 15 guide JSON files and schema doc (content only) on task/P07a-guides. Schema: last_checked and per-step verify replace verified_on_device. Stop after P03a merges for the owner's Mac check; P07a reviewed then too.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
@@ -65,3 +67,4 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P07: WhatsApp photo request gives the guide, step by step, Done/Repeat/I'm stuck work; ringtone request gives labelled general guidance; Open WhatsApp button; resume after app switch; owner spot-checks 3 guides on the iPhone.
 - [ ] P08 (real iPhone): Back Tap Shortcut set up from in-app steps; next step names a visible label; codes and emails never read out.
 - [ ] P03a: "from Central to Newtown" accepted with no suggestions; a mumbled place gives suggestions plus Keep what I said.
+- [ ] P07a: owner checks every step flagged `verify: true` on the iPhone (list in tasks/P07a-guides.md Dev Report).
