@@ -12,6 +12,7 @@ struct HelpHomeView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
                 #endif
                 Text("NearMe").font(.largeTitle)
+                ScreenBroadcastButton()
                 Button(action: engine.userTappedToTalk) {
                     Label("What do you need help with?", systemImage: "mic.fill")
                         .font(.title)
@@ -65,10 +66,13 @@ struct CoachView: View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 ScrollView {
-                    if let session = engine.coach {
-                        CoachStepContent(session: session, onCommand: engine.coachCommand)
-                            .id(session.stepIndex)
-                            .transition(.opacity)
+                    VStack(spacing: 12) {
+                        if let session = engine.coach {
+                            CoachStepContent(session: session, onCommand: engine.coachCommand)
+                                .id(session.stepIndex)
+                                .transition(.opacity)
+                        }
+                        ScreenBroadcastButton().padding(.horizontal)
                     }
                 }
                 .animation(stepAnimation, value: engine.coach?.stepIndex)

@@ -12,9 +12,8 @@ struct DetectedScreenElement {
 
 @MainActor
 protocol ScreenGuidanceService: AnyObject {
-    /// Begins watching the shared screen-capture feed. No-ops if the user
-    /// never started a system broadcast for NearMe (see
-    /// ReplayKitVisionGuidanceService's header comment).
+    /// Reserved for screen guidance. The P13 spike only shares a heartbeat;
+    /// it does not implement text detection or watch a frame feed.
     func startWatching()
     func stopWatching()
 
