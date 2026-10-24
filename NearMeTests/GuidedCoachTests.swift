@@ -259,7 +259,7 @@ final class GuidedCoachTests: XCTestCase {
         XCTAssertFalse(output.slower)
     }
 
-    func testProgressPersistsOnlyIdAndIndexAndRejectsInvalidRestores() throws {
+    func testProgressPersistsOnlyIdentifiersAndCountersAndRejectsInvalidRestores() throws {
         let suite = "CoachTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -267,15 +267,15 @@ final class GuidedCoachTests: XCTestCase {
         let photo = try guide("whatsapp_send_photo")
         let session = CoachSession(guide: photo, request: "private words", person: "Mum", generalSteps: [], stepIndex: 2, text: "private line")
         store.save(session)
-        XCTAssertEqual(Set(defaults.persistentDomain(forName: suite)?.keys.map { $0 } ?? []), [CoachProgressStore.guideKey, CoachProgressStore.stepKey])
+        XCTAssertEqual(Set(defaults.persistentDomain(forName: suite)?.keys.map { $0 } ?? []), [CoachProgressStore.progressKey])
         let restored = try XCTUnwrap(store.restore(guides: [photo]))
         XCTAssertEqual(restored.stepIndex, 2)
         XCTAssertNil(restored.person)
         XCTAssertEqual(restored.request, "")
         XCTAssertTrue(restored.text.contains("the person"))
-        defaults.set(100, forKey: CoachProgressStore.stepKey)
+        store.save(CoachProgress(guideID: photo.id, stepIndex: 100, sessionID: session.id, revision: 1))
         XCTAssertNil(store.restore(guides: [photo]))
-        XCTAssertNil(defaults.string(forKey: CoachProgressStore.guideKey))
+        XCTAssertNil(defaults.data(forKey: CoachProgressStore.progressKey))
         store.save(session)
         store.save(CoachSession(guide: nil, request: "private", person: nil, generalSteps: ["Try an option."], stepIndex: 0, text: "Try an option."))
         XCTAssertNil(store.restore(guides: [photo]))
@@ -398,7 +398,7 @@ final class GuidedCoachTests: XCTestCase {
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
             coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
-            appOpener: UnavailableCoachAppOpener())
+            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater())
     }
 
     private func eventually(_ condition: () -> Bool) async {

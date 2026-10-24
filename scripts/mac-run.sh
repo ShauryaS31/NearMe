@@ -60,7 +60,7 @@ from pathlib import Path
 
 digest = hashlib.sha256()
 digest.update(Path("project.yml").read_bytes())
-for root in ("NearMe", "Shared", "NearMeTests"):
+for root in ("NearMe", "Shared", "NearMeLiveActivity", "NearMeTests"):
     for path in sorted(Path(root).rglob("*")):
         if path.is_file():
             digest.update(b"\0" + path.as_posix().encode("utf-8"))

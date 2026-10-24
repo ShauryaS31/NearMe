@@ -1,7 +1,8 @@
 import Foundation
 
 nonisolated struct CoachSession: Sendable {
-    let id = UUID()
+    var id = UUID()
+    var revision = 0
     let guide: HelpGuide?
     let request: String
     let person: String?
@@ -16,32 +17,28 @@ nonisolated struct CoachSession: Sendable {
 }
 
 @MainActor
-final class CoachProgressStore {
-    private let defaults: UserDefaults
-    static let guideKey = "coach.guideID"
-    static let stepKey = "coach.stepIndex"
-
-    init(defaults: UserDefaults? = nil) { self.defaults = defaults ?? .standard }
-
+extension CoachProgressStore {
     func save(_ session: CoachSession) {
         guard let guide = session.guide else { clear(); return }
-        defaults.set(guide.id, forKey: Self.guideKey)
-        defaults.set(session.stepIndex, forKey: Self.stepKey)
+        save(CoachProgress(guideID: guide.id, stepIndex: session.stepIndex,
+                           sessionID: session.id, revision: session.revision))
     }
 
     func restore(guides: [HelpGuide]) -> CoachSession? {
-        guard let id = defaults.string(forKey: Self.guideKey),
-              let index = defaults.object(forKey: Self.stepKey) as? Int,
-              let guide = guides.first(where: { $0.id == id }), guide.steps.indices.contains(index) else {
+        guard let progress = load(), let guide = guides.first(where: { $0.id == progress.guideID }),
+              guide.steps.indices.contains(progress.stepIndex) else {
             clear()
             return nil
         }
-        return CoachSession(guide: guide, request: "", person: nil, generalSteps: [],
-                            stepIndex: index, text: CoachText.fallback(step: guide.steps[index], person: nil))
+        return CoachSession(id: progress.sessionID, revision: progress.revision, guide: guide,
+                            request: "", person: nil, generalSteps: [], stepIndex: progress.stepIndex,
+                            text: CoachText.fallback(step: guide.steps[progress.stepIndex], person: nil))
     }
+}
 
-    func clear() {
-        defaults.removeObject(forKey: Self.guideKey)
-        defaults.removeObject(forKey: Self.stepKey)
+nonisolated extension HelpGuide {
+    var activityGuide: CoachActivityGuide {
+        CoachActivityGuide(id: id, title: title,
+                           steps: steps.map { CoachActivityGuide.Step(instruction: $0.instruction) })
     }
 }
