@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | changes_requested (round 3) |
 | Window | Sat 24 Oct |
 | Depends on | P03 |
 | Assignee | codex |
@@ -160,3 +160,17 @@ Mac checks (also on a real iPhone): live partial transcript while speaking, "Got
   9. Set Accessibility > Display & Text Size > Larger Text to Accessibility XXXL, then test Bold Text, VoiceOver, portrait/landscape and Reduce Motion. Scroll to all suggestion buttons, Neither, Type instead and session controls; check that Debug timings wrap and practice Stop remains reachable.
 - Not done / risks / questions: No iOS compile, XCTest execution, measured latency or visual accessibility validation is possible here. The shared acoustic gate uses a modest RMS threshold, so quiet speakers, noisy rooms and real route formats need the phone checks above. Playback-start signals measure API playback onset, not sound measured at the speaker; output-route latency can add delay. Speech asset installation needs connectivity, but recognition never uploads audio. SpeechAnalyzer lifecycle reuse, final confidence delivery and asset support still need the real-device gate. Existing unrelated voice-screen fixed sizing/style remains outside this task. P05 settings UI, new planner tools and other tasks were not started.
 - Git write result: `git add` succeeded. `git commit -m "P04: Address voice review with streaming input and faster replies"` failed with `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/index.lock': Permission denied`. Everything remains uncommitted: changes are staged except this final report note. Per the owner's explicit sandbox-failure instruction, stopped here for the manager to commit. No post-commit line was appended to `docs/LOG.md` because no commit was created. Suggested manager log line: `- 2026-10-24 16:26 AEDT | P04 | codex | dev-report r2 | Address review 1-13: greeting, streaming on-device speech, vocabulary, templates, suggestions, timing and practice Stop (manager commit; sandbox blocked .git)`.
+
+## Review (round 2)
+- Date: 2026-10-24 16:34 AEDT
+- Verdict: CHANGES (final round). Items 1 to 12 met in code; protocol changes, removed brain methods, BrainSource .template, imports and on-device-only recognition all check out.
+
+Fixes (address every one; this is the last round):
+1. Compile error, ElevenLabsVoiceOutput.swift:74-75: the onPlaybackStarted closures capture self before `isOffline` is initialised (lines 76-81). Move both assignments after the if/else (next to routeObserver).
+2. Failing test, VoiceReviewTests.swift:97: for noSpeechDetected the engine says "Sorry, I didn't catch that ... what do you need help with?" (TaskPlannerEngine.swift:272). Make the test assert the line actually used per error (or use one retry line everywhere, without an em dash).
+3. Turn ending: in both silence loops (AnalyzerVoiceInputService.swift:122, AppleSpeechFallbackService.swift:132) end only when the silence rule has fired AND the trimmed latest transcript is non-empty, so a cough or background noise cannot end the turn. In all four timeout paths (the 25 s backstops at Analyzer :131 and Apple :143, and the 2 s finalisation timeouts in both endSpeech functions) return the latest transcript when it is non-empty; throw noSpeechDetected only when it is empty. Add tests for both with fakes.
+4. TaskPlannerEngine.swift:361-364: delete the first-turn "Did you mean" trigger. Suggestions are only for answers to a place question (line 304 path). "I need help planning a trip" must get the template "Where would you like to go?".
+5. TaskPlannerEngine.swift:282-286: cap retries. After 2 consecutive failures that are not noSpeechDetected (for example microphoneUnavailable, audioEngineFailed), stop retrying, go idle and show the error message with Type instead.
+6. AnalyzerVoiceInputService.swift:9 and :53: build a fresh SpeechTranscriber (same locale and options) and analyzer for every startListening; do not reuse a finished module.
+7. Tests (item 13): the analyzer path test must assert setContext is called with PracticeVocabulary (inject a fake analyzer factory if needed).
+8. VoiceSessionView.swift: show the real question, for example "Did you mean Holsworthy or Town Hall?", not a literal "Did you mean ...?". Optional: move PlannerTemplates to Services/Intelligence/.
