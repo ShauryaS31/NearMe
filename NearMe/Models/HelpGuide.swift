@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct Guide: Codable, Sendable, Equatable, Identifiable {
+nonisolated struct HelpGuide: Codable, Sendable, Equatable, Identifiable {
     let id: String
     let title: String
     let app: String
@@ -40,7 +40,7 @@ nonisolated enum CoachText {
             .components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
-    static func validRewrite(_ text: String, guide: Guide, step: Guide.Step) -> Bool {
+    static func validRewrite(_ text: String, guide: HelpGuide, step: HelpGuide.Step) -> Bool {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               text.count <= 200, (1...2).contains(sentences(text).count),
               !text.contains(where: { $0.isNewline }),
@@ -53,6 +53,7 @@ nonisolated enum CoachText {
         }
         // The current label must survive a rewrite; quoted labels cannot be invented.
         guard text.contains("\"\(step.uiLabelHint)\"") else { return false }
+        if step.instruction.contains("the person or number"), !text.contains("the person or number") { return false }
         if step.labelIsNearby == true {
             let label = NSRegularExpression.escapedPattern(for: step.uiLabelHint)
             guard !matches(text, "(?i)\\btap\\s+(?:on\\s+)?(?:the\\s+)?\"\(label)\""),
@@ -70,20 +71,22 @@ nonisolated enum CoachText {
         }
     }
 
-    static func fallback(step: Guide.Step, person: String?, stuck: Bool = false) -> String {
+    static func fallback(step: HelpGuide.Step, person: String?, stuck: Bool = false) -> String {
         var text = step.instruction
         if let person = PersonNormalization.normalize(person) {
             if text.hasPrefix("Tap the chat with the person") {
                 text = "Open your chat with \(person)."
             } else {
                 text = text.replacingOccurrences(of: "the person's", with: "\(person)'s")
-                    .replacingOccurrences(of: "the person", with: person)
+                    .replacingOccurrences(of: #"the person(?! or number)\b"#, with: person, options: .regularExpression)
                     .replacingOccurrences(of: "the matching person", with: person)
             }
         }
         if step.labelIsNearby == true {
-            // An orientation sentence plus the original action; keep at most two sentences.
-            return "Look near \"\(step.uiLabelHint)\". \(sentences(text).first.map { $0 + "." } ?? text)"
+            // Keep the original second sentence (for example the 24-hour note).
+            // A colon makes orientation part of the action's sentence.
+            let separator = sentences(text).count > 1 ? ": " : ". "
+            return "Look near \"\(step.uiLabelHint)\"\(separator)\(text)"
         }
         return stuck ? "\(text) Look for \"\(step.uiLabelHint)\"." : text
     }
@@ -97,7 +100,9 @@ nonisolated enum PersonNormalization {
         case "dad", "daddy", "father": return "Dad"
         case "son": return "your son"
         case "daughter": return "your daughter"
-        default: return value.capitalized
+        default:
+            guard !CoachText.matches(value, #"(?i)^the\s+"#) else { return nil }
+            return value.capitalized
         }
     }
 
@@ -112,11 +117,21 @@ nonisolated enum PersonNormalization {
            let match = regex.firstMatch(in: request, range: NSRange(request.startIndex..., in: request)),
            let range = Range(match.range(at: 1), in: request) {
             let name = String(request[range])
-            if !["whatsapp", "facetime", "someone", "person", "me", "wifi", "wi", "phone", "recents", "a contact", "a friend", "my friend"].contains(name.lowercased()) {
-                return normalize(name)
-            }
+            return extractedPerson(name)
         }
         return nil
+    }
+
+    /// Validate a model-supplied recipient with the same rules as keyword extraction.
+    static func extractedPerson(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
+        if CoachText.matches(value, #"(?i)^(?:(?:my|your)\s+)?(?:mom|mum|mummy|mother|dad|daddy|father|son|daughter)$"#) {
+            return normalize(value)
+        }
+        let words = value.split(separator: " ")
+        guard words.allSatisfy({ $0.first?.isUppercase == true }),
+              !["whatsapp", "facetime", "someone", "person", "me", "wifi", "wi", "phone", "recents", "a contact", "a friend", "my friend"].contains(value.lowercased()) else { return nil }
+        return normalize(value)
     }
 }
 

@@ -2,7 +2,7 @@ import Foundation
 
 nonisolated struct CoachSession: Sendable {
     let id = UUID()
-    let guide: Guide?
+    let guide: HelpGuide?
     let request: String
     let person: String?
     let generalSteps: [String]
@@ -29,7 +29,7 @@ final class CoachProgressStore {
         defaults.set(session.stepIndex, forKey: Self.stepKey)
     }
 
-    func restore(guides: [Guide]) -> CoachSession? {
+    func restore(guides: [HelpGuide]) -> CoachSession? {
         guard let id = defaults.string(forKey: Self.guideKey),
               let index = defaults.object(forKey: Self.stepKey) as? Int,
               let guide = guides.first(where: { $0.id == id }), guide.steps.indices.contains(index) else {

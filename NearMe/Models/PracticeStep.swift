@@ -8,6 +8,7 @@ enum PracticeLabels {
     static let chooseDestination = "Choose destination"
     static let searchDestination = "Search for a destination"
     static let search = "Search"
+    static let tripOptions = "Trip options"
     static func station(_ destination: String) -> String { "\(destination) Station" }
 }
 
@@ -36,7 +37,19 @@ enum PracticeStep: Equatable, CaseIterable {
         }
     }
 
-    /// The caption NearMe overlays/speaks at this step. `origin`/`destination`
+    func targetLabel(destination: String) -> String {
+        switch self {
+        case .forYouOpened: return PracticeLabels.journeyPlanner
+        case .tapFrom: return PracticeLabels.chooseOrigin
+        case .typeOrigin: return PracticeLabels.chooseDestination
+        case .tapToAndTypeDestination: return PracticeLabels.searchDestination
+        case .selectingDestination: return PracticeLabels.station(destination)
+        case .readyToSearch: return PracticeLabels.search
+        case .showingResults: return PracticeLabels.tripOptions
+        }
+    }
+
+    /// The caption NearMe displays/speaks at this step. `origin`/`destination`
     /// are interpolated in so the walkthrough matches whatever the user
     /// actually said, not just the Central -> Town Hall example.
     func caption(origin: String, destination: String) -> String {

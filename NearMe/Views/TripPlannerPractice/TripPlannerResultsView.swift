@@ -11,6 +11,10 @@ struct TripPlannerResultsView: View {
             TripPlannerTopBar(title: PracticeLabels.journeyPlanner)
 
             VStack(alignment: .leading, spacing: TTSpacing.xs) {
+                Text(PracticeLabels.tripOptions)
+                    .font(.title2.bold())
+                    .padding()
+                    .practiceTarget(PracticeLabels.tripOptions, active: true)
                 Text("\(origin) \u{2192} \(destination)")
                     .font(TTFont.headline())
                     .foregroundStyle(Color.primary)

@@ -5,6 +5,7 @@ import SwiftUI
 struct SessionContainerView: View {
     @StateObject private var engine: TaskPlannerEngine
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var didRestore = false
     @MainActor
     init(userName: String) {
@@ -25,18 +26,7 @@ struct SessionContainerView: View {
             } else if engine.coach != nil {
                 CoachView(engine: engine)
             } else if let simulation = engine.tripPlannerPracticeViewModel {
-                TripPlannerPracticeView(viewModel: simulation,
-                                        onRepeat: { engine.repeatPracticeCaption() },
-                                        onSlower: { engine.repeatPracticeCaption(slower: true) },
-                                        onStop: engine.stopPracticeSpeech,
-                                        isSpeaking: engine.isVoiceOutputActive,
-                                        plannerState: engine.plannerState,
-                                        isStartingListening: engine.isStartingListening,
-                                        lastErrorMessage: engine.lastErrorMessage,
-                                        onTalk: engine.userTappedToTalk,
-                                        onTypeInstead: engine.useTypedInput, onEndSession: {
-                    engine.endSession()
-                })
+                TripPlannerPracticeView(viewModel: simulation, engine: engine)
             } else if engine.plannerState == .openingApp {
                 OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
             } else {
@@ -48,14 +38,18 @@ struct SessionContainerView: View {
         .preferredColorScheme(nil)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            Text("\(brainBadge) | \(engine.latestVoice ?? "Voice pending")\n\(engine.timingBadge)")
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .background(.background)
-                .accessibilityLabel("Brain source: \(brainBadge). Voice: \(engine.latestVoice ?? "pending"). \(engine.timingBadge)")
+            ScrollView {
+                Text(engine.debugBadge.text)
+                    .font(.caption)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(height: dynamicTypeSize.isAccessibilitySize ? 84 : 48)
+            .background(.background)
         }
         #endif
         .onAppear {
@@ -68,9 +62,5 @@ struct SessionContainerView: View {
             if phase == .active { engine.appBecameActive() }
         }
     }
-
-    #if DEBUG
-    private var brainBadge: String { engine.latestBrainSource.label }
-    #endif
 
 }

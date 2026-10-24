@@ -20,7 +20,7 @@ struct HelpHomeView: View {
                 .buttonStyle(.borderedProminent)
                 Text("Try: 'Help me send a photo to Mum on WhatsApp'")
                     .font(.body)
-                TextField("Type what you need help with", text: $request, axis: .vertical)
+                TextField("Type what you need help with", text: $request)
                     .font(.body)
                     .textFieldStyle(.roundedBorder)
                     .submitLabel(.send)
@@ -58,85 +58,60 @@ struct HelpHomeView: View {
 
 struct CoachView: View {
     @ObservedObject var engine: TaskPlannerEngine
-    @State private var command = ""
 
     var body: some View {
-        ScrollView {
-            if let session = engine.coach {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text(session.text)
-                        .font(.title)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("Step \(session.stepIndex + 1) of \(session.count)").font(.body)
-                    if session.isGeneral {
-                        Label("General guidance: your screen may look different", systemImage: "info.circle")
-                            .font(.body)
-                    }
-                    #if DEBUG
-                    if session.needsScreenCheck {
-                        Label("Check on your screen", systemImage: "checkmark.rectangle").font(.caption)
-                    }
-                    #endif
-                    if engine.plannerState == .thinking {
-                        Label("Preparing your step", systemImage: "hourglass")
-                    } else if engine.plannerState == .listening {
-                        Label("Listening", systemImage: "mic.fill")
-                        Text(engine.liveTranscript).font(.body)
-                    } else if engine.plannerState == .finishing {
-                        Label("Finishing", systemImage: "hourglass")
-                    } else if engine.isStartingListening || engine.isPreparingSpeech {
-                        Label("Getting speech ready", systemImage: "mic")
-                    } else {
-                        Label(engine.isVoiceOutputActive ? "Speaking" : "Ready",
-                              systemImage: engine.isVoiceOutputActive ? "speaker.wave.2" : "checkmark.circle")
-                    }
-                    if let error = engine.lastErrorMessage { Text(error).font(.body) }
-                    action("Done / Next", symbol: "checkmark", command: .next)
-                    action("Repeat", symbol: "arrow.counterclockwise", command: .repeatStep)
-                    action("Slower", symbol: "tortoise", command: .slower)
-                    action("I'm stuck", symbol: "questionmark.circle", command: .stuck)
-                    if let guide = session.guide, let url = launchURL(guide) {
-                        Button { UIApplication.shared.open(url) } label: {
-                            Label("Open \(guide.app)", systemImage: "arrow.up.forward.app")
-                                .frame(minWidth: 44, minHeight: 44)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                ScrollView {
+                    if let session = engine.coach {
+                        VStack(alignment: .leading, spacing: 20) {
+                            Text(session.guide?.title ?? "Phone help").font(.title)
+                            Text("Step \(session.stepIndex + 1) of \(session.count)").font(.body)
+                            if session.isGeneral {
+                                Label("General guidance: your screen may look different", systemImage: "info.circle")
+                            }
+                            #if DEBUG
+                            if session.needsScreenCheck {
+                                Label("Check on your screen", systemImage: "checkmark.rectangle").font(.caption)
+                            }
+                            #endif
+                            if engine.plannerState == .thinking {
+                                Label("Preparing your step", systemImage: "hourglass")
+                            } else if engine.plannerState == .listening {
+                                Label("Listening", systemImage: "mic.fill")
+                                Text(engine.liveTranscript)
+                            } else if engine.plannerState == .finishing {
+                                Label("Finishing", systemImage: "hourglass")
+                            } else if engine.isStartingListening || engine.isPreparingSpeech {
+                                Label("Getting speech ready", systemImage: "mic")
+                            } else {
+                                Label(engine.isVoiceOutputActive ? "Speaking" : "Ready",
+                                      systemImage: engine.isVoiceOutputActive ? "speaker.wave.2" : "checkmark.circle")
+                            }
+                            action("Done / Next", symbol: "checkmark", command: .next)
+                            action("I'm stuck", symbol: "questionmark.circle", command: .stuck)
+                            if let guide = session.guide, let url = launchURL(guide) {
+                                Button { UIApplication.shared.open(url) } label: {
+                                    Label("Open \(guide.app)", systemImage: "arrow.up.forward.app")
+                                        .frame(minWidth: 44, minHeight: 44)
+                                }
+                                .buttonStyle(.bordered)
+                            }
                         }
-                        .buttonStyle(.bordered)
-                    }
-                    Button(action: engine.userTappedToTalk) {
-                        Label(engine.plannerState == .listening ? "Finish speaking" : "Speak", systemImage: "mic")
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(engine.plannerState == .thinking || engine.plannerState == .finishing || engine.isStartingListening)
-                    TextField("Type Done, Repeat, Slower, I'm stuck or Stop", text: $command, axis: .vertical)
                         .font(.body)
-                        .textFieldStyle(.roundedBorder)
-                        .submitLabel(.send)
-                        .onSubmit(send)
-                    Button(action: send) {
-                        Label("Send", systemImage: "paperplane")
-                            .frame(minWidth: 44, minHeight: 44)
+                        .padding()
+                        .frame(maxWidth: 600, alignment: .leading)
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                .font(.body)
-                .padding()
-                .frame(maxWidth: 600, alignment: .leading)
-                .frame(maxWidth: .infinity)
+                if let session = engine.coach {
+                    SessionDock(engine: engine, instruction: session.text,
+                                targetLabel: session.guide?.steps[session.stepIndex].uiLabelHint,
+                                availableHeight: geometry.size.height)
+                }
             }
         }
         .background(Color(.systemBackground))
-        .safeAreaInset(edge: .bottom) {
-            Button { engine.coachCommand(.stop) } label: {
-                Label("Stop", systemImage: "stop.fill")
-                    .frame(maxWidth: .infinity, minHeight: 44)
-            }
-            .buttonStyle(.bordered)
-            .padding()
-            .background(.background)
-            .accessibilityLabel("Stop guidance")
-        }
     }
 
     private func action(_ title: String, symbol: String, command: CoachCommand) -> some View {
@@ -146,16 +121,9 @@ struct CoachView: View {
         .buttonStyle(.bordered)
     }
 
-    private func launchURL(_ guide: Guide) -> URL? {
+    private func launchURL(_ guide: HelpGuide) -> URL? {
         guard let scheme = guide.appURLScheme, ["whatsapp://", "sms:"].contains(scheme),
               let url = URL(string: scheme), UIApplication.shared.canOpenURL(url) else { return nil }
         return url
-    }
-
-    private func send() {
-        guard !command.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        engine.useTypedInput()
-        engine.submitTypedInput(command)
-        command = ""
     }
 }

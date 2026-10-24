@@ -55,6 +55,7 @@ struct TripPlannerJourneyPlannerView: View {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .strokeBorder(Color.accentColor, lineWidth: 2)
                     )
+                    .practiceTarget(PracticeLabels.search, active: true, cornerRadius: 14)
                     .padding(.top, TTSpacing.sm)
                 }
 
@@ -91,5 +92,6 @@ struct TripPlannerJourneyPlannerView: View {
         }
         .buttonStyle(.plain)
         .disabled(action == nil)
+        .practiceTarget(placeholder, active: isHighlighted)
     }
 }

@@ -38,7 +38,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
 
     @Generable
     struct PlaceAnswer: Sendable {
-        @FoundationModels.Guide(description: "A short station, suburb or place name of at most 5 words, without filler. Nil if none is clear.")
+        @Guide(description: "A short station, suburb or place name of at most 5 words, without filler. Nil if none is clear.")
         var place: String?
     }
 

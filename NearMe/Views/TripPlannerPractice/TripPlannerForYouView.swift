@@ -50,7 +50,7 @@ struct TripPlannerForYouView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .accessibilityHint("Opens the journey planner")
+                    .practiceTarget(PracticeLabels.journeyPlanner, active: true, cornerRadius: 14)
 
                     ForEach(["Home", "Work", "Your location"], id: \.self) { row in
                         HStack {
@@ -68,7 +68,6 @@ struct TripPlannerForYouView: View {
                 .padding(.horizontal, TTSpacing.lg)
             }
 
-            TripPlannerTabBar(selected: .forYou)
         }
         .background(Color(.systemBackground).ignoresSafeArea())
     }

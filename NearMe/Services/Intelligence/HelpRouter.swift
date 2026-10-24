@@ -45,7 +45,7 @@ nonisolated enum GuidePrefilter {
             .filter { !$0.isEmpty && !ignored.contains($0) }.map { synonyms[$0] ?? $0 })
     }
 
-    static func keywordScore(_ request: String, guide: Guide) -> Double {
+    static func keywordScore(_ request: String, guide: HelpGuide) -> Double {
         let query = words(request)
         let aliasScore = ([guide.title] + guide.aliases).map { alias -> Double in
             let tokens = words(alias)
@@ -66,16 +66,22 @@ nonisolated enum GuidePrefilter {
     }
 
     /// Pure ranking: callers provide optional sentence vectors; tests need no model assets.
-    static func rank(request: String, guides: [Guide], requestVector: [Double]? = nil,
+    static func rank(request: String, guides: [HelpGuide], requestVector: [Double]? = nil,
                      guideVectors: [String: [Double]]? = nil) -> [GuideCandidate] {
-        guides.map { guide in
+        let scored: [GuideCandidate] = guides.map { guide -> GuideCandidate in
             let keyword = keywordScore(request, guide: guide)
             let score: Double
             if let requestVector, let vector = guideVectors?[guide.id] {
                 score = 0.8 * keyword + 0.2 * max(0, cosine(requestVector, vector))
             } else { score = keyword }
             return GuideCandidate(id: guide.id, title: guide.title, aliases: guide.aliases, score: score)
-        }.sorted { $0.score == $1.score ? $0.id < $1.id : $0.score > $1.score }.prefix(3).map { $0 }
+        }
+        let ranked: [GuideCandidate] = scored.sorted { left, right in
+            if left.score == right.score { return left.id < right.id }
+            return left.score > right.score
+        }
+        let top: ArraySlice<GuideCandidate> = ranked.prefix(3)
+        return Array(top)
     }
 
     static func fallback(request: String, candidates: [GuideCandidate]) -> HelpChoice {
@@ -94,12 +100,12 @@ protocol HelpRouting {
 
 @MainActor
 final class HelpRouter: HelpRouting {
-    private let guides: [Guide]
+    private let guides: [HelpGuide]
     private let service: CoachModelService
     private let embedding: NLEmbedding?
     private var vectors: [String: [Double]] = [:]
 
-    init(guides: [Guide], service: CoachModelService, useEmbeddings: Bool = true) {
+    init(guides: [HelpGuide], service: CoachModelService, useEmbeddings: Bool = true) {
         self.guides = guides
         self.service = service
         embedding = useEmbeddings ? NLEmbedding.sentenceEmbedding(for: .english) : nil
@@ -117,7 +123,7 @@ final class HelpRouter: HelpRouting {
             let route: HelpRoute
             if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }) { route = .general }
             else { route = choice.route }
-            return HelpChoice(route: route, person: PersonNormalization.normalize(choice.person)
+            return HelpChoice(route: route, person: PersonNormalization.extractedPerson(choice.person)
                               ?? PersonNormalization.extract(from: request))
         }
     }

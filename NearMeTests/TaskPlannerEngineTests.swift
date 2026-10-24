@@ -18,14 +18,14 @@ final class TaskPlannerEngineTests: XCTestCase {
         await submit("I'm leaving from Central", to: engine, until: .guiding(.forYouOpened))
         XCTAssertEqual(engine.currentIntent.origin, "Central")
         XCTAssertEqual(engine.currentIntent.destination, "Holsworthy")
-        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.latestReplySource, .template)
         XCTAssertEqual(input.startCount, 0)
         XCTAssertEqual(engine.conversation.filter { $0.speaker == .user }.count, 2)
         engine.endSession()
         XCTAssertFalse(engine.isTyping)
     }
 
-    func testInvalidOriginFollowUpRetriesOnceThenClearsTrip() async {
+    func testInvalidOriginFollowUpRetriesOnceThenRestartsTrip() async {
         let engine = makeEngine()
         engine.useTypedInput()
         await submit("to Holsworthy", to: engine)
@@ -34,7 +34,7 @@ final class TaskPlannerEngineTests: XCTestCase {
         XCTAssertEqual(engine.currentIntent.destination, "Holsworthy")
         XCTAssertEqual(engine.conversation.last?.text, "Sorry, which station or suburb?")
         await submit("uh", to: engine)
-        XCTAssertEqual(engine.currentIntent.kind, .unknown)
+        XCTAssertEqual(engine.currentIntent.kind, .planJourney)
         XCTAssertNil(engine.currentIntent.origin)
         XCTAssertNil(engine.currentIntent.destination)
         XCTAssertEqual(engine.conversation.last?.text, "Let's start again. Where would you like to go?")
@@ -83,12 +83,12 @@ final class TaskPlannerEngineTests: XCTestCase {
         XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 120)
         await submit("to Holsworthy", to: engine)
         XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 120)
-        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.latestReplySource, .template)
         await submit("um", to: engine)
         XCTAssertEqual(engine.latestBrainSource, .keywordFallback)
         XCTAssertNil(engine.latestBrainLatencyMilliseconds)
         await submit("I'm leaving from Central", to: engine, until: .guiding(.forYouOpened))
-        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.latestReplySource, .template)
         XCTAssertNil(engine.latestBrainLatencyMilliseconds)
         engine.endSession()
     }
@@ -129,7 +129,7 @@ private struct CannedEngineBrain: TaskPlannerBrain {
     }
 
     func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
-        let places = ["I'm leaving from Central": "Central", "to Holsworthy please": "Holsworthy"]
+        let places = ["to Town Hall": "Town Hall", "I'm leaving from Central": "Central", "to Holsworthy please": "Holsworthy"]
         return BrainAnswer(value: places[answer], source: .keywordFallback)
     }
 

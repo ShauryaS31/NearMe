@@ -38,6 +38,7 @@ struct TripPlannerDestinationSearchView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.step != .tapToAndTypeDestination)
+                .practiceTarget(PracticeLabels.searchDestination, active: viewModel.step == .tapToAndTypeDestination)
 
                 if viewModel.step == .selectingDestination {
                     Text("Train")
@@ -71,6 +72,7 @@ struct TripPlannerDestinationSearchView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .practiceTarget(PracticeLabels.station(viewModel.destinationDisplayName), active: true)
                 }
 
                 Spacer()

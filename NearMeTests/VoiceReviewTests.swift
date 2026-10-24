@@ -521,7 +521,7 @@ final class VoiceReviewTests: XCTestCase {
         await eventually { input.starts == 2 }
         XCTAssertTrue(engine.placeSuggestions.isEmpty)
         XCTAssertEqual(output.lines.last, "Where would you like to go?")
-        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.latestReplySource, .template)
         engine.endSession()
     }
 
@@ -547,7 +547,7 @@ final class VoiceReviewTests: XCTestCase {
         engine.submitTypedInput("to Town Hall")
         await eventually { engine.plannerState == .idle }
         XCTAssertEqual(output.lines.last, "Where are you starting from?")
-        XCTAssertEqual(engine.latestBrainSource, .template)
+        XCTAssertEqual(engine.latestReplySource, .template)
         engine.submitTypedInput("Central")
         await eventually { engine.tripPlannerPracticeViewModel != nil }
         XCTAssertTrue(output.lines.contains("Great, let's practise planning a trip from Central to Town Hall."))
