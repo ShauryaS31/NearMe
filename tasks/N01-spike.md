@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | done |
 | Window | Sat 24 Oct 13:00 to 14:00 |
 | Depends on | N00 |
 | Assignee | codex, then owner on Mac |
@@ -184,3 +184,11 @@ Fixes:
   3. Open NearMe.xcodeproj, run NearMe on an Apple Intelligence-ready Mac, grant Accessibility permission, and place NearMe beside System Settings on the primary display. Activate System Settings, return to NearMe, enter `make text bigger`, then click Next step. Check the real chosen label/role, sensible instruction, ring placement and click-through. Record success/failure and AX/model/total ms in docs/LOG.md for the original owner gate.
   4. If secondary displays are available, use System Settings > Displays > Arrange to place one above the primary, then to its left with bottoms aligned. For each arrangement, move the target window onto that display, activate it, return to NearMe and click Next step. Verify the ring follows the selected target control on that display; Clear ring before changing layouts. Record actual layouts and results separately from the unit-test fixtures.
 - Not done / risks / questions: This machine has no Swift or Xcode. GitHub CI is the compile gate; the green CI mentioned in Review round 2 predates these changes and does not verify them. New Swift tests, compilation, real multi-display ring placement and the System Settings owner gate remain unverified. The optional cast warnings remain. Commit will be attempted after this report; if the sandbox prevents .git writes, changes must remain uncommitted for the manager.
+
+## Review (round 3)
+- Date: 2026-10-24 12:48 AEDT
+- Verdict: PASS
+- CI run 40051262605 green on macos-26: 10 NearMeCore tests passed (incl. mainDisplay, secondDisplayAbove, secondDisplayLeft), BUILD SUCCEEDED. Remaining warnings: 3 `unsafeBitCast` style hints (optional fix, left as is).
+- Owner request met: one public flip function in `NearMeCore/Sources/NearMeCore/ScreenCoordinates.swift`, Overlay passes the primary display height (`NSScreen.screens.first`), tests match the brief exactly.
+- Criteria 1 to 14 met in code; no AX actions, no secrets, NearMeCore imports Foundation and CoreGraphics only.
+- PENDING MAC: overlay click-through and no focus steal; real System Settings read; kill-rule gate G1. Steps in PLAN.md Mac gate checklist M3 to M6.
