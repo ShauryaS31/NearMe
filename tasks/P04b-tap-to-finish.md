@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | done (iPhone check pending) |
 | Window | Sat 24 Oct, after P03a, before P07 |
 | Depends on | P03a |
 | Assignee | codex |
@@ -102,3 +102,8 @@ Fix:
   4. Start listening during practice, say nothing, and tap to finish. Confirm the exact no-words message is displayed and spoken, Type instead remains visible, the step is retained, and capture does not restart. Check the listening/finishing labels at large accessibility text sizes, with VoiceOver, and with Reduce Motion enabled.
   5. Run `bash scripts/mac-run.sh device --current` with the configured iPhone. Repeat steps 2–4 with background music, both online ElevenLabs output and offline system output after speech assets are installed. Confirm output stops immediately and NearMe's own speech never appears in recognition.
 - Not done / risks / questions: Mac/iPhone verification remains the owner's gate. Command matching intentionally covers the specified standalone words; other phrases replay the current caption until P06. No other task was started.
+
+## Review (round 2)
+- Date: 2026-10-24 17:12 AEDT
+- Verdict: PASS (static). Merged to main; owner iPhone check in the venue pending.
+- Fix 1 verified: a tap during practice speech stops the speech, keeps the step and the practice view, and listens on the practice screen (orb with listening and finishing states, error text); "stop"/"end" ends, "slower" repeats slower, anything else repeats the caption; repeat never advances or finishes the practice; tests added. Swift 6.4 default-argument scan of changed files: clean.

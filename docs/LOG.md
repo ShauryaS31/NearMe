@@ -67,3 +67,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:08 AEDT | P04b | codex | dev-report r1 | Tap-to-finish, word-based 1.5 s backup/12 s cap, voice processing, playback gating and barge-in; commit c9d0218; Mac/iPhone checks pending
 - 2026-10-24 17:09 AEDT | P04b | claude | review r1 CHANGES | barge-in during practice discards the practice; manager fixed a MainActor default argument in TaskPlannerEngineTests; dispatch r2
 - 2026-10-24 17:11 AEDT | P04b | codex | dev-report r2 | Preserve practice and step during voice interruptions, route practice commands and add regression tests; commit 6cb4302; Mac/iPhone checks pending
+- 2026-10-24 17:12 AEDT | P04b | claude | review r2 PASS | static; merged to main; next: P07 (top priority)
