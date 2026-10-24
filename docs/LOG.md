@@ -12,3 +12,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 12:40 AEDT | N01 | claude | review r1 CHANGES | CI 40050658883 failed (NearMeCore CGRect import); 7 fixes incl. AX timeout race, AXEnabled default, static text labels; dispatch r2
 - 2026-10-24 12:42 AEDT | N01 | codex | dev-report r2 | Addressed all seven round 1 fixes and both optional nits; committed abd8855. Static checks passed; Swift/Xcode unavailable; CI and Mac runtime gate pending.
 - 2026-10-24 12:44 AEDT | N01 | claude | review r2 CHANGES | CI 40051038146 green; r1 fixes verified; owner request: multi-display coordinate tests; dispatch r3 (final)
+- 2026-10-24 12:45 AEDT | N01 | codex | dev-report r3 | Moved unchanged coordinate conversion to its own file; added primary/above/left display tests; committed 6f8c19a. Static checks passed; Swift/Xcode unavailable; CI and Mac owner gate pending. Optional AX casts retained.
