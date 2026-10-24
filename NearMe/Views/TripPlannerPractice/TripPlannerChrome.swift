@@ -11,7 +11,7 @@ struct TripPlannerTopBar: View {
 
     var body: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: TTSpacing.relatedGap))
             : AnyLayout(HStackLayout())
         layout {
             if let onBack {
@@ -37,14 +37,14 @@ struct TripPlannerTopBar: View {
 
             if let trailing {
                 Text(trailing)
-                    .font(TTFont.callout())
+                    .font(TTFont.body())
                     .foregroundStyle(.secondary)
             }
         }
         .foregroundStyle(.primary)
-        .padding(.horizontal, TTSpacing.lg)
-        .padding(.vertical, TTSpacing.md)
-        .background(Color(.secondarySystemBackground))
+        .padding(.horizontal, TTSpacing.screenInset)
+        .padding(.vertical, TTSpacing.relatedGap)
+        .background(TTColor.readingSurface)
     }
 }
 

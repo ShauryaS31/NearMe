@@ -2,71 +2,65 @@ import SwiftUI
 
 struct HelpHomeView: View {
     @ObservedObject var engine: TaskPlannerEngine
-    @State private var request = ""
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                #if DEBUG
-                SessionDebugMenu(engine: engine)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                #endif
-                Text("NearMe").font(.largeTitle)
-                Button(action: engine.userTappedToTalk) {
-                    Label("What do you need help with?", systemImage: "mic.fill")
-                        .font(.title)
-                        .frame(maxWidth: .infinity, minHeight: 100)
-                        .padding()
-                }
-                .buttonStyle(.borderedProminent)
-                Text("Try: 'Help me send a photo to Mum on WhatsApp'")
-                    .font(.body)
-                TextField("Type what you need help with", text: $request)
-                    .font(.body)
-                    .textFieldStyle(.roundedBorder)
-                    .submitLabel(.send)
-                    .onSubmit(send)
-                Button(action: send) {
-                    Label("Help me", systemImage: "hand.raised")
-                        .frame(minWidth: 44, minHeight: 44)
-                }
-                .buttonStyle(.bordered)
-                .disabled(request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                Button(action: engine.startPractice) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Label("Practice mode", systemImage: "tram.fill").font(.title2)
-                        Text("Practise planning a train trip, one step at a time.").font(.body)
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-                    .padding()
-                }
-                .buttonStyle(.bordered)
-            }
-            .padding()
-            .frame(maxWidth: 600)
-            .frame(maxWidth: .infinity)
-        }
-        .background(Color(.systemBackground))
+    private var micState: SessionDockState {
+        SessionDockState(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
+                         isStartingListening: engine.isStartingListening)
     }
 
-    private func send() {
-        guard !request.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        engine.useTypedInput()
-        engine.submitTypedInput(request)
-        request = ""
+    var body: some View {
+        NavigationStack {
+            HelpHomeContent(state: micState, onTalk: engine.userTappedToTalk,
+                            onType: engine.useTypedInput, onPractice: engine.startPractice)
+                .navigationTitle("NearMe")
+                #if DEBUG
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        SessionDebugMenu(engine: engine)
+                    }
+                }
+                #endif
+        }
+        .tint(TTColor.accent)
+    }
+}
+
+struct HelpHomeContent: View {
+    let state: SessionDockState
+    let onTalk: () -> Void
+    let onType: () -> Void
+    let onPractice: () -> Void
+
+    var body: some View {
+        ScreenScaffold {
+            VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+                Text("What would you like help with?")
+                    .font(TTFont.title())
+                    .accessibilityAddTraits(.isHeader)
+                Text("Try: help me send a photo to Mum")
+                    .font(TTFont.body())
+                VoiceOrbButton(state: state.micState, instruction: state.instruction, action: onTalk)
+                    .disabled(state.micDisabled)
+                PrimaryButton(title: "Type instead", systemImage: "keyboard", emphasis: .secondary,
+                              action: onType)
+                PrimaryButton(title: "Practise a train trip", systemImage: "tram.fill", emphasis: .secondary,
+                              action: onPractice)
+            }
+        }
     }
 }
 
 struct CoachView: View {
     @ObservedObject var engine: TaskPlannerEngine
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var showsHelp = false
 
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 ScrollView {
                     if let session = engine.coach {
-                        CoachStepContent(session: session, onCommand: engine.coachCommand)
+                        CoachStepContent(session: session, onCommand: command)
                             .id(session.stepIndex)
                             .transition(.opacity)
                     }
@@ -79,7 +73,20 @@ struct CoachView: View {
                 }
             }
         }
-        .background(Color(.systemBackground))
+        .background(TTColor.groupedBackground)
+        .tint(TTColor.accent)
+        .sheet(isPresented: $showsHelp) {
+            CoachHelpSheet(engine: engine)
+                .presentationDetents([.large])
+        }
+        .onChange(of: engine.coach?.id) { _, id in
+            if id == nil { showsHelp = false }
+        }
+    }
+
+    private func command(_ command: CoachCommand) {
+        if command == .stuck { showsHelp = true }
+        engine.coachCommand(command)
     }
 
     private var stepAnimation: Animation? {
@@ -92,7 +99,14 @@ struct CoachView: View {
 struct CoachStepPresentation {
     let session: CoachSession
 
+    var title: String {
+        if let guide = session.guide { return guide.title }
+        return session.request.isEmpty ? "Your next step" : session.request
+    }
     var countText: String { "Step \(session.stepIndex + 1) of \(session.count)" }
+    var hasKnownTotal: Bool { session.count > 0 }
+    var completedSteps: Double { Double(session.stepIndex) }
+    var totalSteps: Double { Double(session.count) }
     var doneTitle: String { "Done" }
     var instruction: AttributedString {
         var text = AttributedString(session.text)
@@ -111,36 +125,83 @@ struct CoachStepContent: View {
     private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text(presentation.countText)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-            Text(presentation.instruction)
-                .font(.title2)
-                .fixedSize(horizontal: false, vertical: true)
-            Button { onCommand(.next) } label: {
-                Label(presentation.doneTitle, systemImage: "checkmark")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+        VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+            Text(presentation.title)
+                .font(TTFont.title())
+                .accessibilityAddTraits(.isHeader)
+            if presentation.hasKnownTotal {
+                progress
             }
-            .buttonStyle(.borderedProminent)
-            secondaryActions
+            Text(presentation.instruction)
+                .font(TTFont.title())
+                .fixedSize(horizontal: false, vertical: true)
+            PrimaryButton(title: presentation.doneTitle, systemImage: "checkmark") { onCommand(.next) }
+            AdaptiveButtonRow {
+                PrimaryButton(title: "Repeat", systemImage: "arrow.counterclockwise", emphasis: .secondary) {
+                    onCommand(.repeatStep)
+                }
+                PrimaryButton(title: "I'm stuck", systemImage: "questionmark.circle", emphasis: .secondary) {
+                    onCommand(.stuck)
+                }
+            }
         }
-        .padding(24)
+        .padding(TTSpacing.cardPadding)
         .frame(maxWidth: 600, alignment: .leading)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
-        .padding(16)
+        .background(TTColor.readingSurface,
+                    in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
+        .padding(TTSpacing.screenInset)
         .frame(maxWidth: .infinity)
+        .tint(TTColor.accent)
     }
 
-    private var secondaryActions: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Button { onCommand(.repeatStep) } label: {
-                Label("Repeat", systemImage: "arrow.counterclockwise").minimumTapTarget()
+    private var progress: some View {
+        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+            Text(presentation.countText).font(TTFont.body())
+            ProgressView(value: presentation.completedSteps, total: presentation.totalSteps)
+                .accessibilityLabel("Completed steps")
+                .accessibilityValue("\(session.stepIndex) of \(session.count)")
+        }
+    }
+}
+
+private struct CoachHelpSheet: View {
+    @ObservedObject var engine: TaskPlannerEngine
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ScreenScaffold {
+                VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+                    if engine.plannerState == .thinking || engine.isPreparingSpeech {
+                        VoiceStateRow(activity: .preparing)
+                    }
+                    if let session = engine.coach {
+                        Text(session.text)
+                            .font(TTFont.title())
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(TTSpacing.cardPadding)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(TTColor.readingSurface,
+                                        in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
+                    }
+                    PrimaryButton(title: "Repeat", systemImage: "arrow.counterclockwise", emphasis: .secondary) {
+                        engine.coachCommand(.repeatStep)
+                    }
+                    PrimaryButton(title: "Slower", systemImage: "tortoise", emphasis: .secondary) {
+                        engine.coachCommand(.slower)
+                    }
+                    PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary,
+                                  action: engine.stopSessionSpeech)
+                    PrimaryButton(title: "Close", systemImage: "xmark", emphasis: .secondary) { dismiss() }
+                }
             }
-            Button { onCommand(.stuck) } label: {
-                Label("I'm stuck", systemImage: "questionmark.circle").minimumTapTarget()
+            .navigationTitle("I'm stuck")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button { dismiss() } label: { Label("Close", systemImage: "xmark") }
+                }
             }
         }
-        .buttonStyle(.bordered)
+        .tint(TTColor.accent)
     }
 }

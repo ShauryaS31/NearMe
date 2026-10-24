@@ -4,27 +4,25 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var coordinator: AppCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             switch coordinator.route {
-            case .welcome:
+            case .welcome, .goodMorning:
                 WelcomeView()
-            case .goodMorning:
-                GoodMorningView()
             case .howItWorks:
                 HowItWorksView()
             case .session:
                 SessionContainerView(userName: coordinator.userName)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: coordinator.route)
-        // The practice session follows system appearance. Preserve the
-        // existing onboarding appearance until its palette is updated.
-        .preferredColorScheme(coordinator.route == .session ? nil : .light)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: coordinator.route)
     }
 }
 
+#if DEBUG
 #Preview {
     ContentView().environmentObject(AppCoordinator())
 }
+#endif

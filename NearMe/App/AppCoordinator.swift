@@ -9,10 +9,6 @@ final class AppCoordinator: ObservableObject {
     @Published var userName: String = "Friend"
 
     func advanceFromWelcome() {
-        route = .goodMorning
-    }
-
-    func advanceFromGoodMorning() {
         route = .howItWorks
     }
 

@@ -10,113 +10,123 @@ enum VoiceOrbState: Equatable {
     var symbolName: String {
         switch self {
         case .speaking: return "speaker.wave.2.fill"
-        case .listening: return "waveform"
+        case .listening: return "mic.fill"
         case .idle: return "mic.fill"
         }
     }
 
     var accessibilityLabel: String {
         switch self {
-        case .speaking: return "Start listening"
+        case .speaking, .idle: return "Start listening"
         case .listening: return "Stop listening"
-        case .idle: return "Start listening"
         }
     }
 
     var instruction: String {
         switch self {
         case .listening: return "Listening... tap when you're done"
-        case .speaking: return "Tap to talk"
-        case .idle: return "Tap to talk"
+        case .speaking, .idle: return "Tap to talk"
         }
     }
 }
 
 struct VoiceOrbButton: View {
     let state: VoiceOrbState
-    var instruction: String? = nil
+    let instruction: String
+    var emphasis: ButtonEmphasis = .primary
     let action: () -> Void
 
     var body: some View {
-        VStack(spacing: 12) {
-            Button(action: action) {
-                VoiceOrbView(state: state)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .accessibilityHidden(true)
+        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+            Group {
+                switch emphasis {
+                case .primary: button.buttonStyle(.borderedProminent)
+                case .secondary: button.buttonStyle(.bordered)
+                }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(state.accessibilityLabel)
-            .accessibilityAddTraits(.isButton)
-            Text(instruction ?? state.instruction)
-                .font(.title)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: TTSpacing.relatedGap) {
+                VoiceOrbView(state: state)
+                Text(instruction)
+                    .font(TTFont.body())
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
+        .tint(TTColor.accent)
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Label(state == .listening ? "Stop listening" : "Talk to NearMe", systemImage: "mic.fill")
+                .font(TTFont.title())
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: TTControl.talkHeight)
+        }
+        .accessibilityLabel(state.accessibilityLabel)
+        .accessibilityHint(instruction)
     }
 }
 
+/// A small, static state symbol. No pulse or scale animation, including Reduce Motion.
 struct VoiceOrbView: View {
     let state: VoiceOrbState
-    var diameter: CGFloat = 120
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var isPulsing = false
 
     var body: some View {
-        ZStack {
-            // Three concentric rings fading from the light chip tint out to
-            // the accent purple, echoing the halo behind the orb in the
-            // mockups (node 47:78 — ellipse53/54/55). Those three were
-            // exported as flat SVG fills we couldn't recover exact hex
-            // values for, so this reproduces the look from confirmed palette
-            // colors rather than the literal asset.
-            Circle()
-                .fill(TTColor.accent.opacity(0.16))
-                .frame(width: diameter * 1.65, height: diameter * 1.65)
-            Circle()
-                .fill(TTColor.accent.opacity(0.24))
-                .frame(width: diameter * 1.375, height: diameter * 1.375)
-            Circle()
-                .fill(TTColor.chip.opacity(0.9))
-                .frame(width: diameter * 1.08, height: diameter * 1.08)
-
-            Circle()
-                .fill(TTColor.ink)
-                .frame(width: diameter, height: diameter)
-                .scaleEffect(pulseScale)
-
-            Image(systemName: state.symbolName)
-                .font(.system(size: diameter * 0.34, weight: .medium))
-                .foregroundStyle(TTColor.buttonLabel)
-                .symbolEffect(.variableColor.iterative, options: .repeating, isActive: state == .listening && !reduceMotion)
-        }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(state.accessibilityLabel)
-        .onAppear { startPulseIfNeeded() }
-        .onChange(of: state) { _, _ in startPulseIfNeeded() }
-        .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: isPulsing)
-    }
-
-    private var pulseScale: CGFloat {
-        guard !reduceMotion, state != .idle else { return 1 }
-        return isPulsing ? 1.04 : 0.98
-    }
-
-    private func startPulseIfNeeded() {
-        isPulsing = false
-        guard !reduceMotion, state != .idle else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            isPulsing = true
-        }
+        Image(systemName: state.symbolName)
+            .font(.body)
+            .accessibilityHidden(true)
     }
 }
 
-#Preview {
-    VStack(spacing: 40) {
-        VoiceOrbView(state: .speaking)
-        VoiceOrbView(state: .listening)
-        VoiceOrbView(state: .idle)
+enum VoiceActivity: String, CaseIterable, Identifiable {
+    case ready, listening, preparing, speaking, paused
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .ready: return "Ready"
+        case .listening: return "Listening... tap when you're done"
+        case .preparing: return "Preparing your next step"
+        case .speaking: return "Speaking"
+        case .paused: return "We paused here"
+        }
     }
-    .padding()
-    .background(TTColor.background)
+
+    var symbol: String {
+        switch self {
+        case .ready, .listening: return "mic.fill"
+        case .preparing: return "hourglass"
+        case .speaking: return "speaker.wave.2.fill"
+        case .paused: return "pause.circle"
+        }
+    }
+
+    static func resolve(plannerState: TaskPlannerState, isSpeaking: Bool,
+                        isPreparing: Bool, isStartingListening: Bool, isPaused: Bool) -> Self {
+        if plannerState == .listening { return .listening }
+        if isPreparing || isStartingListening || plannerState == .thinking || plannerState == .finishing {
+            return .preparing
+        }
+        if isSpeaking { return .speaking }
+        return isPaused ? .paused : .ready
+    }
+}
+
+struct VoiceStateRow: View {
+    let activity: VoiceActivity
+
+    var body: some View {
+        HStack(alignment: .top, spacing: TTSpacing.relatedGap) {
+            if activity == .preparing {
+                ProgressView().accessibilityHidden(true)
+            } else {
+                Image(systemName: activity.symbol).accessibilityHidden(true)
+            }
+            Text(activity.title)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .font(TTFont.body())
+        .foregroundStyle(TTColor.ink)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
 }

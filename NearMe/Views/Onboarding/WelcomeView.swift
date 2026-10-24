@@ -4,67 +4,52 @@ import SwiftUI
 
 struct WelcomeView: View {
     @EnvironmentObject private var coordinator: AppCoordinator
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    @ScaledMetric(relativeTo: .largeTitle) private var logoSize = 44.0
 
     var body: some View {
-        ScreenScaffold {
-            VStack(spacing: TTSpacing.xl) {
-                Spacer(minLength: TTSpacing.xxl)
-
-                VStack(alignment: .leading, spacing: TTSpacing.sm) {
-                    Text("Hello,")
-                        .font(TTFont.display())
-                        .foregroundStyle(TTColor.ink)
-
-                    Text("Welcome to")
-                        .font(TTFont.title())
-                        .foregroundStyle(TTColor.ink)
-
-                    let wordmarkLayout = dynamicTypeSize.isAccessibilitySize
-                        ? AnyLayout(VStackLayout(alignment: .leading, spacing: TTSpacing.sm))
-                        : AnyLayout(HStackLayout(spacing: TTSpacing.xs))
-                    wordmarkLayout {
-                        Text("Near")
-                            .font(TTFont.display())
-                            .foregroundStyle(TTColor.ink)
-
-                        ZStack {
-                            Circle()
-                                .fill(TTColor.ink)
-                                .frame(width: logoSize, height: logoSize)
-                            Image(systemName: "waveform")
-                                .font(.headline)
-                                .foregroundStyle(TTColor.buttonLabel)
-                        }
-                        .accessibilityHidden(true)
-
-                        Text("Me")
-                            .font(TTFont.display())
-                            .foregroundStyle(TTColor.logoAccent)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("Hello, Welcome to NearMe")
-
-                Spacer()
-
-                PrimaryButton(title: "continue") {
-                    coordinator.advanceFromWelcome()
-                }
-            }
-            .lineLimit(nil)
-            .fixedSize(horizontal: false, vertical: true)
-        }
+        WelcomeContent(userName: coordinator.userName, hour: Calendar.current.component(.hour, from: Date()),
+                       onStart: coordinator.advanceFromWelcome)
     }
 }
 
-#Preview("Default") {
-    WelcomeView().environmentObject(AppCoordinator())
-}
+struct WelcomeContent: View {
+    let userName: String
+    let hour: Int
+    let onStart: () -> Void
 
-#Preview("Accessibility XXXL") {
-    WelcomeView().environmentObject(AppCoordinator())
-        .dynamicTypeSize(.accessibility5)
+    var greeting: String? {
+        let name = userName.trimmingCharacters(in: .whitespacesAndNewlines)
+        // "Friend" is the coordinator's placeholder, not a supplied name.
+        guard !name.isEmpty, name != "Friend" else { return nil }
+        let salutation: String
+        switch hour {
+        case 0..<12: salutation = "Good morning"
+        case 12..<17: salutation = "Good afternoon"
+        default: salutation = "Good evening"
+        }
+        return "\(salutation), \(name)"
+    }
+
+    var body: some View {
+        ScreenScaffold {
+            VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+                Image(systemName: "hand.wave")
+                    .font(.largeTitle)
+                    .foregroundStyle(TTColor.accent)
+                    .accessibilityHidden(true)
+                if let greeting {
+                    Text(greeting).font(TTFont.title())
+                }
+                Text("A little help, one step at a time")
+                    .font(TTFont.display())
+                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+                    Text("Tell NearMe what you want to do.")
+                    Text("We'll guide you one step at a time. You stay in control.")
+                }
+                .font(TTFont.body())
+                PrimaryButton(title: "Get started", systemImage: "arrow.right", action: onStart)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
 }

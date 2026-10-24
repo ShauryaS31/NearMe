@@ -73,7 +73,8 @@ struct SessionDock: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground))
+        .background(TTColor.background)
+        .tint(TTColor.accent)
         .overlay(alignment: .top) { Divider() }
         .onChange(of: engine.isTyping) { _, typing in entryFocused = typing }
     }
@@ -103,6 +104,7 @@ struct SessionDock: View {
         .scrollBounceBehavior(.basedOnSize)
         .defaultScrollAnchor(engine.isTyping ? .bottom : .top)
         .frame(height: min(contentHeight, max(44, availableHeight * 0.4 - controlsHeight - 32)))
+        .background(TTColor.readingSurface)
     }
 
     private var typedEntry: some View {
@@ -124,7 +126,7 @@ struct SessionDock: View {
         HStack(spacing: 12) {
             microphone
             Text(state.instruction)
-                .font(.callout)
+                .font(TTFont.body())
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if state.showsStop { stopButton }

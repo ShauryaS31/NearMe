@@ -4,49 +4,38 @@ import SwiftUI
 
 struct HowItWorksView: View {
     @EnvironmentObject private var coordinator: AppCoordinator
-    @ScaledMetric(relativeTo: .title) private var iconSize = 64.0
 
     var body: some View {
-        ScreenScaffold {
-            VStack(spacing: TTSpacing.lg) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(TTColor.chip)
-                        .frame(width: iconSize, height: iconSize)
-                    Image(systemName: "tv")
-                        .font(.title.weight(.medium))
-                        .foregroundStyle(TTColor.accent)
-                }
-                .accessibilityHidden(true)
-
-                VStack(spacing: TTSpacing.sm) {
-                    Text("How NearMe works")
-                        .font(TTFont.title())
-                        .foregroundStyle(TTColor.ink)
-                        .multilineTextAlignment(.center)
-
-                    Text("NearMe shows you practice copies of everyday apps, so you can learn safely. It never looks at your other apps.")
-                        .font(TTFont.body())
-                        .foregroundStyle(TTColor.textSecondary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                PrimaryButton(title: "continue") {
-                    coordinator.advanceFromHowItWorks()
-                }
-            }
-            .lineLimit(nil)
-            .fixedSize(horizontal: false, vertical: true)
-        }
+        HowItWorksContent(onContinue: coordinator.advanceFromHowItWorks)
     }
 }
 
-#Preview("Default") {
-    HowItWorksView().environmentObject(AppCoordinator())
-}
+struct HowItWorksContent: View {
+    let onContinue: () -> Void
 
-#Preview("Accessibility XXXL") {
-    HowItWorksView().environmentObject(AppCoordinator())
-        .dynamicTypeSize(.accessibility5)
+    var body: some View {
+        ScreenScaffold {
+            VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+                Text("How NearMe works")
+                    .font(TTFont.title())
+                    .accessibilityAddTraits(.isHeader)
+                explanation
+                PrimaryButton(title: "Try it now", systemImage: "arrow.right", action: onContinue)
+                PrimaryButton(title: "Skip", systemImage: "arrow.right", emphasis: .secondary,
+                              action: onContinue)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var explanation: some View {
+        VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+            Label("Tell NearMe what you want to do", systemImage: "mic.fill")
+            Label("Follow one step at a time", systemImage: "list.number")
+            Label("You stay in control", systemImage: "hand.raised")
+            Text("NearMe guides you. You do the tapping.")
+            Text("You can also practise a train trip safely inside NearMe.")
+        }
+        .font(TTFont.body())
+    }
 }
