@@ -5,15 +5,44 @@ import AVFoundation
 nonisolated enum NearMeAudioSession {
     private static let lock = NSLock()
     private static var isConfigured = false
+    private static var screenActive = false
+    private static var commandsActive = false
+    private static var guidanceSpeaking = false
+
+    static func guidanceOptions(speaking: Bool) -> AVAudioSession.CategoryOptions {
+        var options: AVAudioSession.CategoryOptions = [.mixWithOthers, .defaultToSpeaker, .allowBluetoothA2DP]
+        if speaking { options.insert(.duckOthers) }
+        return options
+    }
+
+    static func setCommandListeningActive(_ active: Bool) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        commandsActive = active
+        try applyGuidanceSession()
+    }
+
+    static func setGuidanceSpeaking(_ speaking: Bool) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        guidanceSpeaking = speaking
+        guard screenActive || commandsActive else { return }
+        try applyGuidanceSession()
+    }
 
     /// Mix while coaching across apps so the song is not held ducked during waits.
     static func setScreenGuidanceActive(_ active: Bool) throws {
         lock.lock()
         defer { lock.unlock() }
+        screenActive = active
+        try applyGuidanceSession()
+    }
+
+    private static func applyGuidanceSession() throws {
         let session = AVAudioSession.sharedInstance()
-        if active {
+        if screenActive || commandsActive {
             try session.setCategory(.playAndRecord, mode: .default,
-                                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetoothA2DP])
+                                    options: guidanceOptions(speaking: guidanceSpeaking))
             try session.setActive(true)
             isConfigured = true
         } else {

@@ -71,7 +71,9 @@ struct CoachView: View {
                             ScreenSharingOffer(onNotNow: engine.declineScreenSharing)
                         } else if let session = engine.coach {
                             CoachStepContent(session: session, onCommand: engine.coachCommand,
-                                             manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode)
+                                             manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode,
+                                             commandStatus: engine.voiceCommandStatus,
+                                             onResumeCommands: engine.resumeVoiceCommands)
                                 .id(session.stepIndex)
                                 .transition(.opacity)
                         }
@@ -117,6 +119,8 @@ struct CoachStepContent: View {
     let session: CoachSession
     let onCommand: (CoachCommand) -> Void
     var manualMode = false
+    var commandStatus: VoiceCommandStatus = .off
+    var onResumeCommands: () -> Void = {}
 
     private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
 
@@ -128,6 +132,7 @@ struct CoachStepContent: View {
             if manualMode {
                 Text("Manual mode").font(.footnote).foregroundStyle(.secondary)
             }
+            commandStatusLine
             Text(presentation.instruction)
                 .font(.title2)
                 .fixedSize(horizontal: false, vertical: true)
@@ -155,5 +160,18 @@ struct CoachStepContent: View {
             }
         }
         .buttonStyle(.bordered)
+    }
+
+    @ViewBuilder
+    private var commandStatusLine: some View {
+        if let text = commandStatus.text {
+            if commandStatus == .paused {
+                Button(text, action: onResumeCommands)
+                    .font(.footnote)
+                    .frame(minHeight: 44)
+            } else {
+                Text(text).font(.footnote).foregroundStyle(.secondary)
+            }
+        }
     }
 }

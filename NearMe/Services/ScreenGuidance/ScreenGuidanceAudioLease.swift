@@ -6,6 +6,11 @@ import Combine
 protocol ScreenGuidanceKeepingAlive {
     func start()
     func stop()
+    func setSpeaking(_ speaking: Bool)
+}
+
+extension ScreenGuidanceKeepingAlive {
+    func setSpeaking(_ speaking: Bool) {}
 }
 
 /// Scoped to a fresh YouTube sharing session. The existing silent PCM resource
@@ -63,5 +68,9 @@ final class ScreenGuidanceAudioLease: ScreenGuidanceKeepingAlive {
         player = nil
         configured = false
         try? NearMeAudioSession.setScreenGuidanceActive(false)
+    }
+
+    func setSpeaking(_ speaking: Bool) {
+        try? NearMeAudioSession.setGuidanceSpeaking(speaking)
     }
 }
