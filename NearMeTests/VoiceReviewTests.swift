@@ -377,9 +377,10 @@ final class VoiceReviewTests: XCTestCase {
         engine.endSession()
     }
 
-    private func makeEngine(input: ReviewInput = ReviewInput(), output: ReviewOutput = ReviewOutput(),
-                            brain: TaskPlannerBrain = ReviewBrain()) -> TaskPlannerEngine {
-        TaskPlannerEngine(brain: brain, voiceInput: input, voiceOutput: output,
+    // Defaults are built in the body: default arguments are evaluated outside the main actor.
+    private func makeEngine(input: ReviewInput? = nil, output: ReviewOutput? = nil,
+                            brain: TaskPlannerBrain? = nil) -> TaskPlannerEngine {
+        TaskPlannerEngine(brain: brain ?? ReviewBrain(), voiceInput: input ?? ReviewInput(), voiceOutput: output ?? ReviewOutput(),
                           permissions: PermissionsManager(), userName: "", permissionCheck: { true })
     }
 

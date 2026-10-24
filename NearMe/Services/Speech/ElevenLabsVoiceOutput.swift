@@ -78,8 +78,8 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
             let connectivity = VoiceConnectivity()
             self.isOffline = { connectivity.isOffline }
         }
-        player.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
-        fallback.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
+        self.player.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
+        self.fallback.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
         routeObserver = NotificationCenter.default.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: .main) { [weak self] notification in
             guard let reason = notification.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt,
                   reason == AVAudioSession.RouteChangeReason.oldDeviceUnavailable.rawValue else { return }
