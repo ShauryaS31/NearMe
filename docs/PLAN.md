@@ -22,8 +22,9 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 | [N00](../tasks/N00-scaffold.md) | Scaffold NearMe repo: XcodeGen, NearMeCore, CI, Mac run script | Sat 24 Oct 12:15 to 13:00 | - | codex | done |
 | [N01](../tasks/N01-spike.md) | Spike: read buttons, model picks one, draw ring (kill-rule test) | Sat 24 Oct 13:00 to 14:00 | N00 | codex, then owner on Mac | done (CI); G1 pending Mac |
 | [N02](../tasks/N02-loop.md) | Observe and re-plan loop with completion | Sat 24 Oct 13:30 to 15:00 | N01 | codex | todo |
-| [N03](../tasks/N03-privacy.md) | Privacy filter and blocked contexts | Sat 24 Oct 14:00 to 15:00 | N01 | codex | todo |
-| [N04](../tasks/N04-ui-voice.md) | Help me panel, voice in and out | Sat 24 Oct 15:00 to 17:00 | N02 | codex | todo |
+| [N03](../tasks/N03-privacy.md) | Privacy filter and blocked contexts | Sat 24 Oct 14:00 to 15:00 | N01 | codex | in_progress |
+| [N04a](../tasks/N04a-port.md) | Port prior prototype UI components, speech client, voice output, planner fallback | Sat 24 Oct, after N03 | N01 | codex | todo |
+| [N04](../tasks/N04-ui-voice.md) | Help me panel, voice in and out | Sat 24 Oct 15:00 to 17:00 | N02, N04a | codex | todo |
 | [N05](../tasks/N05-family-voice.md) | Consented family voice (ElevenLabs) | Sat 24 Oct 17:00 to 18:30 | N04 | codex, then owner | todo |
 | [N06](../tasks/N06-hindi.md) | Hindi check (test first, build only if it works) | Sat 24 Oct 18:30 to 19:30 | N04 | owner + codex | todo |
 | [N07](../tasks/N07-benchmark.md) | Grounding benchmark and demo tasks | Sat 24 Oct 19:00 to 20:00 | N02 | codex, then owner | todo |
@@ -33,6 +34,10 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 ## Decisions
 - 2026-10-24 (manager proposed, owner APPROVED): AXStaticText's AXValue is read as its label because it is the visible text (System Settings sidebar rows would otherwise be unlabelled). AXValue is never read for any other role. N03 PrivacyFilter still applies on top.
 - 2026-10-24 (owner): the AX (top-left) to AppKit (bottom-left) flip is one function in NearMeCore, tested for the main display and a second display above or left of it.
+
+- 2026-10-24 (owner): code from a friend's prior prototype may be reused with her permission. Her name and the original project name must not appear anywhere. Every reused file gets the header "Adapted from a prior prototype, used with permission."; README has a "Prior work" section with the same wording. Replaces the earlier "do not copy" rule in CLAUDE.md and AGENTS.md. Source kept outside git in `_prior/` (gitignored).
+- 2026-10-24 (owner): N04a added before N04 and may be built before G1. Order now: N03, then N04a. N02 waits for the owner's G1 report.
+- 2026-10-24 (manager): in N04a, on-device speech recognition stays the default; ElevenLabs speech to text is opt-in (setting off by default) to keep SPEC "works offline" and on-device voice input.
 
 ## Mac gate checklist
 (manager appends PENDING MAC items here)

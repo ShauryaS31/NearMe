@@ -31,7 +31,7 @@ Follow docs/FACTORY.md. Summary:
 - No secrets in git. `Secrets.xcconfig` and `Config/Team.xcconfig` are gitignored.
 - `NearMeCore` must not import AppKit, ApplicationServices, FoundationModels or SwiftUI.
 - The planner `LanguageModelSession` has no tools. NearMe never clicks or types for the user.
-- Do not copy prior prototype code (no licence). Writing equivalents from scratch is fine.
+- Prior prototype code may be reused (owner decision, used with permission). Every reused or adapted file starts with the header `// Adapted from a prior prototype, used with permission.` Never write the original author's name or the original project name anywhere in the repo (code, docs, commits, logs). Only the files listed in a task brief may be ported.
 - LOG lines: `- YYYY-MM-DD HH:MM AEDT | Nxx | actor | event | detail`. Read the real clock, never guess times.
 - Docs: metric units, no em dashes.
 - Keep your context small; suggest `/clear` after each gate.

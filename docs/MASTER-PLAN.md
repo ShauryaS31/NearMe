@@ -164,11 +164,9 @@ The product should reduce dependency rather than impersonate a loved one. Warmth
 
 ## 5. Prior art and differentiation — do not pretend this is a new category
 
-### Most important reference: prior prototype (Melbourne winner)
+### Most important reference: a prior iPhone prototype
 
-Official prior project: https://devpost.com/software/prior prototype
-
-It won **Most Impactful — Social Good** at Melbourne's Mobile AI Build Weekend. Its own published features include:
+A prior iPhone guidance prototype (code reused with permission, see SPEC section 8) already includes:
 
 - Voice-first goal understanding.
 - Opening supported apps by URL scheme / universal links.
@@ -178,9 +176,9 @@ It won **Most Impactful — Social Good** at Melbourne's Mobile AI Build Weekend
 - Step-by-step repeated screen guidance.
 - Tap-to-Explain and a stuck detector (three unsuccessful taps).
 
-**WARNING:** Screen-by-screen AI guidance, app launching, voice instructions and stuck detection are **already prior prototype features**, not new features invented by this project. A different UI and storytelling alone are not technical differentiation. Do not say “we don't know prior prototype” to judges; acknowledge the category and demonstrate an actual improvement.
+**WARNING:** Screen-by-screen AI guidance, app launching, voice instructions and stuck detection are **already prior-prototype features**, not new features invented by this project. A different UI and storytelling alone are not technical differentiation. Do not claim the category is new to judges; acknowledge the category and demonstrate an actual improvement.
 
-prior prototype lists multilingual functionality, widget/Shortcuts, stronger open-ended language understanding, and user testing as future work. These are opportunities to explore but not guaranteed competitive gaps forever.
+The prior prototype lists multilingual functionality, widget/Shortcuts, stronger open-ended language understanding, and user testing as future work. These are opportunities to explore but not guaranteed competitive gaps forever.
 
 ### Competitive context
 
@@ -601,7 +599,7 @@ Record **observed**: start-to-first-instruction latency, time per guidance step,
 | Hindi offline voice pipeline unavailable | High | Honest English offline baseline; Hindi connected mode if available; text fallback. |
 | On-device local reasoning unreliable/unsupported | Critical | Scope workflow to OCR-grounded deterministic helper and only supported hardware; do not claim arbitrary reasoning. |
 | ElevenLabs network dependence | Medium | Local OS TTS first; cloud cloned voice is optional connected feature. |
-| Same idea as prior prototype | High | Differentiation must be proved through multilingual/local continuity, safe family voice, or superior verified workflow—not just cosmetics. |
+| Same idea as the prior prototype | High | Differentiation must be proved through multilingual/local continuity, safe family voice, or superior verified workflow—not just cosmetics. |
 | SCX privacy/compliance overstated | High | Label AU-hosted cloud processing precisely; avoid legal compliance claims without evidence. |
 | Screen reads secrets or gives dangerous direction | High | Redaction, blocked categories, explicit consent, user-controlled action. |
 | Overbuilding multiple platforms | High | Freeze on single validated platform and flow. |
@@ -616,7 +614,6 @@ Record **observed**: start-to-first-instruction latency, time per guidance step,
 ### Verified public links
 
 - Sydney official event: https://luma.com/apple-ai-hackathon
-- prior prototype official prior-art submission: https://devpost.com/software/prior prototype
 - Melbourne gallery: https://mobile-ai-build-weekend.devpost.com/project-gallery
 - SCX Swift SDK/readme: https://github.com/SouthernCrossAI/SCXSwiftKit
 - SCX: https://scx.ai/

@@ -15,7 +15,7 @@ Layout:
 - Do not edit docs/SPEC.md, docs/PLAN.md, CLAUDE.md or this file.
 - Never commit secrets. Keys come from `Secrets.xcconfig` via Info.plist build settings.
 - The planner session has no tools. The model chooses an element index from the provided list; it never invents labels.
-- Do not copy code from prior prototype or other unlicensed repos.
+- Prior prototype code may be reused only where your task brief says so. Every reused or adapted file starts with the header `// Adapted from a prior prototype, used with permission.` Strip all original header comments, author names and the original project or product names; never write them anywhere. Do not copy code from any other unlicensed repo.
 - Swift 6 strict concurrency; AX calls off the main thread with a time budget; no force unwraps outside tests.
 - This machine has no Swift or Xcode. Say so plainly; do not claim verify commands passed. CI on GitHub is the compile gate.
 

@@ -8,3 +8,4 @@ build/
 Secrets.xcconfig
 Config/Team.xcconfig
 logs/
+_prior/

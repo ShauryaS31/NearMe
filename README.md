@@ -42,3 +42,7 @@ xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO 
 ```
 
 CI runs these checks on `macos-26`. `NearMe.xcodeproj` is generated and gitignored. NearMeCore uses Swift 6 and contains only pure logic; the app target owns the platform frameworks. App Sandbox is disabled and hardened runtime is enabled. Swift and Xcode are unavailable on the Windows development machine; GitHub CI is the compile gate.
+
+## Prior work
+
+Adapted from a prior prototype, used with permission.

@@ -8,13 +8,13 @@ Full background, rubric and prior-art notes: `docs/MASTER-PLAN.md`. Rubric: `doc
 
 ## 1. Why Mac-first
 
-On iPhone, a third-party app cannot read or highlight other apps. Screen broadcast gives pixels only, the app is in the background, no overlay. That is what prior prototype (Melbourne winner) already built.
+On iPhone, a third-party app cannot read or highlight other apps. Screen broadcast gives pixels only, the app is in the background, no overlay. That is what earlier iPhone guidance prototypes already built.
 On macOS, with the user's Accessibility permission, an app can read the real interface tree of the frontmost app: every button's role, label and exact frame. So NearMe can:
 1. Only ever point at a control that actually exists (grounded, validated).
 2. Draw a highlight ring around it.
 3. Detect the screen changing and re-plan.
 
-This is the technical differentiator versus prior prototype. Say it plainly in the pitch: "prior prototype proved the need on iPhone. We made it grounded."
+This is the technical differentiator versus earlier iPhone guidance prototypes. Say it plainly in the pitch: "Earlier prototypes proved the need on iPhone. We made it grounded."
 
 ## 2. Person and tracks
 
@@ -96,10 +96,10 @@ Report real counts: N attempts, correct first-step rate, step latency, on the ac
 | On-device model picks wrong element | Better descriptions, include window title and breadcrumbs, few-shot examples; Repeat / I'm stuck |
 | Foundation Models unavailable on the loan Mac | Must be Apple silicon, macOS 26+, Apple Intelligence on. Otherwise only a deterministic keyword matcher; disclose |
 | Overlay coordinates wrong on multiple displays | Demo on one display; convert AX top-left coordinates to AppKit bottom-left |
-| Same as prior prototype | Grounded element tree, highlight, validator, offline, consented family voice |
+| Same as earlier iPhone prototypes | Grounded element tree, highlight, validator, offline, consented family voice |
 
 **Kill rule:** within 60 minutes of the first Mac test, the spike (N01) must read System Settings' elements, have the model choose the right one for "make text bigger", and draw a ring on it. If not, return to Recalled (github.com/ShauryaS31/AppleHackathon, tag `recalled-fallback`).
 
 ## 8. Prior work disclosure
 
-New repository started Saturday 24 October 2026. The agent factory process (CLAUDE.md, AGENTS.md, FACTORY.md) and the Pseudonymiser approach come from the owner's Recalled build (github.com/ShauryaS31/AppleHackathon, 23 October). prior prototype's source was read for reference only; none of its code is copied (it has no licence).
+New repository started Saturday 24 October 2026. The agent factory process (CLAUDE.md, AGENTS.md, FACTORY.md) and the Pseudonymiser approach come from the owner's Recalled build (github.com/ShauryaS31/AppleHackathon, 23 October). Adapted from a prior prototype, used with permission: shared UI components, the speech client and voice output, and the on-device model with keyword fallback pattern (task N04a). Every adapted file carries that header.

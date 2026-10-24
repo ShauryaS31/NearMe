@@ -17,7 +17,7 @@ AGENTS.md; docs/SPEC.md
 ## Acceptance criteria
 - [ ] Onboarding: 3 screens (what NearMe sees, Accessibility permission with a picture, microphone)
 - [ ] Animations on ring and panel; reduced motion respected; VoiceOver labels on all controls
-- [ ] About screen: what never leaves the Mac, prior-work disclosure, prior prototype acknowledgement
+- [ ] About screen: what never leaves the Mac, prior-work disclosure ("Adapted from a prior prototype, used with permission.")
 - [ ] Owner: 2 full demo runs on the Mac, one offline; record fallback video
 
 ## Verify
