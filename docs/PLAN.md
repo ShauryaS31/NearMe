@@ -19,7 +19,7 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 ## Task board
 | Task | Title | Window | Depends on | Assignee | Status |
 |---|---|---|---|---|---|
-| [N00](../tasks/N00-scaffold.md) | Scaffold NearMe repo: XcodeGen, NearMeCore, CI, Mac run script | Sat 24 Oct 12:15 to 13:00 | - | codex | in_progress |
+| [N00](../tasks/N00-scaffold.md) | Scaffold NearMe repo: XcodeGen, NearMeCore, CI, Mac run script | Sat 24 Oct 12:15 to 13:00 | - | codex | done |
 | [N01](../tasks/N01-spike.md) | Spike: read buttons, model picks one, draw ring (kill-rule test) | Sat 24 Oct 13:00 to 14:00 | N00 | codex, then owner on Mac | todo |
 | [N02](../tasks/N02-loop.md) | Observe and re-plan loop with completion | Sat 24 Oct 13:30 to 15:00 | N01 | codex | todo |
 | [N03](../tasks/N03-privacy.md) | Privacy filter and blocked contexts | Sat 24 Oct 14:00 to 15:00 | N01 | codex | todo |
@@ -32,3 +32,6 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 
 ## Mac gate checklist
 (manager appends PENDING MAC items here)
+
+- [ ] M1 (N00) Launch: `cd ~/NearMe && bash scripts/mac-run.sh`. NearMe window shows "Accessibility trusted", "Foundation Models" and "macOS version" rows with real values.
+- [ ] M2 (N00) Signing persists permission: `codesign -dv build/Build/Products/Debug/NearMe.app 2>&1 | grep -E "Authority|TeamIdentifier"` shows "Apple Development" and your Team ID (not "adhoc"). Grant Accessibility, run `bash scripts/mac-run.sh` again, and the row still says Yes.

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done |
 | Window | Sat 24 Oct 12:15 to 13:00 |
 | Depends on | - |
 | Assignee | codex |
@@ -62,3 +62,10 @@ xcodegen && xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING
   6. Run `bash scripts/mac-run.sh --current` again with the same team and path; expect Accessibility to remain Yes. Run `codesign -dv --verbose=4 build/Build/Products/Debug/NearMe.app` and confirm the expected TeamIdentifier and runtime flag. Inspect the target's build settings in Xcode to confirm App Sandbox is No and Hardened Runtime is Yes.
   7. Record results with `bash scripts/mac-run.sh report` when ready to commit/push the report, or send them to the manager. After merge, the normal `bash scripts/mac-run.sh` command updates main and performs the same checks/build/launch.
 - Not done / risks / questions: No compilation, model availability, code-signing, TCC persistence or UI launch claims can be made on Windows. A cancelled native trust call cannot be forcibly interrupted; the UI stops awaiting it at the deadline. No planner, AX reader, overlay or speech implementation belongs to N00. Git accepted staging despite the advertised read-only sandbox restriction; the script's executable mode was staged as 100755 for compatibility with the existing Mac testing guide's direct invocation. README also supports explicit `bash` invocation. Technical references checked: [XcodeGen project specification](https://github.com/yonaskolb/XcodeGen/blob/master/Docs/ProjectSpec.md), [Swift PackageDescription platform string support](https://docs.swift.org/package-manager/PackageDescription/PackageDescription.html), and [Apple SystemLanguageModel availability](https://developer.apple.com/documentation/foundationmodels/systemlanguagemodel).
+
+## Review (round 1)
+- Date: 2026-10-24 12:32 AEDT
+- Verdict: PASS
+- CI run 40050142268 green on macos-26: NearMeCore 1 test passed, `xcodegen` ok, `xcodebuild` BUILD SUCCEEDED with no compiler warnings.
+- Criteria: project.yml (sandbox off, hardened runtime on, bundle id, Team via xcconfig) met; NearMeCore has no platform imports; Base.xcconfig optional includes let CI build with no local files; Info.plist keys and usage strings present; CI workflow matches brief; mac-run.sh kept working (adds `--current` and a Team.xcconfig check); README Mac setup present; no secrets in diff.
+- PENDING MAC: placeholder window shows the three statuses; build is signed with the Personal Team (XcodeGen presets could override `CODE_SIGN_IDENTITY`) so Accessibility permission survives a rebuild. Steps in PLAN.md Mac gate checklist (M1, M2).
