@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NearMe Mac test helper. Usage: ./scripts/mac-run.sh [report]
+# NearMe Mac test helper. Usage: bash scripts/mac-run.sh [--current|report]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [[ "${1:-}" == "report" ]]; then
@@ -18,8 +18,18 @@ if [[ "${1:-}" == "report" ]]; then
   git pull --ff-only && git add "$f" && git commit -m "Mac results $(basename "$f" .md)" && git push
   echo "Pushed $f"; exit 0
 fi
-git checkout main && git pull --ff-only
-[[ -f Secrets.xcconfig ]] || { echo "Missing Secrets.xcconfig (copy it from Windows)"; exit 1; }
+case "${1:-}" in
+  "") git checkout main && git pull --ff-only ;;
+  --current) ;; # Build a task branch without switching it or pulling main.
+  *) echo "Usage: bash scripts/mac-run.sh [--current|report]"; exit 1 ;;
+esac
+[[ -f Config/Team.xcconfig ]] || {
+  echo "Copy Config/Team.xcconfig.example to Config/Team.xcconfig and set your Personal Team ID."
+  echo "The launch helper uses a signed build so Accessibility permission can survive rebuilds."
+  exit 1
+}
+[[ -f Secrets.xcconfig ]] || echo "No Secrets.xcconfig: optional online services will have empty keys."
+swift test --package-path NearMeCore
 xcodegen
 xcodebuild -scheme NearMe -configuration Debug -destination 'platform=macOS' -derivedDataPath build build | tail -5
 pkill -x NearMe 2>/dev/null || true

@@ -1,0 +1,10 @@
+// A fresh clone builds unsigned and with empty optional service keys.
+CODE_SIGNING_ALLOWED = NO
+DEVELOPMENT_TEAM =
+ELEVENLABS_API_KEY =
+ELEVENLABS_VOICE_ID =
+SCX_API_KEY =
+
+// Local values override the defaults above. Neither file is required by CI.
+#include? "../Secrets.xcconfig"
+#include? "Team.xcconfig"

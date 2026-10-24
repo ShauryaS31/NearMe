@@ -1,0 +1,43 @@
+name: NearMe
+options:
+  deploymentTarget:
+    macOS: "26.0"
+configs:
+  Debug: debug
+  Release: release
+packages:
+  NearMeCore:
+    path: NearMeCore
+targets:
+  NearMe:
+    type: application
+    platform: macOS
+    sources:
+      - path: NearMe
+        excludes:
+          - Info.plist
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: au.nearme.app
+        INFOPLIST_FILE: NearMe/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+    dependencies:
+      - package: NearMeCore
+schemes:
+  NearMe:
+    build:
+      targets:
+        NearMe: all
+    run:
+      config: Debug
+    archive:
+      config: Release
