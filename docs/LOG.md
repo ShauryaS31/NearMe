@@ -18,3 +18,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 13:38 AEDT | N03 | claude | dispatch r1 | brief tightened (PrivacyFilter API, exact bundle ids, whole-word title keywords, pipeline order, tests); branch task/N03-privacy
 - 2026-10-24 13:41 AEDT | N03 | codex | dev-report r1 | Implemented pre-traversal privacy blocking, contact masking, label truncation and once-only local blocked speech; committed dbc2e33. Static checks passed; Swift/Xcode unavailable; seven new tests and Mac runtime checks pending CI/owner.
 - 2026-10-24 13:50 AEDT | N03 | claude | review r1 PASS | CI 40055664698 green, 17 tests; merged to main; M7 pending Mac
+- 2026-10-24 13:53 AEDT | - | claude | history rewrite | owner-authorised: filter-repo replace-text removed prior project names from all commits; log -p verified clean; Secrets.xcconfig never in history; main and task branches force-pushed; old CI runs deleted; going public on hold (Activity feed keeps old SHAs)
+- 2026-10-24 13:53 AEDT | - | claude | decision | owner: import prior iOS prototype as second target NearMeiOS (N10, before N04a)
