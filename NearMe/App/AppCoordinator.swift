@@ -5,8 +5,9 @@ import Combine
 
 @MainActor
 final class AppCoordinator: ObservableObject {
+    static let placeholderName = "Friend"
     @Published var route: AppRoute = .welcome
-    @Published var userName: String = "Friend"
+    @Published var userName: String = AppCoordinator.placeholderName
 
     func advanceFromWelcome() {
         route = .howItWorks

@@ -113,10 +113,99 @@ final class UIPolishTests: XCTestCase {
 
     func testWelcomeGreetsKnownNamesOnlyAndKeepsTimeOfDay() {
         XCTAssertNil(WelcomeContent(userName: "", hour: 9, onStart: {}).greeting)
-        XCTAssertNil(WelcomeContent(userName: "Friend", hour: 9, onStart: {}).greeting)
+        XCTAssertEqual(AppCoordinator().userName, AppCoordinator.placeholderName)
+        XCTAssertNil(WelcomeContent(userName: AppCoordinator.placeholderName, hour: 9, onStart: {}).greeting)
         XCTAssertEqual(WelcomeContent(userName: "Shaurya", hour: 9, onStart: {}).greeting, "Good morning, Shaurya")
         XCTAssertEqual(WelcomeContent(userName: "Shaurya", hour: 14, onStart: {}).greeting, "Good afternoon, Shaurya")
         XCTAssertEqual(WelcomeContent(userName: "Shaurya", hour: 20, onStart: {}).greeting, "Good evening, Shaurya")
+    }
+
+    func testFallbackSessionUsesHomeReplyInsteadOfCoachCard() {
+        let session = generalSession(steps: [CoachText.generalFallback], text: CoachText.generalFallback)
+        XCTAssertEqual(CoachPresentation.kind(for: session), .homeReply)
+        XCTAssertFalse(CoachPresentation.showsCoachCard(session: session, error: nil))
+        XCTAssertEqual(CoachPresentation.reply(session: session, error: nil), CoachText.generalFallback)
+        XCTAssertEqual(CoachPresentation.kind(for: nil), .homeReply)
+        let empty = generalSession(steps: [], text: "")
+        XCTAssertEqual(CoachPresentation.kind(for: empty), .homeReply)
+        XCTAssertEqual(CoachPresentation.reply(session: empty, error: nil), CoachText.generalFallback)
+    }
+
+    func testRealGeneralStepsIncludingSingleStepUseCoachCard() {
+        for steps in [["Open the app."], ["Open the app.", "Choose a photo."]] {
+            let session = generalSession(steps: steps, text: "Open the app.")
+            XCTAssertEqual(CoachPresentation.kind(for: session), .coachCard)
+            XCTAssertTrue(CoachPresentation.showsCoachCard(session: session, error: nil))
+            XCTAssertNil(CoachPresentation.reply(session: session, error: nil))
+            XCTAssertNil(CoachPresentation.appLaunch(for: session))
+        }
+    }
+
+    func testFallbackRewriteOfGeneralStepsUsesHomeReply() {
+        let session = generalSession(steps: ["Open the app."], text: CoachText.generalFallback)
+        XCTAssertEqual(CoachPresentation.kind(for: session), .homeReply)
+    }
+
+    func testErrorsAndNoWordsUseHomeReplyEvenWithExistingCoach() {
+        let session = generalSession(steps: ["Open the app."], text: "Open the app.")
+        let noWords = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
+        for message in ["Something went wrong.", noWords] {
+            XCTAssertFalse(CoachPresentation.showsCoachCard(session: session, error: message))
+            XCTAssertEqual(CoachPresentation.reply(session: session, error: message), message)
+            XCTAssertEqual(CoachPresentation.reply(session: nil, error: message), message)
+        }
+    }
+
+    func testGuideUsesCoachCardAndWhatsAppOpenLinkWithoutChangingStep() throws {
+        let guides: [HelpGuide] = try GuideLibrary.load()
+        let guide = try XCTUnwrap(guides.first { $0.id == "whatsapp_send_photo" })
+        let session = CoachSession(guide: guide, request: "Send a photo", person: nil,
+                                   generalSteps: [], stepIndex: 1, text: guide.steps[1].instruction)
+        XCTAssertEqual(CoachPresentation.kind(for: session), .coachCard)
+        let launch = try XCTUnwrap(CoachPresentation.appLaunch(for: session))
+        XCTAssertEqual(launch.app, "WhatsApp")
+        XCTAssertEqual(launch.url.absoluteString, "whatsapp://")
+        XCTAssertEqual(session.stepIndex, 1)
+        XCTAssertEqual(session.text, guide.steps[1].instruction)
+    }
+
+    func testGuideWithoutSchemeHidesOpenApp() throws {
+        let guides: [HelpGuide] = try GuideLibrary.load()
+        let guide = try XCTUnwrap(guides.first { $0.appURLScheme == nil })
+        let session = CoachSession(guide: guide, request: guide.title, person: nil,
+                                   generalSteps: [], stepIndex: 0, text: guide.steps[0].instruction)
+        XCTAssertEqual(CoachPresentation.kind(for: session), .coachCard)
+        XCTAssertNil(CoachPresentation.appLaunch(for: session))
+    }
+
+    func testHomeReplyKeepsUserWordsAndDoesNotDuplicateLastReply() {
+        let turns: [ConversationTurn] = [
+            ConversationTurn(speaker: .user, text: "Can you help?"),
+            ConversationTurn(speaker: .nearme, text: CoachText.generalFallback)
+        ]
+        let presentation = ConversationPresentation(turns: turns, liveTranscript: "")
+            .withReply(CoachText.generalFallback)
+        XCTAssertEqual(presentation.userText, "Can you help?")
+        XCTAssertEqual(presentation.replyText, CoachText.generalFallback)
+        XCTAssertTrue(presentation.earlier.isEmpty)
+    }
+
+    func testTalkVoiceControlNamesIncludeVisibleTitleAndOriginalAction() {
+        XCTAssertEqual(VoiceOrbState.idle.inputLabels, ["Talk to NearMe", "Start listening"])
+        XCTAssertEqual(VoiceOrbState.listening.inputLabels,
+                       ["Listening... tap when you're done", "Stop listening"])
+    }
+
+    func testErrorReplyRetainsPreviousPromptInEarlierConversation() {
+        let prompt = ConversationTurn(speaker: .nearme, text: "Where would you like to go?")
+        let presentation = ConversationPresentation(turns: [prompt], liveTranscript: "")
+            .withReply("I didn't hear any words.")
+        XCTAssertEqual(presentation.replyText, "I didn't hear any words.")
+        XCTAssertEqual(presentation.earlier, [prompt])
+    }
+
+    private func generalSession(steps: [String], text: String) -> CoachSession {
+        CoachSession(guide: nil, request: "Help me", person: nil, generalSteps: steps, stepIndex: 0, text: text)
     }
 
     private func activity(_ state: TaskPlannerState, speaking: Bool, preparing: Bool,

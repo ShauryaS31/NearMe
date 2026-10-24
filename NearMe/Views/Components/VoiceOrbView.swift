@@ -28,27 +28,25 @@ enum VoiceOrbState: Equatable {
         case .speaking, .idle: return "Tap to talk"
         }
     }
+
+    var inputLabels: [String] {
+        if self == .listening { return [instruction, "Stop listening"] }
+        return ["Talk to NearMe", "Start listening"]
+    }
 }
 
 struct VoiceOrbButton: View {
     let state: VoiceOrbState
     let instruction: String
+    var title: String = "Talk to NearMe"
     var emphasis: ButtonEmphasis = .primary
     let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
-            Group {
-                switch emphasis {
-                case .primary: button.buttonStyle(.borderedProminent)
-                case .secondary: button.buttonStyle(.bordered)
-                }
-            }
-            HStack(alignment: .top, spacing: TTSpacing.relatedGap) {
-                VoiceOrbView(state: state)
-                Text(instruction)
-                    .font(TTFont.body())
-                    .fixedSize(horizontal: false, vertical: true)
+        Group {
+            switch emphasis {
+            case .primary: button.buttonStyle(.borderedProminent)
+            case .secondary: button.buttonStyle(.bordered)
             }
         }
         .tint(TTColor.accent)
@@ -56,24 +54,15 @@ struct VoiceOrbButton: View {
 
     private var button: some View {
         Button(action: action) {
-            Label(state == .listening ? "Stop listening" : "Talk to NearMe", systemImage: "mic.fill")
+            Label(state == .listening ? state.instruction : title,
+                  systemImage: state == .listening ? "waveform" : "mic.fill")
                 .font(TTFont.title())
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: TTControl.talkHeight)
         }
         .accessibilityLabel(state.accessibilityLabel)
-        .accessibilityHint(instruction)
-    }
-}
-
-/// A small, static state symbol. No pulse or scale animation, including Reduce Motion.
-struct VoiceOrbView: View {
-    let state: VoiceOrbState
-
-    var body: some View {
-        Image(systemName: state.symbolName)
-            .font(.body)
-            .accessibilityHidden(true)
+        .accessibilityValue(instruction)
+        .accessibilityInputLabels(state == .listening ? state.inputLabels : [title, "Start listening"])
     }
 }
 
@@ -113,10 +102,11 @@ enum VoiceActivity: String, CaseIterable, Identifiable {
 
 struct VoiceStateRow: View {
     let activity: VoiceActivity
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(alignment: .top, spacing: TTSpacing.relatedGap) {
-            if activity == .preparing {
+            if activity == .preparing && !reduceMotion {
                 ProgressView().accessibilityHidden(true)
             } else {
                 Image(systemName: activity.symbol).accessibilityHidden(true)

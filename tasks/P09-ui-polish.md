@@ -188,3 +188,103 @@ CHANGES. Static review (no Swift toolchain here). 1.1 greps zero hits; scope gua
 
 Mac gate (PENDING MAC): the new Stop on the conversation screen (`VoiceSessionView.swift:81-86`) must not change cancel or barge-in; the dock mic symbol is now `mic.fill` when listening (check it still reads clearly with its state text).
 - 2026-10-24 18:37 AEDT | P09 | claude (P09 lane) | review r1 CHANGES | Reduce Motion spinner, VoiceOver order, duplicate state text, coach title weight, nonisolated ButtonEmphasis, input labels, placeholder name, delete CaptionBubble; plus owner 9.A-D; dispatch r2
+
+
+## Dev Report (round 2)
+- Date: 2026-10-24 18:42 AEDT
+- Changed files: `NearMe/App/AppCoordinator.swift`; Components: deleted `CaptionBubble.swift`, updated `PrimaryButton.swift`, `ScreenScaffold.swift`, `VoiceOrbView.swift`, `UIPolishPreviews.swift`; Onboarding: `WelcomeView.swift`; Voice: new `CoachPresentation.swift` and `HelpHomeView.swift`, updated `CoachView.swift`, `SessionContainerView.swift`, `VoiceSessionView.swift`; `NearMeTests/UIPolishTests.swift`; this task file.
+- What I did: addressed all eight round 1 review items and owner additions 9.A-D using views and existing public engine commands. Home now owns voice input, typed input, current replies and practice prompts. Removed the separate conversation-screen implementation, retaining its transcript/history and place-suggestion components. Added a pure presentation helper for coach eligibility, non-step replies and Open app visibility. No engine changes, including no additive changes under the 9.B exception. No changes to CoachAppOpener.swift or automatic opening.
+- Review (round 1), each numbered point:
+  1. Preparing uses a static `hourglass` when Reduce Motion is enabled. Both Home and the stuck sheet use the corrected `VoiceStateRow`; the determinate step progress remains determinate.
+  2. Removed the redundant visible instruction row under Talk, so it cannot create an extra VoiceOver stop. The original Start listening/Stop listening labels remain, and the button value carries its instruction. Idle Home's content order remains heading, example, Talk, Type instead, Practise.
+  3. Listening words appear once, inside the Talk button with `waveform`. Home omits the separate state row during listening. Other active states have one row above the transcript; there is no separate listening screen.
+  4. Coach task title is now `.headline`; current instruction remains title2 semibold.
+  5. `ButtonEmphasis` is exactly `nonisolated enum ButtonEmphasis: Sendable`, making both button default values isolation-safe. No new default arguments construct app/test types or read MainActor statics; view configuration uses resolved stored properties. No new force unwraps or long tuple chains.
+  6. Added Voice Control input labels containing the visible title and original listening action: Talk to NearMe/Start listening, Listening... tap when you're done/Stop listening, and Try again/Start listening.
+  7. Added `AppCoordinator.placeholderName`; the coordinator, welcome filter and test all use it. Only its declaration contains the placeholder literal.
+  8. Deleted CaptionBubble.swift; no source/test/preview references remain. Removed the now-unused standalone state-symbol view as part of eliminating the duplicate row.
+- Owner additions:
+  - 9.A: SessionContainerView selects the same Home view throughout capture/preparation/replies. Talk still calls `userTappedToTalk()` for both start and finish, with the existing disabled-state contract. Listening has a waveform and the exact requested words; bordered Cancel (`xmark`) sits directly underneath and calls `cancelCurrentAction()`, which discards rather than submits capture. Live words appear under You said. No speech/timing implementation was changed.
+  - 9.B: `CoachPresentation.kind(for:)` returns Home reply for fallback, empty and absent sessions, and coach card for guide sessions and real general steps (including one real step). An explicit error also selects Home. The non-step text appears under NearMe with prominent Try again and bordered Type instead, without step count or Done. Before retrying/typing from a non-step coach session, the view uses `cancelCurrentAction()` so the engine will route a new request instead of interpreting it as a coach command. Real general steps retain the coach card and now show the exact general-guidance label. Added deterministic helper tests for these cases, errors and the actual no-speech diagnostic.
+  - 9.C: Home uses systemGroupedBackground, opaque secondarySystemGroupedBackground cards, continuous 20 pt corners and only the 20/24/12 pt spacing tokens. Talk is the largest control at the top of the content, after its heading/example. Practice is a full-width card with tram.fill, title, short explanation and chevron.right; text wraps at accessibility sizes. Coach retains the same grouped page/card treatment.
+  - 9.D: `CoachPresentation.appLaunch(for:)` returns app name/URL only for a HelpGuide accepted by the existing `CoachAppLaunch.url(for:)`. Coach displays a bordered Open <App> (`arrow.up.forward.app`) beside its explanation, stacking at accessibility sizes. Its sole action is `@Environment(\.openURL)`; it sends no engine command and does not change the step. Tests cover WhatsApp, general guidance and a real bundled guide without a scheme. The engine's automatic handoff/resume and CoachAppOpener.swift are untouched.
+- Acceptance criteria:
+  - 1.1-1.4: semantic colours and existing Theme tokens retained, new Home surfaces opaque, title hierarchy corrected. Exact zero-hit greps below; Python also scanned the new, untracked Swift files with the same colour patterns and found zero hits.
+  - 2.1-2.3: native button styles and minimum heights retained. Home has one prominent action: Talk/Try again, or Send during ordinary typing. If an error still shows while typing, Try again stays prominent and Send is bordered. Open app/explanation use AdaptiveButtonRow and stack at accessibility sizes.
+  - 3.1-3.3: native NearMe NavigationStack, requested heading/example, hero Talk, bordered Type instead and expanded practice row. No Settings destination added. Original microphone commands and accessibility action labels retained.
+  - 4.1-4.3: single state presentation, labelled current user/reply and collapsed earlier history. Owner 9.A supersedes the separate listening state row. Error overrides preserve the previous prompt in Earlier conversation, with a regression test. Reduce Motion uses the static preparing symbol in both places.
+  - 5.1-5.3: known step count/completed-step progress and 20 pt instruction card retained; task title reduced to headline. Done/Repeat/I'm stuck commands unchanged. Manual Open app completed per 9.D. Existing single large stuck sheet, Close, Slower and Stop retained.
+  - 6.1-6.3: merged greeting/Welcome and truthful explainer retained; shared placeholder constant removes duplicate name logic. Scrolling onboarding previews remain; actual accessibility clipping checks await the Mac.
+  - 7.1-7.3: zero round 2 changes to Services, Models, ViewModels, guide JSON, Shared, project.yml, Info.plist, TripPlannerPractice, SPEC, PLAN, LOG or AGENTS. No engine exception used. Main comparison includes pre-existing lane divergence in PLAN, LOG and P07d; the separate HEAD scope check is empty.
+  - 8.1-8.2: UIPolishTests now has 18 tests (9 added in this round). The 45 DEBUG-only previews include all Home/conversation states, fallback reply, general/guide coach, onboarding, default/accessibility5, light/dark, plus Reduce Motion preparation. Preview fixtures do not run the engine or request speech/permissions. Tests and previews have NOT been run/rendered here.
+- Verify commands run and results:
+  - `git diff --check`: no output, exit 0 after normalising changed Swift files to LF.
+  - `git diff --name-only HEAD -- NearMe/Services NearMe/Models NearMe/ViewModels Shared project.yml NearMe/Info.plist NearMe/Resources NearMe/Views/TripPlannerPractice docs/PLAN.md docs/LOG.md docs/SPEC.md AGENTS.md`: no output, exit 0.
+  - `git diff --name-only main HEAD -- docs/PLAN.md docs/LOG.md tasks/P07d-router-keyword-override.md`: outputs those three paths; these are pre-existing branch differences, not this round's edits.
+  - `git grep -n -E 'CaptionBubble|VoiceSessionView\(|ConversationScreen\(' -- NearMe NearMeTests`: no output, zero hits (exit 1).
+  - Python `shutil.which('swift')` and `shutil.which('xcodebuild')`: both `None`. This Windows machine has no Swift or Xcode. No build/test success is claimed. `rg` invocation was unavailable in the shell, so git grep and Python were used.
+  - Static call-site review: Home start/finish uses userTappedToTalk, Cancel uses cancelCurrentAction, Stop uses stopSessionSpeech, typed submission uses canSubmitTypedInput/submitTypedInput, manual Open uses only openURL. Checked new files as well as tracked diffs.
+- Mac test steps for the owner:
+  1. Use the committed `task/P09-ui-polish` checkout (or the manager's commit of these files). From its repository root run `bash scripts/mac-run.sh test --current`, then `bash scripts/mac-run.sh quick`. Require all tests, including all 18 UIPolishTests and existing speech/cancel/coach tests, to pass. On failure inspect `build/xcodebuild.log`. Do not run the default main-switching command. These commands were not run here.
+  2. Open `NearMe.xcodeproj` in Xcode 27.1, select NearMe and render all 45 previews in `NearMe/Views/Components/UIPolishPreviews.swift`. Check especially Conversation listening, Home reply, Coach Open app, general guidance and Home preparing / Reduce Motion. Repeat runtime checks on an iOS 26.5 simulator.
+  3. Launch fresh: Welcome > Get started > Try it now (also repeat using Skip). Verify the single Welcome and grouped Home. With VoiceOver, read heading, example, Talk, Type instead, Practise in order. With Voice Control, activate Talk to NearMe and the listening label/Stop listening. Check the action label remains Start listening or Stop listening.
+  4. Tap Talk, grant access if needed, say a request and tap the listening button to submit. Confirm Home and its native title remain in place, the waveform/listening text appears once, Cancel is bordered immediately underneath, and partial words appear under You said. Start another turn, say words, then tap Cancel; wait past the normal endpoint and confirm no request/reply/guide is submitted. Repeat during microphone preparation and while finishing.
+  5. Tap Talk and finish with no words. Confirm the no-words diagnostic appears under NearMe on Home with prominent Try again and bordered Type instead, without a step count or Done. Exercise a microphone-denied/unavailable error, then Type instead and submit. Check only one prominent control, reachable text entry and no discarded typed draft during ordinary partial updates. Exercise fallback on a simulator without an available model and inspect the deterministic Home reply preview/tests as well. Retry a fallback by voice and by typing a known guide request; confirm it routes as a new request rather than replying with coach-command help.
+  6. Submit `Help me send a photo to Mum on WhatsApp`. Allow the existing automatic handoff if available, then return. Record the current step, tap Open WhatsApp and return again: the step number must be unchanged by the manual button. Tap Done to advance once. Check a no-scheme guide (for example Connect to Wi-Fi) has no Open button. Use the general-coach preview/helper tests to confirm real general steps retain Done and the general-guidance label.
+  7. During reply speech tap Stop: speech stops, reply remains, We paused here appears. Tap Talk during speech to verify barge-in still works. Exercise Repeat, I'm stuck, Close, Slower and Stop; the sheet must stay large with no stacked sheet, and preparing must show hourglass with Reduce Motion. Complete practice and check place suggestions, typed answers, End session, unchanged dock geometry/highlight, and the dock's mic.fill plus listening words.
+  8. At default size and Accessibility XXXL (Settings > Accessibility > Display & Text Size > Larger Text, Larger Accessibility Sizes on, slider fully right), capture Home idle/listening/speaking/error, coach, stuck sheet and onboarding in light/dark. Use `mkdir -p build/p09-screenshots` then `xcrun simctl io booted screenshot build/p09-screenshots/home-listening-accessibility5-dark.png`, changing each filename. Scroll to every action; check no clipping, wrapping Open controls and readable practice explanation.
+  9. Repeat with Reduce Motion, Reduce Transparency, Bold Text, Button Shapes and Increase Contrast. Verify static preparation, opaque text surfaces and tappable boundaries; check rendered contrast against HIG notes. Confirm no duplicate VoiceOver state stop beneath Talk and the visible labels work with Voice Control.
+- Not done / risks / questions: Mac compilation, test execution, rendered previews, screenshots, contrast and assistive-technology checks remain PENDING MAC. The review's Stop/cancel/barge-in and dock mic checks remain part of that gate. Actual external-app availability/launch is owned by the OS; button visibility follows exactly CoachAppLaunch.url(for:), not an added availability probe. No P11 file, engine logic, service, model, guide resource, practice content or protected doc was changed. No merge/push/next task.
+- Commit disposition: Git staging succeeded on `task/P09-ui-polish`; committing the listed files as `N09: Keep voice replies on Home and finish UI review`. No merge or push.
+
+### Round 2 colour and owner-addition grep evidence
+
+```powershell
+git grep -n -E 'Color[[:space:]]*\([[:space:]]*red:|#colorLiteral' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+```powershell
+git grep -n -E '(Color|UIColor)[[:space:]]*\([[:space:]]*hex:|init[[:space:]]*\([[:space:]]*hex:|0x[0-9A-Fa-f]+|#[0-9A-Fa-f]{6,8}' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+```powershell
+git grep -n -E '\.purple|\.black|\.tracking\(|\.kerning\(|\.uppercased\(' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1). Python scanning all own-view Swift files, including new files, also found zero matches. A whole-app search found only `.black.opacity(0.25)` in the explicitly excluded practice target highlight (`PracticeHighlight.swift:78`), not a Cancel control. There is no purple orb, tracked uppercase label or black Cancel bar.
+
+### Round 2 scope evidence
+
+Exact command: `git diff --stat main`. Output before appending this report/staging new files:
+
+```text
+ NearMe/App/AppCoordinator.swift                    |   7 +-
+ NearMe/App/ContentView.swift                       |  12 +-
+ NearMe/Views/Components/CaptionBubble.swift        |  60 ----
+ NearMe/Views/Components/PrimaryButton.swift        |  54 ++--
+ NearMe/Views/Components/ProgressDotsView.swift     |  33 +-
+ NearMe/Views/Components/ScreenScaffold.swift       |  16 +-
+ NearMe/Views/Components/SessionDock.swift          |   6 +-
+ NearMe/Views/Components/Theme.swift                |  36 ++-
+ NearMe/Views/Components/UIPolishPreviews.swift     | 358 +++++++++++++++++++++
+ NearMe/Views/Components/VoiceOrbView.swift         | 140 ++++----
+ NearMe/Views/Onboarding/GoodMorningView.swift      |  64 ----
+ NearMe/Views/Onboarding/HowItWorksView.swift       |  61 ++--
+ NearMe/Views/Onboarding/WelcomeView.swift          |  90 +++---
+ .../TripPlannerPractice/TripPlannerChrome.swift    |  10 +-
+ NearMe/Views/Voice/CoachView.swift                 | 189 ++++++-----
+ NearMe/Views/Voice/OpeningPracticeView.swift       |  19 +-
+ NearMe/Views/Voice/SessionContainerView.swift      |   8 +-
+ NearMe/Views/Voice/VoiceSessionView.swift          | 263 +++++----------
+ NearMeTests/UIPolishTests.swift                    | 216 +++++++++++++
+ docs/LOG.md                                        |   2 -
+ docs/PLAN.md                                       |   4 +-
+ tasks/P07d-router-keyword-override.md              |  37 ---
+ tasks/P09-ui-polish.md                             | 124 ++++++-
+ 23 files changed, 1120 insertions(+), 689 deletions(-)
+```
+
+New files not included in that unstaged stat: `NearMe/Views/Voice/CoachPresentation.swift` and `NearMe/Views/Voice/HelpHomeView.swift`, confirmed by `git ls-files --others --exclude-standard`. The report itself is additional to this captured stat. PLAN/LOG/P07d rows are pre-existing branch divergence as demonstrated above.
+
+- 2026-10-24 18:42 AEDT | P09 | codex | dev-report r2 | addressed review 1-8 and owner 9.A-D in views; Home listening/replies, grouped cards and manual Open app; no engine edits; Mac gate pending

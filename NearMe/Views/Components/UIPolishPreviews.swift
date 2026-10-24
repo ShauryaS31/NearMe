@@ -2,7 +2,7 @@
 import SwiftUI
 
 private enum PolishPreviewScreen {
-    case home, conversation(VoiceActivity), coach, welcome, explainer
+    case home, conversation(VoiceActivity), fallback, guideCoach, coach, welcome, explainer
 }
 
 /// Presentation-only fixtures: previews never request permissions, speech or a model.
@@ -12,15 +12,16 @@ private struct PolishPreview: View {
     var body: some View {
         switch screen {
         case .home:
-            NavigationStack {
-                HelpHomeContent(
-                    state: SessionDockState(plannerState: .idle, isSpeaking: false, isStartingListening: false),
-                    onTalk: {}, onType: {}, onPractice: {}
-                )
-                .navigationTitle("NearMe")
-            }
+            home(activity: .ready, transcript: ConversationPresentation(turns: [], liveTranscript: ""), retry: false)
         case .conversation(let activity):
             conversation(activity)
+        case .fallback:
+            home(activity: .ready, transcript: ConversationPresentation(
+                turns: [ConversationTurn(speaker: .user, text: "Can you help me with this?")],
+                liveTranscript: "").withReply(CoachText.generalFallback), retry: true)
+        case .guideCoach:
+            ScrollView { CoachStepContent(session: guideCoach, onCommand: { _ in }) }
+                .background(TTColor.groupedBackground)
         case .coach:
             ScrollView { CoachStepContent(session: coach, onCommand: { _ in }) }
                 .background(TTColor.groupedBackground)
@@ -40,15 +41,40 @@ private struct PolishPreview: View {
         ]
         let liveText = activity == .listening ? "From Central" : ""
         let presentation = ConversationPresentation(turns: turns, liveTranscript: liveText)
-        let mic: VoiceOrbState = activity == .listening ? .listening : .idle
-        return ConversationScreen(activity: activity, transcript: presentation) {
-            VoiceOrbButton(state: mic, instruction: mic.instruction, action: {})
-            PrimaryButton(title: "Type instead", systemImage: "keyboard", emphasis: .secondary, action: {})
-            if activity == .speaking {
-                PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary, action: {})
-            }
-            PrimaryButton(title: "Cancel", systemImage: "xmark.circle", emphasis: .secondary, action: {})
+        return home(activity: activity, transcript: presentation, retry: false)
+    }
+
+    private func home(activity: VoiceActivity, transcript: ConversationPresentation, retry: Bool) -> some View {
+        let plannerState: TaskPlannerState
+        switch activity {
+        case .listening: plannerState = .listening
+        case .preparing: plannerState = .thinking
+        default: plannerState = .idle
         }
+        let state = SessionDockState(plannerState: plannerState, isSpeaking: activity == .speaking,
+                                     isStartingListening: false)
+        return NavigationStack {
+            HelpHomeContent(state: state, activity: activity, transcript: transcript,
+                            showsRetry: retry, isTyping: false, showsCancel: activity != .ready,
+                            onTalk: {}, onCancel: {}, onType: {}, onPractice: {}) {
+                if activity == .speaking {
+                    PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary, action: {})
+                }
+            }
+            .navigationTitle("NearMe")
+        }
+    }
+
+    private var guideCoach: CoachSession {
+        let steps: [HelpGuide.Step] = [
+            HelpGuide.Step(instruction: "Open \"WhatsApp\".", uiLabelHint: "WhatsApp"),
+            HelpGuide.Step(instruction: "Tap \"Chats\".", uiLabelHint: "Chats")
+        ]
+        let guide = HelpGuide(id: "preview", title: "Send a photo", app: "WhatsApp",
+                              appURLScheme: "whatsapp://", aliases: [], steps: steps,
+                              sourceNote: "Preview", lastChecked: "2026-10-24")
+        return CoachSession(guide: guide, request: "Send a photo", person: nil,
+                            generalSteps: [], stepIndex: 1, text: steps[1].instruction)
     }
 
     private var coach: CoachSession {
@@ -273,6 +299,60 @@ private struct PolishPreview: View {
     PolishPreview(screen: .explainer)
         .dynamicTypeSize(.accessibility5)
         .preferredColorScheme(.dark)
+}
+
+#Preview("Home reply / large / light") {
+    PolishPreview(screen: .fallback)
+        .dynamicTypeSize(.large)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Home reply / large / dark") {
+    PolishPreview(screen: .fallback)
+        .dynamicTypeSize(.large)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Home reply / accessibility5 / light") {
+    PolishPreview(screen: .fallback)
+        .dynamicTypeSize(.accessibility5)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Home reply / accessibility5 / dark") {
+    PolishPreview(screen: .fallback)
+        .dynamicTypeSize(.accessibility5)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Coach Open app / large / light") {
+    PolishPreview(screen: .guideCoach)
+        .dynamicTypeSize(.large)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Coach Open app / large / dark") {
+    PolishPreview(screen: .guideCoach)
+        .dynamicTypeSize(.large)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Coach Open app / accessibility5 / light") {
+    PolishPreview(screen: .guideCoach)
+        .dynamicTypeSize(.accessibility5)
+        .preferredColorScheme(.light)
+}
+
+#Preview("Coach Open app / accessibility5 / dark") {
+    PolishPreview(screen: .guideCoach)
+        .dynamicTypeSize(.accessibility5)
+        .preferredColorScheme(.dark)
+}
+
+#Preview("Home preparing / Reduce Motion") {
+    PolishPreview(screen: .conversation(.preparing))
+        .environment(\.accessibilityReduceMotion, true)
+        .dynamicTypeSize(.accessibility5)
 }
 
 #endif

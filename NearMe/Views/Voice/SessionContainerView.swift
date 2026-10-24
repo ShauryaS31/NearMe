@@ -20,18 +20,14 @@ struct SessionContainerView: View {
 
     var body: some View {
         Group {
-            if engine.isHome {
-                HelpHomeView(engine: engine)
-            } else if engine.coach != nil {
+            if CoachPresentation.showsCoachCard(session: engine.coach, error: engine.lastErrorMessage) {
                 CoachView(engine: engine)
             } else if let simulation = engine.tripPlannerPracticeViewModel {
                 TripPlannerPracticeView(viewModel: simulation, engine: engine)
             } else if engine.plannerState == .openingApp {
                 OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
             } else {
-                VoiceSessionView(engine: engine, onEndSession: {
-                    engine.endSession()
-                })
+                HelpHomeView(engine: engine)
             }
         }
         .preferredColorScheme(nil)

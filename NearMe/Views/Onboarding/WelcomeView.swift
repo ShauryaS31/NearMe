@@ -18,8 +18,7 @@ struct WelcomeContent: View {
 
     var greeting: String? {
         let name = userName.trimmingCharacters(in: .whitespacesAndNewlines)
-        // "Friend" is the coordinator's placeholder, not a supplied name.
-        guard !name.isEmpty, name != "Friend" else { return nil }
+        guard !name.isEmpty, name != AppCoordinator.placeholderName else { return nil }
         let salutation: String
         switch hour {
         case 0..<12: salutation = "Good morning"

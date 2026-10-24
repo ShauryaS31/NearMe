@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-enum ButtonEmphasis { case primary, secondary }
+nonisolated enum ButtonEmphasis: Sendable { case primary, secondary }
 
 struct PrimaryButton: View {
     let title: String

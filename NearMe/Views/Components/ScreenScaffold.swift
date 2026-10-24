@@ -3,13 +3,14 @@
 import SwiftUI
 
 struct ScreenScaffold<Content: View>: View {
+    var isGrouped: Bool = false
     var showBackButton: Bool = false
     var onBack: (() -> Void)? = nil
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         ZStack {
-            TTColor.background.ignoresSafeArea()
+            (isGrouped ? TTColor.groupedBackground : TTColor.background).ignoresSafeArea()
 
             VStack(spacing: 0) {
                 if showBackButton {

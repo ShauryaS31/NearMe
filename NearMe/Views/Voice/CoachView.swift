@@ -1,55 +1,5 @@
 import SwiftUI
 
-struct HelpHomeView: View {
-    @ObservedObject var engine: TaskPlannerEngine
-
-    private var micState: SessionDockState {
-        SessionDockState(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
-                         isStartingListening: engine.isStartingListening)
-    }
-
-    var body: some View {
-        NavigationStack {
-            HelpHomeContent(state: micState, onTalk: engine.userTappedToTalk,
-                            onType: engine.useTypedInput, onPractice: engine.startPractice)
-                .navigationTitle("NearMe")
-                #if DEBUG
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        SessionDebugMenu(engine: engine)
-                    }
-                }
-                #endif
-        }
-        .tint(TTColor.accent)
-    }
-}
-
-struct HelpHomeContent: View {
-    let state: SessionDockState
-    let onTalk: () -> Void
-    let onType: () -> Void
-    let onPractice: () -> Void
-
-    var body: some View {
-        ScreenScaffold {
-            VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
-                Text("What would you like help with?")
-                    .font(TTFont.title())
-                    .accessibilityAddTraits(.isHeader)
-                Text("Try: help me send a photo to Mum")
-                    .font(TTFont.body())
-                VoiceOrbButton(state: state.micState, instruction: state.instruction, action: onTalk)
-                    .disabled(state.micDisabled)
-                PrimaryButton(title: "Type instead", systemImage: "keyboard", emphasis: .secondary,
-                              action: onType)
-                PrimaryButton(title: "Practise a train trip", systemImage: "tram.fill", emphasis: .secondary,
-                              action: onPractice)
-            }
-        }
-    }
-}
-
 struct CoachView: View {
     @ObservedObject var engine: TaskPlannerEngine
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -119,6 +69,7 @@ struct CoachStepPresentation {
 }
 
 struct CoachStepContent: View {
+    @Environment(\.openURL) private var openURL
     let session: CoachSession
     let onCommand: (CoachCommand) -> Void
 
@@ -127,14 +78,22 @@ struct CoachStepContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
             Text(presentation.title)
-                .font(TTFont.title())
+                .font(TTFont.headline())
                 .accessibilityAddTraits(.isHeader)
+            if session.isGeneral {
+                Text("General guidance: your screen may look different")
+                    .font(TTFont.body())
+                    .foregroundStyle(TTColor.textSecondary)
+            }
             if presentation.hasKnownTotal {
                 progress
             }
             Text(presentation.instruction)
                 .font(TTFont.title())
                 .fixedSize(horizontal: false, vertical: true)
+            if let launch = CoachPresentation.appLaunch(for: session) {
+                openApp(launch)
+            }
             PrimaryButton(title: presentation.doneTitle, systemImage: "checkmark") { onCommand(.next) }
             AdaptiveButtonRow {
                 PrimaryButton(title: "Repeat", systemImage: "arrow.counterclockwise", emphasis: .secondary) {
@@ -152,6 +111,17 @@ struct CoachStepContent: View {
         .padding(TTSpacing.screenInset)
         .frame(maxWidth: .infinity)
         .tint(TTColor.accent)
+    }
+
+    private func openApp(_ launch: CoachAppLink) -> some View {
+        AdaptiveButtonRow {
+            Text("Open \(launch.app), then return here when you're ready. Tap Done after you finish this step.")
+                .font(TTFont.body())
+                .fixedSize(horizontal: false, vertical: true)
+            PrimaryButton(title: "Open \(launch.app)", systemImage: "arrow.up.forward.app", emphasis: .secondary) {
+                openURL(launch.url)
+            }
+        }
     }
 
     private var progress: some View {

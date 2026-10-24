@@ -2,100 +2,10 @@
 
 import SwiftUI
 
-struct VoiceSessionView: View {
+struct PlaceSuggestionsView: View {
     @ObservedObject var engine: TaskPlannerEngine
-    let onEndSession: () -> Void
-    @State private var typedText = ""
-    @State private var isPaused = false
-    @FocusState private var textEntryFocused: Bool
-
-    private var activity: VoiceActivity {
-        VoiceActivity.resolve(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
-                              isPreparing: engine.isPreparingSpeech, isStartingListening: engine.isStartingListening,
-                              isPaused: isPaused)
-    }
-
-    private var micState: SessionDockState {
-        SessionDockState(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
-                         isStartingListening: engine.isStartingListening)
-    }
-
-    private var transcript: ConversationPresentation {
-        let liveText: String
-        switch engine.plannerState {
-        case .listening, .finishing, .thinking: liveText = engine.liveTranscript
-        default: liveText = ""
-        }
-        return ConversationPresentation(turns: engine.conversation, liveTranscript: liveText)
-    }
 
     var body: some View {
-        ConversationScreen(activity: activity, transcript: transcript) {
-            if engine.isShowingPlaceSuggestions { placeSuggestions }
-            if let error = engine.lastErrorMessage {
-                Label(error, systemImage: "exclamationmark.circle")
-                    .font(TTFont.body())
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            inputControls
-            sessionActions
-            #if DEBUG
-            SessionDebugMenu(engine: engine)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            #endif
-        }
-        .onChange(of: engine.isTyping) { _, typing in textEntryFocused = typing }
-        .onChange(of: engine.plannerState) { _, state in
-            if state != .idle { isPaused = false }
-        }
-        .onAppear { textEntryFocused = engine.isTyping }
-    }
-
-    private var inputControls: some View {
-        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
-            VoiceOrbButton(state: micState.micState, instruction: micState.instruction,
-                           emphasis: engine.isTyping ? .secondary : .primary, action: useVoiceInput)
-                .disabled(micState.micDisabled)
-            if engine.isTyping {
-                TextField("Type your answer", text: $typedText)
-                    .font(TTFont.body())
-                    .textFieldStyle(.roundedBorder)
-                    .focused($textEntryFocused)
-                    .accessibilityLabel("Your answer")
-                    .submitLabel(.send)
-                    .onSubmit(sendTypedAnswer)
-                PrimaryButton(title: "Send", systemImage: "paperplane.fill", action: sendTypedAnswer)
-                    .disabled(!canSend)
-            } else {
-                PrimaryButton(title: "Type instead", systemImage: "keyboard", emphasis: .secondary) {
-                    isPaused = false
-                    engine.useTypedInput()
-                    textEntryFocused = true
-                }
-            }
-        }
-    }
-
-    private var sessionActions: some View {
-        AdaptiveButtonRow {
-            if engine.isVoiceOutputActive || engine.isPreparingSpeech {
-                PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary) {
-                    engine.stopSessionSpeech()
-                    isPaused = true
-                }
-            }
-            PrimaryButton(title: engine.hasCompletedAtLeastOneJourney ? "End session" : "Cancel",
-                          systemImage: "xmark.circle", emphasis: .secondary) {
-                if engine.hasCompletedAtLeastOneJourney {
-                    onEndSession()
-                } else {
-                    engine.cancelCurrentAction()
-                }
-            }
-        }
-    }
-
-    private var placeSuggestions: some View {
         VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
             Text("I heard: \(engine.suggestionTranscript)").font(TTFont.body())
             Text(engine.suggestionQuestion).font(TTFont.title())
@@ -111,31 +21,16 @@ struct VoiceSessionView: View {
         }
     }
 
-    private var canSend: Bool {
-        guard case .idle = engine.plannerState else { return false }
-        return !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private func sendTypedAnswer() {
-        guard canSend else { return }
-        isPaused = false
-        engine.submitTypedInput(typedText)
-        typedText = ""
-        textEntryFocused = false
-    }
-
-    private func useVoiceInput() {
-        isPaused = false
-        textEntryFocused = false
-        engine.userTappedToTalk()
-    }
 }
 
 /// Read-only grouping; it never changes the engine's conversation or speech state.
 struct ConversationPresentation {
     let userText: String?
-    let replyText: String?
-    let earlier: [ConversationTurn]
+    private(set) var replyText: String?
+    private(set) var earlier: [ConversationTurn]
+    private let currentReply: ConversationTurn?
+
+    var hasContent: Bool { userText != nil || replyText != nil || !earlier.isEmpty }
 
     init(turns: [ConversationTurn], liveTranscript: String) {
         let lastUserIndex: Int? = turns.lastIndex { $0.speaker == .user }
@@ -143,6 +38,7 @@ struct ConversationPresentation {
         let current: [ConversationTurn] = Array(turns.dropFirst(startIndex))
         let lastReply: ConversationTurn? = current.last { $0.speaker == .nearme }
         let lastUser: ConversationTurn? = current.last { $0.speaker == .user }
+        currentReply = liveTranscript.isEmpty ? lastReply : nil
         if liveTranscript.isEmpty {
             userText = lastUser?.text
             replyText = lastReply?.text
@@ -160,21 +56,14 @@ struct ConversationPresentation {
             }
         }
     }
-}
 
-struct ConversationScreen<Actions: View>: View {
-    let activity: VoiceActivity
-    let transcript: ConversationPresentation
-    @ViewBuilder var actions: () -> Actions
-
-    var body: some View {
-        ScreenScaffold {
-            VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
-                VoiceStateRow(activity: activity)
-                ConversationTranscript(presentation: transcript)
-                actions()
-            }
+    func withReply(_ text: String) -> Self {
+        var presentation = self
+        if let currentReply, currentReply.text != text {
+            presentation.earlier.append(currentReply)
         }
+        presentation.replyText = text
+        return presentation
     }
 }
 
