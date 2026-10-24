@@ -31,6 +31,22 @@ The window shows Accessibility trust, Foundation Models availability and the mac
 
 To create a Mac results report, run `bash scripts/mac-run.sh report`; this existing helper opens a report for editing, then commits and pushes it.
 
+For the iOS prototype, install Xcode with an iOS 26.5 or newer SDK and an available iPhone simulator runtime (Xcode > Settings > Components), then run:
+
+```bash
+bash scripts/mac-run.sh ios
+```
+
+This mode checks out and pulls `main`, generates the project, boots the newest available iPhone on the highest installed iOS runtime, opens Simulator, and builds, installs and launches NearMe. It requires neither `Config/Team.xcconfig` nor `Secrets.xcconfig`. Without an ElevenLabs key, speech input uses the original Apple fallback. The iOS prototype retains its simulated guided PTV walkthrough; the broadcast extension source is included for reference but is not built.
+
+To test a task branch's iOS app without switching branches, run:
+
+```bash
+xcodegen
+UDID="$(xcrun simctl list devices available -j | python3 scripts/newest-iphone.py)"
+xcodebuild test -scheme NearMeiOS -destination "platform=iOS Simulator,id=$UDID" CODE_SIGNING_ALLOWED=NO
+```
+
 ## Build without local configuration
 
 Neither local configuration file is needed to test or build. `Config/Base.xcconfig` defaults to unsigned builds and empty service keys, then optionally includes the local files. The Team example enables signing for Mac launch tests.
@@ -42,6 +58,8 @@ xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO 
 ```
 
 CI runs these checks on `macos-26`. `NearMe.xcodeproj` is generated and gitignored. NearMeCore uses Swift 6 and contains only pure logic; the app target owns the platform frameworks. App Sandbox is disabled and hardened runtime is enabled. Swift and Xcode are unavailable on the Windows development machine; GitHub CI is the compile gate.
+
+CI also selects the newest installed Xcode, prints its version and simulator runtimes, builds the `NearMeiOS` scheme, and runs the hosted `NearMeiOSTests` on the newest available iPhone simulator. The imported iOS target retains Swift 5 mode and MainActor default isolation.
 
 ## Prior work
 

@@ -21,3 +21,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 13:53 AEDT | - | claude | history rewrite | owner-authorised: filter-repo replace-text removed prior project names from all commits; log -p verified clean; Secrets.xcconfig never in history; main and task branches force-pushed; old CI runs deleted; going public on hold (Activity feed keeps old SHAs)
 - 2026-10-24 13:53 AEDT | - | claude | decision | owner: import prior iOS prototype as second target NearMeiOS (N10, before N04a)
 - 2026-10-24 13:53 AEDT | N10 | claude | dispatch r1 | branch task/N10-ios-import
+- 2026-10-24 13:57 AEDT | N11a | codex | dev-report r1 | Researched 18 official Apple HIG pages; committed docs-only rules, 15-item UI checklist, AGENTS rule and N11b merge/CI/screenshot gates as a96341f on current branch task/N10-ios-import. Static documentation checks passed; Swift/Xcode unavailable; UI work deferred until N04 and N10 merge.

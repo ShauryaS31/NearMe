@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# NearMe Mac test helper. Usage: bash scripts/mac-run.sh [--current|report]
+# NearMe Mac test helper. Usage: bash scripts/mac-run.sh [--current|ios|report]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [[ "${1:-}" == "report" ]]; then
@@ -19,10 +19,27 @@ if [[ "${1:-}" == "report" ]]; then
   echo "Pushed $f"; exit 0
 fi
 case "${1:-}" in
-  "") git checkout main && git pull --ff-only ;;
+  ""|ios) git checkout main && git pull --ff-only ;;
   --current) ;; # Build a task branch without switching it or pulling main.
-  *) echo "Usage: bash scripts/mac-run.sh [--current|report]"; exit 1 ;;
+  *) echo "Usage: bash scripts/mac-run.sh [--current|ios|report]"; exit 1 ;;
 esac
+if [[ "${1:-}" == "ios" ]]; then
+  xcodegen
+  UDID="$(xcrun simctl list devices available -j | python3 scripts/newest-iphone.py)"
+  if ! boot_output="$(xcrun simctl boot "$UDID" 2>&1)"; then
+    if [[ "$boot_output" != *"current state: Booted"* && "$boot_output" != *"already booted"* ]]; then
+      echo "$boot_output" >&2
+      exit 1
+    fi
+  fi
+  xcrun simctl bootstatus "$UDID" -b
+  open -a Simulator
+  xcodebuild -scheme NearMeiOS -configuration Debug -destination "platform=iOS Simulator,id=$UDID" -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -5
+  xcrun simctl install "$UDID" build/Build/Products/Debug-iphonesimulator/NearMeiOS.app
+  xcrun simctl launch "$UDID" au.nearme.ios
+  echo "NearMe launched on iPhone simulator $UDID."
+  exit 0
+fi
 [[ -f Config/Team.xcconfig ]] || {
   echo "Copy Config/Team.xcconfig.example to Config/Team.xcconfig and set your Personal Team ID."
   echo "The launch helper uses a signed build so Accessibility permission can survive rebuilds."
