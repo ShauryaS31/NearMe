@@ -13,22 +13,28 @@ struct AXSnapshot: Sendable {
 enum AXReadError: LocalizedError {
     case noFocusedWindow
     case timedOut
+    case blocked(String)
 
     var errorDescription: String? {
         switch self {
         case .noFocusedWindow: "No focused window was readable in the target app. Check Accessibility permission and select its window."
         case .timedOut: "Accessibility read exceeded the 300 ms budget. Try again with the target window visible."
+        case .blocked(let reason): "Blocked: \(reason)"
         }
     }
 }
 
 enum AXReader {
-    static func read(processID: pid_t) async throws -> AXSnapshot {
+    static func read(processID: pid_t, bundleID: String) async throws -> AXSnapshot {
+        // Bundle blocking needs no AX messages at all.
+        if let reason = PrivacyFilter.blockReason(bundleID: bundleID, windowTitle: "") {
+            throw AXReadError.blocked(reason)
+        }
         let start = ContinuousClock.now
         // Only Sendable value snapshots leave the worker. AX references remain on that worker.
         let (stream, continuation) = AsyncStream<Result<AXSnapshot, AXReadError>>.makeStream()
         let worker = Task.detached(priority: .userInitiated) {
-            let result = AXTraversal(start: start).read(processID: processID)
+            let result = AXTraversal(start: start).read(processID: processID, bundleID: bundleID)
             continuation.yield(result)
             continuation.finish()
         }
@@ -72,24 +78,28 @@ private final class AXTraversal {
         0.250 - milliseconds(start.duration(to: .now)) / 1_000
     }
 
-    func read(processID: pid_t) -> Result<AXSnapshot, AXReadError> {
+    func read(processID: pid_t, bundleID: String) -> Result<AXSnapshot, AXReadError> {
         let app = AXUIElementCreateApplication(processID)
         guard let rawWindow = attribute(app, kAXFocusedWindowAttribute),
               CFGetTypeID(rawWindow) == AXUIElementGetTypeID() else {
-            if remainingSeconds <= 0, !Task.isCancelled {
-                truncated = true
-                return snapshot(windowTitle: "")
-            }
+            if remainingSeconds <= 0 { return .failure(.timedOut) }
             return .failure(.noFocusedWindow)
         }
         let window = unsafeBitCast(rawWindow, to: AXUIElement.self)
-        let title = string(window, kAXTitleAttribute)
+        // Fail closed if the title cannot be read. An explicitly empty title is allowed.
+        guard let title = attribute(window, kAXTitleAttribute) as? String else {
+            return .failure(truncated ? .timedOut : .noFocusedWindow)
+        }
+        if let reason = PrivacyFilter.blockReason(bundleID: bundleID, windowTitle: title) {
+            return .failure(.blocked(reason))
+        }
         walk(window, depth: 0, parentLabel: "", insideRow: false)
         return snapshot(windowTitle: title)
     }
 
     private func snapshot(windowTitle: String) -> Result<AXSnapshot, AXReadError> {
-        .success(AXSnapshot(windowTitle: windowTitle, list: ElementList(elements),
+        .success(AXSnapshot(windowTitle: PrivacyFilter.sanitiseLabel(windowTitle),
+                            list: ElementList(PrivacyFilter.sanitise(elements)),
                             visitedNodes: visitedNodes, wasTruncated: truncated,
                             milliseconds: milliseconds(start.duration(to: .now))))
     }

@@ -1,9 +1,11 @@
 import AppKit
+import NearMeCore
 import Observation
 
 struct TargetApp: Equatable, Sendable {
     let processID: pid_t
     let name: String
+    let bundleID: String
 }
 
 @MainActor
@@ -29,6 +31,8 @@ final class TargetAppTracker: NSObject {
 
     private func remember(_ runningApp: NSRunningApplication) {
         guard runningApp.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return }
-        app = TargetApp(processID: runningApp.processIdentifier, name: runningApp.localizedName ?? "Unknown app")
+        app = TargetApp(processID: runningApp.processIdentifier,
+                        name: PrivacyFilter.sanitiseLabel(runningApp.localizedName ?? "Unknown app"),
+                        bundleID: runningApp.bundleIdentifier ?? "")
     }
 }

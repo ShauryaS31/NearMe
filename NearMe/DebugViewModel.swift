@@ -1,3 +1,4 @@
+import AVFoundation
 import Foundation
 import NearMeCore
 import Observation
@@ -21,6 +22,8 @@ final class DebugViewModel {
     private(set) var totalMilliseconds: Double?
     private(set) var readDetails = ""
     private let overlay = Overlay()
+    private let speech = AVSpeechSynthesizer()
+    @ObservationIgnored private var lastBlockedReason: String?
     @ObservationIgnored private var request: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
 
@@ -34,22 +37,28 @@ final class DebugViewModel {
     }
 
     func clearRing() {
+        cancelRequest()
+        speech.stopSpeaking(at: .immediate)
+        status = "Ring cleared."
+    }
+
+    private func cancelRequest() {
         generation += 1
         request?.cancel()
         request = nil
         isBusy = false
         overlay.clear()
-        status = "Ring cleared."
     }
 
     func targetDidChange() {
         clearRing()
+        lastBlockedReason = nil
         resetResult()
         status = "Target changed. Choose Next step to read its focused window."
     }
 
     func nextStep() {
-        clearRing()
+        cancelRequest()
         resetResult()
         guard let selectedTarget = target.app else {
             error = "Activate System Settings, then return to NearMe."
@@ -91,6 +100,11 @@ final class DebugViewModel {
             }
         }
         do {
+            guard isCurrent(token, selectedTarget) else { return }
+            if let reason = PrivacyFilter.blockReason(bundleID: selectedTarget.bundleID, windowTitle: "") {
+                showBlocked(reason)
+                return
+            }
             let trusted = await AXPermission.isTrusted()
             guard isCurrent(token, selectedTarget) else { return }
             accessibilityStatus = trusted ? "Granted" : "Not granted"
@@ -102,8 +116,10 @@ final class DebugViewModel {
                 return
             }
             axStart = .now
-            let snapshot = try await AXReader.read(processID: selectedTarget.processID)
+            let snapshot = try await AXReader.read(processID: selectedTarget.processID, bundleID: selectedTarget.bundleID)
             guard isCurrent(token, selectedTarget) else { return }
+            lastBlockedReason = nil
+            speech.stopSpeaking(at: .immediate)
             axMilliseconds = snapshot.milliseconds
             windowTitle = snapshot.windowTitle.isEmpty ? "(untitled)" : snapshot.windowTitle
             elementCount = snapshot.list.elements.count
@@ -116,11 +132,11 @@ final class DebugViewModel {
             status = "Choosing a step on device..."
             modelStatus = StepPlanner.unavailableReason.map { "Unavailable: \($0)" } ?? "Available"
             modelStart = .now
-            let step = try await StepPlanner.plan(goal: goal, appName: selectedTarget.name,
+            let step = try await StepPlanner.plan(goal: Pseudonymiser.mask(goal), appName: selectedTarget.name,
                                                   windowTitle: snapshot.windowTitle, elements: snapshot.list)
             guard isCurrent(token, selectedTarget) else { return }
             if let modelStart { modelMilliseconds = milliseconds(modelStart.duration(to: .now)) }
-            instruction = step.instruction
+            instruction = Pseudonymiser.mask(step.instruction)
             // Completion/clarification never highlight, regardless of any accompanying index.
             if step.needsClarification {
                 status = "Needs clarification. Adjust the goal or target window."
@@ -142,14 +158,30 @@ final class DebugViewModel {
             status = "Suggested action: \(step.action.rawValue). You perform the action."
         } catch {
             guard isCurrent(token, selectedTarget) else { return }
+            if let readError = error as? AXReadError, case .blocked(let reason) = readError {
+                showBlocked(reason)
+                return
+            }
             if let modelStart {
                 modelMilliseconds = milliseconds(modelStart.duration(to: .now))
             } else if let axStart, axMilliseconds == nil {
                 axMilliseconds = milliseconds(axStart.duration(to: .now))
             }
             overlay.clear()
-            self.error = error.localizedDescription
+            self.error = Pseudonymiser.mask(error.localizedDescription)
             status = "Step failed; no ring drawn."
         }
+    }
+
+    private func showBlocked(_ reason: String) {
+        overlay.clear()
+        resetResult()
+        status = "Blocked: \(reason)"
+        // Repeated requests on the same blocked screen do not queue explanations.
+        guard lastBlockedReason != reason else { return }
+        lastBlockedReason = reason
+        speech.stopSpeaking(at: .immediate)
+        speech.speak(AVSpeechUtterance(string:
+            "I can't help on this screen because it may show private information."))
     }
 }
