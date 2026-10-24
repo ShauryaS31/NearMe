@@ -67,3 +67,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema and validator; 0 problems, 56 regression checks passed; 36 phone checks listed; uncommitted because sandbox blocked git index.lock, manager commits
 - 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema doc, validator 0 problems, 36 verify flags (committed by manager)
 - 2026-10-24 17:06 AEDT | P07a | claude | review r1 PASS | read all 15 guides; 16 source URLs live and matching; validator 0 problems; merged to main; 36 verify steps for owner
+- 2026-10-24 17:10 AEDT | P07 | owner | decision | top priority after P04b (image-to-mom request entered the trip flow on the phone); added exclusive routing, 7 acceptance phrases, person personalisation, nearby-label wording, home hint

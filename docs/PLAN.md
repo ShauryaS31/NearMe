@@ -28,7 +28,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | done (Mac check pending) |
 | [P04b](../tasks/P04b-tap-to-finish.md) | Tap to finish speaking, word-based auto-stop, 12 s cap, voice processing, barge-in | P03a | codex | in_progress |
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | done (owner verify-step check pending) |
-| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | todo |
+| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | todo (TOP PRIORITY: right after P04b) |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | todo |
 | [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | todo (only after P07 passes) |
@@ -58,6 +58,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): macfix rule. The Mac tester may fix compile-only errors (no behaviour or logic change) directly on main with commit prefix `macfix:`, push and log a line in docs/LOG.md; the manager reviews every macfix commit on resume. Anything beyond a compile fix comes to the manager. First use: ElevenLabsVoiceOutput.swift:81-82 (P04a used the optional init parameters instead of self.player and self.fallback).
 - 2026-10-24 (owner): start P03a now from main (rebase onto the macfix commit before merging). In parallel, P07a writes the 15 guide JSON files and schema doc (content only) on task/P07a-guides. Schema: last_checked and per-step verify replace verified_on_device. Stop after P03a merges for the owner's Mac check; P07a reviewed then too.
 - 2026-10-24 (owner): P04b (tap to finish speaking, auto-stop by recognised words not loudness, 12 s cap, voice processing, barge-in) right after P03a, before P07. Manager note: keep .playAndRecord with .defaultToSpeaker and use inputNode voice processing, because .voiceChat mode can route NearMe's voice to the earpiece.
+- 2026-10-24 (owner): P07 is the top priority, dispatched right after P04b and before P05. Reason: on the phone, "can you help me send an image to my mom" went into the trip flow. Added to P07: exclusive routing (trip flow only on the trip route), 7 router acceptance phrases (unit tests with fake brain and keyword fallback, plus eval), person personalisation ("Open your chat with Mum"), nearby-label steps say "look near", home hint text. Order: P04b, P07, P05, P06, P08.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
@@ -66,7 +67,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P04: ElevenLabs voice speaks steps; second run faster (cache); Wi-Fi off gives system voice, no hang; largest text usable on practice screens.
 - [ ] P05: switch voices; "AI voice of <name>" label only for the family voice; consent shown once; switching back works.
 - [ ] P06: "help me order groceries" gives not-available-yet; "what do I do now" grounded answer; 3 wrong taps give simpler help and pulse; long-press explains; Debug badge shows On-device model and ms.
-- [ ] P07: WhatsApp photo request gives the guide, step by step, Done/Repeat/I'm stuck work; ringtone request gives labelled general guidance; Open WhatsApp button; resume after app switch; owner spot-checks 3 guides on the iPhone.
+- [ ] P07: all 7 router phrases route correctly when spoken on the iPhone; image-to-mom coaches with "Mum"; WhatsApp photo request gives the guide, step by step, Done/Repeat/I'm stuck work; ringtone request gives labelled general guidance; Open WhatsApp button; resume after app switch; owner spot-checks 3 guides on the iPhone.
 - [ ] P08 (real iPhone): Back Tap Shortcut set up from in-app steps; next step names a visible label; codes and emails never read out.
 - [ ] P03a: "from Central to Newtown" accepted with no suggestions; a mumbled place gives suggestions plus Keep what I said.
 - [ ] P07a: owner checks every step flagged `verify: true` on the iPhone (list in tasks/P07a-guides.md Dev Report).
