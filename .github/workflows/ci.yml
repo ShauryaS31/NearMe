@@ -1,6 +1,6 @@
 name: CI
 
-# Manual only, to save GitHub macOS minutes. The Mac (scripts/mac-run.sh) is the test gate.
+# Manual only. Hosted simulator checks do not replace the physical-iPhone gate.
 on:
   workflow_dispatch:
 
@@ -10,29 +10,55 @@ permissions:
 jobs:
   build:
     runs-on: macos-26
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Select newest installed Xcode
+      - name: Select Xcode 26.5 and record installed SDKs
         run: |
-          XCODE_APP="$(ls -d /Applications/Xcode*.app | python3 -c '
-          import plistlib, re, sys
-          from pathlib import Path
-          def version(path):
-              with (Path(path) / "Contents/Info.plist").open("rb") as handle:
-                  value = plistlib.load(handle)["CFBundleShortVersionString"]
-              return tuple(int(part) for part in re.findall(r"\d+", value))
-          print(max((line.strip() for line in sys.stdin if line.strip()), key=version))
-          ')"
+          set -o pipefail
+          mkdir -p build/ci
+          XCODE_APP=/Applications/Xcode_26.5.app
+          if [[ ! -d "$XCODE_APP/Contents/Developer" ]]; then
+            echo "Required Xcode 26.5 is not installed on this runner." | tee build/ci/environment.txt
+            ls -d /Applications/Xcode*.app | tee -a build/ci/environment.txt
+            exit 1
+          fi
           sudo xcode-select -s "$XCODE_APP/Contents/Developer"
-          xcodebuild -version
-          xcrun simctl list runtimes
+          {
+            sw_vers
+            xcodebuild -version
+            xcrun swift --version
+            xcodebuild -showsdks
+            xcrun simctl list runtimes
+          } | tee build/ci/environment.txt
       - name: Install XcodeGen
         run: brew install xcodegen
+      - name: Validate bundled guides
+        run: python3 scripts/validate-guides.py
       - name: Generate project
         run: xcodegen
       - name: Build unsigned app for simulator
-        run: xcodebuild -scheme NearMe -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+        run: |
+          set -o pipefail
+          xcodebuild -scheme NearMe -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/ci/DerivedData -resultBundlePath build/ci/build.xcresult \
+            CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/ci/build.log
       - name: Test on newest available iPhone simulator
         run: |
+          set -o pipefail
           UDID="$(xcrun simctl list devices available -j | python3 scripts/newest-iphone.py)"
-          xcodebuild test -scheme NearMe -destination "platform=iOS Simulator,id=$UDID" CODE_SIGNING_ALLOWED=NO
+          echo "Simulator UDID: $UDID" | tee build/ci/destination.txt
+          xcodebuild test -scheme NearMe -destination "platform=iOS Simulator,id=$UDID" \
+            -derivedDataPath build/ci/DerivedData -resultBundlePath build/ci/tests.xcresult \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/ci/test.log
+      - name: Upload native verification results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-verification-${{ github.run_id }}
+          path: |
+            build/ci/*.txt
+            build/ci/*.log
+            build/ci/*.xcresult
+          if-no-files-found: warn
+          retention-days: 7
