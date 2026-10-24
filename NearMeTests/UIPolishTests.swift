@@ -1,5 +1,6 @@
 import SwiftUI
 import XCTest
+import UIKit
 @testable import NearMe
 
 @MainActor
@@ -230,58 +231,151 @@ final class UIPolishTests: XCTestCase {
         XCTAssertEqual(VoiceOrbState.idle.inputLabels, ["Talk to NearMe", "Start listening", "Use voice"])
         XCTAssertEqual(VoiceOrbState.listening.inputLabels,
                        ["Listening... tap when you're done", "Stop listening"])
-        for title in ["Talk to NearMe", "Try again"] {
-            for state in [VoiceOrbState.idle, .speaking] {
-                let button = VoiceOrbButton(state: state, instruction: state.instruction, title: title, action: {})
-                XCTAssertEqual(button.inputLabels, [title, "Start listening", "Use voice"])
-            }
+        for state in [VoiceOrbState.idle, .speaking, .listening] {
+            let button = VoiceOrbButton(state: state, action: {})
+            XCTAssertEqual(button.inputLabels, state.inputLabels)
         }
         XCTAssertEqual(VoiceOrbState.listening.symbolName, "waveform")
     }
 
-    func testHomeHintNamesWhatsAppExactly() {
-        XCTAssertEqual(HelpHomePresentation.hint, "Try: 'Help me send a photo to Mum on WhatsApp'")
+    func testIdleOrbHasOneInstructionHintAndNoBottomAction() {
+        let home = VoiceHomePresentation(activity: .ready, isHome: true,
+                                         reply: nil, hasCompletedJourney: false)
+        XCTAssertEqual(home.statusText, "Tap and tell me what you need help with")
+        XCTAssertEqual(home.hintText, "Try: 'Help me play a song on YouTube'")
+        XCTAssertFalse(home.showsCancel)
+        XCTAssertFalse(home.showsStop)
+        XCTAssertFalse(home.showsEndSession)
     }
 
-    func testCancelRemainsAvailableWhileWaitingForJourneyInput() {
-        // These prompts are conversation replies, not CoachPresentation step replies.
-        for prompt in ["Where from?", "Did you mean Central?"] {
-            let turn = ConversationTurn(speaker: .nearme, text: prompt)
-            let transcript = ConversationPresentation(turns: [turn], liveTranscript: "")
-            XCTAssertEqual(transcript.replyText, prompt)
-            for activity in [VoiceActivity.ready, .paused, .speaking] {
-                let presentation = HelpHomePresentation(activity: activity, isHome: false,
-                                                        reply: nil, hasCompletedJourney: false)
-                XCTAssertTrue(presentation.showsCancel, "\(prompt): \(activity)")
-                XCTAssertFalse(presentation.showsEndSession)
+    func testListeningHasOneStatusNoHintAndCancel() {
+        let home = VoiceHomePresentation(activity: .listening, isHome: false,
+                                         reply: nil, hasCompletedJourney: false)
+        XCTAssertEqual(home.statusText, "Listening... tap when you're done")
+        XCTAssertNil(home.hintText)
+        XCTAssertTrue(home.showsCancel)
+        XCTAssertFalse(home.showsStop)
+    }
+
+    func testCancelAppearsOnlyDuringListeningIncludingWaitingPromptsAndReplies() {
+        for activity in VoiceActivity.allCases {
+            for isHome in [true, false] {
+                let replies: [String?] = [nil, "Where from?", "Did you mean Central?", CoachText.generalFallback]
+                for reply in replies {
+                    let presentation = VoiceHomePresentation(activity: activity, isHome: isHome,
+                                                              reply: reply, hasCompletedJourney: false)
+                    XCTAssertEqual(presentation.showsCancel, activity == .listening)
+                }
             }
         }
     }
 
-    func testCancelVisibilityForHomeAndNonStepReplies() {
-        for activity in VoiceActivity.allCases {
-            let home = HelpHomePresentation(activity: activity, isHome: true,
-                                            reply: nil, hasCompletedJourney: false)
-            let reply = HelpHomePresentation(activity: activity, isHome: false,
-                                             reply: CoachText.generalFallback, hasCompletedJourney: false)
-            let isCapturingOrPreparing = activity == .listening || activity == .preparing
-            XCTAssertEqual(home.showsCancel, isCapturingOrPreparing, "Home: \(activity)")
-            XCTAssertEqual(reply.showsCancel, isCapturingOrPreparing, "Reply: \(activity)")
+    func testLaunchAfterOnboardingUsesSessionAndOrbWithExistingDestinationsPreserved() {
+        XCTAssertEqual(AppEntryPresentation.route(.welcome, hasCompletedOnboarding: false), .welcome)
+        XCTAssertEqual(AppEntryPresentation.route(.howItWorks, hasCompletedOnboarding: false), .howItWorks)
+        XCTAssertEqual(AppEntryPresentation.route(.session, hasCompletedOnboarding: false), .session)
+        XCTAssertEqual(AppEntryPresentation.route(.welcome, hasCompletedOnboarding: true), .session)
+        XCTAssertEqual(AppEntryPresentation.route(.goodMorning, hasCompletedOnboarding: true), .session)
+        XCTAssertEqual(AppEntryPresentation.route(.session, hasCompletedOnboarding: true), .session)
+        XCTAssertEqual(SessionScreen.resolve(isHome: true, showsCoach: false, hasPractice: false, isOpening: false), .voice)
+        // A Home deep link takes precedence even if the engine still holds a guide.
+        XCTAssertEqual(SessionScreen.resolve(isHome: true, showsCoach: true, hasPractice: false, isOpening: false), .voice)
+        XCTAssertEqual(SessionScreen.resolve(isHome: false, showsCoach: true, hasPractice: false, isOpening: false), .coach)
+        XCTAssertEqual(SessionScreen.resolve(isHome: false, showsCoach: false, hasPractice: true, isOpening: false), .practice)
+        XCTAssertEqual(SessionScreen.resolve(isHome: false, showsCoach: false, hasPractice: false, isOpening: true), .opening)
+        XCTAssertEqual(SessionScreen.resolve(isHome: false, showsCoach: false, hasPractice: false, isOpening: false), .voice)
+    }
+
+    func testMoreMenuContainsOwnerActionsAndDebugOnlyInDebugBuilds() {
+        let titles: [String] = VoiceMenuAction.items.map { $0.title }
+        var expected = ["Let NearMe see my screen", "Practice mode", "Type instead", "Settings"]
+        #if DEBUG
+        expected.append("Show debug info")
+        #else
+        XCTAssertFalse(titles.contains("Show debug info"))
+        #endif
+        XCTAssertEqual(titles, expected)
+        XCTAssertEqual(VoiceMenuAction.screen.symbol, "rectangle.inset.filled.and.person.filled")
+    }
+
+    func testBothTypingSurfacesAllowBlankSongButRejectBlankOrdinaryAnswers() {
+        for text in ["", "   ", "\n"] {
+            XCTAssertTrue(TypedAnswerPresentation.canSend(text, canSubmit: true, isAwaitingSong: true))
+            XCTAssertFalse(TypedAnswerPresentation.canSend(text, canSubmit: true, isAwaitingSong: false))
+            XCTAssertFalse(TypedAnswerPresentation.canSend(text, canSubmit: false, isAwaitingSong: true))
+        }
+        XCTAssertTrue(TypedAnswerPresentation.canSend("Here comes the sun", canSubmit: true, isAwaitingSong: true))
+        XCTAssertTrue(TypedAnswerPresentation.canSend("Central", canSubmit: true, isAwaitingSong: false))
+        XCTAssertFalse(TypedAnswerPresentation.canSend("Central", canSubmit: false, isAwaitingSong: false))
+    }
+
+    func testPurpleAssetsAndAccentHaveAccessibleLightAndDarkVariants() throws {
+        XCTAssertEqual(TTColor.accent, Color("AccentColor"))
+        XCTAssertEqual(TTColor.violet, Color("AccentColor"))
+        let light = UITraitCollection(userInterfaceStyle: .light)
+        let dark = UITraitCollection(userInterfaceStyle: .dark)
+        let accent = try XCTUnwrap(UIColor(named: "AccentColor"))
+        try assertRGB(accent.resolvedColor(with: light), red: 110, green: 69, blue: 188)
+        try assertRGB(accent.resolvedColor(with: dark), red: 191, green: 160, blue: 237)
+        let plum = try XCTUnwrap(UIColor(named: "Plum"))
+        let lavender = try XCTUnwrap(UIColor(named: "Lavender"))
+        let pale = try XCTUnwrap(UIColor(named: "PaleLavender"))
+        try assertRGB(plum.resolvedColor(with: light), red: 41, green: 27, blue: 67)
+        try assertRGB(lavender.resolvedColor(with: light), red: 217, green: 200, blue: 242)
+        try assertRGB(pale.resolvedColor(with: light), red: 240, green: 234, blue: 248)
+        let onAccent = try XCTUnwrap(UIColor(named: "OnAccent"))
+        for traits in [light, dark] {
+            let foreground = try luminance(onAccent.resolvedColor(with: traits))
+            let background = try luminance(accent.resolvedColor(with: traits))
+            let contrast = (max(foreground, background) + 0.05) / (min(foreground, background) + 0.05)
+            XCTAssertGreaterThanOrEqual(contrast, 4.5)
+            let page = try luminance(pale.resolvedColor(with: traits))
+            let text = try luminance(plum.resolvedColor(with: traits))
+            let pageContrast = (max(text, page) + 0.05) / (min(text, page) + 0.05)
+            XCTAssertGreaterThanOrEqual(pageContrast, 4.5)
         }
     }
 
+    private func assertRGB(_ color: UIColor, red: CGFloat, green: CGFloat, blue: CGFloat) throws {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var alpha: CGFloat = 0
+        XCTAssertTrue(color.getRed(&r, green: &g, blue: &b, alpha: &alpha))
+        XCTAssertEqual(r, red / 255, accuracy: 0.001)
+        XCTAssertEqual(g, green / 255, accuracy: 0.001)
+        XCTAssertEqual(b, blue / 255, accuracy: 0.001)
+        XCTAssertEqual(alpha, 1, accuracy: 0.001)
+    }
+
+    private func luminance(_ color: UIColor) throws -> Double {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var alpha: CGFloat = 0
+        guard color.getRed(&r, green: &g, blue: &b, alpha: &alpha) else {
+            throw NSError(domain: "UIPolishTests.Color", code: 1)
+        }
+        let components: [Double] = [Double(r), Double(g), Double(b)]
+        let linear: [Double] = components.map { value in
+            if value <= 0.04045 { return value / 12.92 }
+            return pow((value + 0.055) / 1.055, 2.4)
+        }
+        return linear[0] * 0.2126 + linear[1] * 0.7152 + linear[2] * 0.0722
+    }
+
     func testCompletedJourneyKeepsEndSessionUntilReturningHome() {
-        let completed = HelpHomePresentation(activity: .ready, isHome: false,
+        let completed = VoiceHomePresentation(activity: .ready, isHome: false,
                                              reply: nil, hasCompletedJourney: true)
         XCTAssertTrue(completed.showsEndSession)
-        let home = HelpHomePresentation(activity: .ready, isHome: true,
+        let home = VoiceHomePresentation(activity: .ready, isHome: true,
                                         reply: nil, hasCompletedJourney: true)
         XCTAssertFalse(home.showsEndSession)
     }
 
     func testHomeStopAppearsOnlyDuringActualPlayback() {
         for activity in VoiceActivity.allCases {
-            let presentation = HelpHomePresentation(activity: activity, isHome: false,
+            let presentation = VoiceHomePresentation(activity: activity, isHome: false,
                                                     reply: nil, hasCompletedJourney: false)
             XCTAssertEqual(presentation.showsStop, activity == .speaking, "\(activity)")
         }
@@ -289,7 +383,7 @@ final class UIPolishTests: XCTestCase {
         for outputActive in [false, true] {
             let preparing = activity(.speaking("I'll help you with that."), speaking: outputActive,
                                      preparing: true, starting: false, paused: false)
-            let presentation = HelpHomePresentation(activity: preparing, isHome: false,
+            let presentation = VoiceHomePresentation(activity: preparing, isHome: false,
                                                     reply: nil, hasCompletedJourney: false)
             XCTAssertFalse(presentation.showsStop)
         }

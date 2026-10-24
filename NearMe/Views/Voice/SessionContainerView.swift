@@ -2,11 +2,23 @@
 
 import SwiftUI
 
+enum SessionScreen: Equatable {
+    case voice, coach, practice, opening
+
+    static func resolve(isHome: Bool, showsCoach: Bool, hasPractice: Bool, isOpening: Bool) -> Self {
+        if isHome { return .voice }
+        if showsCoach { return .coach }
+        if hasPractice { return .practice }
+        if isOpening { return .opening }
+        return .voice
+    }
+}
+
 struct SessionContainerView: View {
     @StateObject private var engine: TaskPlannerEngine
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject private var coordinator: AppCoordinator
-    @State private var didRestore = false
+    @State private var didActivate = false
     @MainActor
     init(userName: String) {
         let permissions = PermissionsManager()
@@ -42,18 +54,26 @@ struct SessionContainerView: View {
         }
     }
 
+    private var screen: SessionScreen {
+        SessionScreen.resolve(isHome: engine.isHome,
+                              showsCoach: CoachPresentation.showsCoachCard(session: engine.coach, error: engine.lastErrorMessage),
+                              hasPractice: engine.tripPlannerPracticeViewModel != nil,
+                              isOpening: engine.plannerState == .openingApp)
+    }
+
     @ViewBuilder private var sessionContent: some View {
-        // Behaviour from P11 (deep links land on Home first); layout from P09.
-        if engine.isHome {
-            HelpHomeView(engine: engine)
-        } else if CoachPresentation.showsCoachCard(session: engine.coach, error: engine.lastErrorMessage) {
+        // Ordinary launches stay on the orb. Explicit coach URLs still restore a guide.
+        switch screen {
+        case .voice:
+            VoiceSessionView(engine: engine)
+        case .coach:
             CoachView(engine: engine)
-        } else if let simulation = engine.tripPlannerPracticeViewModel {
-            TripPlannerPracticeView(viewModel: simulation, engine: engine)
-        } else if engine.plannerState == .openingApp {
+        case .practice:
+            if let simulation = engine.tripPlannerPracticeViewModel {
+                TripPlannerPracticeView(viewModel: simulation, engine: engine)
+            }
+        case .opening:
             OpeningPracticeView(confirmationText: openingConfirmation)
-        } else {
-            HelpHomeView(engine: engine)
         }
     }
 
@@ -63,7 +83,6 @@ struct SessionContainerView: View {
 
     private func handlePendingCoachURL() -> Bool {
         guard scenePhase == .active, let request = coordinator.pendingCoachURL else { return false }
-        didRestore = true
         coordinator.pendingCoachURL = nil
         engine.openCoachURL(request.url)
         return true
@@ -72,10 +91,9 @@ struct SessionContainerView: View {
     private func activateSession() {
         engine.appBecameActive()
         if handlePendingCoachURL() { return }
-        guard !didRestore else { return }
-        didRestore = true
+        guard !didActivate else { return }
+        didActivate = true
         PlannerModelAccess().prewarm()
-        engine.restoreCoach()
     }
 
 }

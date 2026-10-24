@@ -35,48 +35,44 @@ enum VoiceOrbState: Equatable {
     }
 }
 
+/// The orb is the Talk control. Only its decorative halo moves during capture.
 struct VoiceOrbButton: View {
     let state: VoiceOrbState
-    let instruction: String
-    var title: String = "Talk to NearMe"
-    var emphasis: ButtonEmphasis = .primary
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var buttonTitle: String {
-        if state == .listening { return state.instruction }
-        return title
-    }
-
-    private var buttonSymbol: String {
-        if state == .listening { return "waveform" }
-        return "mic.fill"
-    }
-
-    var inputLabels: [String] {
-        if state == .listening { return state.inputLabels }
-        return [title, "Start listening", "Use voice"]
-    }
+    var inputLabels: [String] { state.inputLabels }
 
     var body: some View {
-        Group {
-            switch emphasis {
-            case .primary: button.buttonStyle(.borderedProminent)
-            case .secondary: button.buttonStyle(.bordered)
+        Button(action: action) {
+            ZStack {
+                halo.accessibilityHidden(true)
+                Circle()
+                    .fill(TTColor.violet)
+                    .padding(TTSpacing.relatedGap)
+                Image(systemName: state.symbolName)
+                    .font(.system(size: 52, weight: .medium))
+                    .foregroundStyle(TTColor.onAccent)
+                    .accessibilityHidden(true)
             }
+            .contentShape(Circle())
         }
-        .tint(TTColor.accent)
+        .buttonStyle(.plain)
+        .accessibilityLabel(state.accessibilityLabel)
+        .accessibilityInputLabels(inputLabels)
     }
 
-    private var button: some View {
-        Button(action: action) {
-            Label(buttonTitle, systemImage: buttonSymbol)
-                .font(TTFont.title())
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, minHeight: TTControl.talkHeight)
+    @ViewBuilder private var halo: some View {
+        if state == .listening && !reduceMotion {
+            Circle().fill(TTColor.lavender)
+                .phaseAnimator([false, true]) { content, expanded in
+                    content.scaleEffect(expanded ? 1.04 : 0.94)
+                } animation: { _ in
+                    .easeInOut(duration: 1.1)
+                }
+        } else {
+            Circle().fill(TTColor.lavender)
         }
-        .accessibilityLabel(state.accessibilityLabel)
-        .accessibilityValue(instruction)
-        .accessibilityInputLabels(inputLabels)
     }
 }
 

@@ -3,11 +3,17 @@
 import SwiftUI
 
 enum TTColor {
+    // Owner's purple palette; asset variants follow the system appearance.
+    static let plum = Color("Plum")
+    static let violet = Color("AccentColor")
+    static let lavender = Color("Lavender")
+    static let paleLavender = Color("PaleLavender")
+    static let onAccent = Color("OnAccent")
     static let background = Color(uiColor: .systemBackground)
     static let groupedBackground = Color(uiColor: .systemGroupedBackground)
     static let readingSurface = Color(uiColor: .secondarySystemGroupedBackground)
     static let ink = Color.primary
-    static let accent = Color(uiColor: .systemBlue)
+    static let accent = violet
     static let textSecondary = Color.secondary
 }
 

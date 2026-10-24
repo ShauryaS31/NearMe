@@ -13,7 +13,7 @@ struct PrimaryButton: View {
     var body: some View {
         Group {
             switch emphasis {
-            case .primary: button.buttonStyle(.borderedProminent)
+            case .primary: button.buttonStyle(.borderedProminent).foregroundStyle(TTColor.onAccent)
             case .secondary: button.buttonStyle(.bordered)
             }
         }

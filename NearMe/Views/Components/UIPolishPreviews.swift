@@ -55,18 +55,22 @@ private struct PolishPreview: View {
                                      isStartingListening: false)
         let isHome = !transcript.hasContent && !retry
         let reply: String? = retry ? CoachText.generalFallback : nil
-        let controls = HelpHomePresentation(activity: activity, isHome: isHome, reply: reply,
+        let controls = VoiceHomePresentation(activity: activity, isHome: isHome, reply: reply,
                                              hasCompletedJourney: false)
         return NavigationStack {
-            HelpHomeContent(state: state, activity: activity, transcript: transcript,
-                            showsRetry: retry, isTyping: false,
-                            showsCancel: controls.showsCancel,
-                            onTalk: {}, onCancel: {}, onType: {}, onPractice: {}) {
+            VoiceHomeContent(state: state, presentation: controls, transcript: transcript,
+                             onTalk: {}, onCancel: {}, onType: {}) {
                 if controls.showsStop {
                     PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary, action: {})
                 }
             }
             .navigationTitle("NearMe")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    VoiceSessionMenu(showsEndSession: false, onSelect: { _ in })
+                }
+            }
         }
     }
 
