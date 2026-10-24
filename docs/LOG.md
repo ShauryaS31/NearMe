@@ -63,3 +63,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:01 AEDT | P03a | codex | dev-report r1 | Accept any practice place, add Keep what I said and bounded suggestions, normalize missing places; commit 3919119
 - 2026-10-24 17:01 AEDT | P04a | claude | macfix review | 5cd50e5 compile-only, OK
 - 2026-10-24 17:01 AEDT | P03a | claude | review r1 PASS | static; merged to main; Mac check pending
+- 2026-10-24 17:02 AEDT | P04b | claude | dispatch r1 | tap to finish, word-based backup stop 1.5 s, 12 s cap, voice processing, barge-in, no-words message; branch task/P04b-tap-to-finish

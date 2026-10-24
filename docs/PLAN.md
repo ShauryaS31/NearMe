@@ -26,8 +26,9 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | done (Mac check pending) |
 | [P04a](../tasks/P04a-build-fix.md) | Build fix for Xcode 27.1 / Swift 6.4 (MainActor default arguments), Info.plist no longer blocks pull | P04 | manager | done (macfix 5cd50e5; builds, 77 tests pass, 1 skip) |
 | [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | done (Mac check pending) |
+| [P04b](../tasks/P04b-tap-to-finish.md) | Tap to finish speaking, word-based auto-stop, 12 s cap, voice processing, barge-in | P03a | codex | in_progress |
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | in_progress |
-| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P03a, P07a | codex | todo |
+| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | todo |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | todo |
 | [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | todo (only after P07 passes) |
@@ -56,6 +57,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): P04 build failed on Xcode 27.1 / Swift 6.4 (default arguments constructing MainActor types). P04a fixes all instances (manager hotfix, smallest change). The model returning "nil" as a place goes into P03a.
 - 2026-10-24 (owner): macfix rule. The Mac tester may fix compile-only errors (no behaviour or logic change) directly on main with commit prefix `macfix:`, push and log a line in docs/LOG.md; the manager reviews every macfix commit on resume. Anything beyond a compile fix comes to the manager. First use: ElevenLabsVoiceOutput.swift:81-82 (P04a used the optional init parameters instead of self.player and self.fallback).
 - 2026-10-24 (owner): start P03a now from main (rebase onto the macfix commit before merging). In parallel, P07a writes the 15 guide JSON files and schema doc (content only) on task/P07a-guides. Schema: last_checked and per-step verify replace verified_on_device. Stop after P03a merges for the owner's Mac check; P07a reviewed then too.
+- 2026-10-24 (owner): P04b (tap to finish speaking, auto-stop by recognised words not loudness, 12 s cap, voice processing, barge-in) right after P03a, before P07. Manager note: keep .playAndRecord with .defaultToSpeaker and use inputNode voice processing, because .voiceChat mode can route NearMe's voice to the earpiece.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
@@ -68,3 +70,4 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P08 (real iPhone): Back Tap Shortcut set up from in-app steps; next step names a visible label; codes and emails never read out.
 - [ ] P03a: "from Central to Newtown" accepted with no suggestions; a mumbled place gives suggestions plus Keep what I said.
 - [ ] P07a: owner checks every step flagged `verify: true` on the iPhone (list in tasks/P07a-guides.md Dev Report).
+- [ ] P04b (iPhone, noisy venue): tap, speak, tap captures words over music; barge-in stops NearMe and listens; NearMe never transcribes itself; no words gives the message.
