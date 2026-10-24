@@ -17,7 +17,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
     }
 
     private let extractionInstructions = """
-    Extract the public transport journey intent, origin, destination and mode. \
+    Extract the public transport journey intent, origin, destination and mode for a trip planner practice app. \
     Use plan_journey only for a journey request; otherwise unknown. \
     Use nil for missing fields. Each place is at most five words. \
     Handle both from X to Y and to Y from X. \
@@ -25,7 +25,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
     """
 
     private let conversationInstructions = """
-    Help plan a public transport journey. Give one short, friendly spoken sentence. \
+    Help plan a public transport journey in a trip planner practice app. Give one short, friendly spoken sentence. \
     Only ask for a missing place or confirm the stated journey. \
     No filler, emoji or markdown. Never state times, platforms, routes, lines, \
     frequencies or prices. You have no live transport data.
@@ -79,7 +79,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
     }
 
     func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
-        let prompt = "The user wants to travel from \(intent.origin ?? "?") to \(intent.destination ?? "?"). Say one short, friendly line confirming you'll help them plan that journey now, right before opening PTV."
+        let prompt = "The user wants to travel from \(intent.origin ?? "?") to \(intent.destination ?? "?"). Say one short, friendly line confirming you'll help them plan that journey now, right before opening a trip planner practice app."
         return try await measuredCall("confirmationLine") {
             let session = LanguageModelSession(instructions: self.conversationInstructions)
             let response = try await session.respond(

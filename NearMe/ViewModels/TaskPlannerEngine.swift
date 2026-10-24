@@ -8,7 +8,7 @@ import OSLog
 final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var plannerState: TaskPlannerState = .idle
     @Published private(set) var conversation: [ConversationTurn] = []
-    @Published private(set) var ptvSimulationViewModel: PTVSimulationViewModel?
+    @Published private(set) var tripPlannerPracticeViewModel: TripPlannerPracticeViewModel?
     @Published private(set) var currentIntent: JourneyIntent = .empty
     @Published var liveTranscript: String = ""
     @Published var lastErrorMessage: String?
@@ -91,7 +91,7 @@ final class TaskPlannerEngine: ObservableObject {
         pendingClarification = nil
         clarificationFailures = 0
         currentIntent = .empty
-        ptvSimulationViewModel = nil
+        tripPlannerPracticeViewModel = nil
         plannerState = .idle
     }
 
@@ -103,7 +103,7 @@ final class TaskPlannerEngine: ObservableObject {
         isTyping = false
         voiceInput.stopListening()
         voiceOutput.stop()
-        ptvSimulationViewModel = nil
+        tripPlannerPracticeViewModel = nil
         plannerState = .idle
     }
 
@@ -151,12 +151,12 @@ final class TaskPlannerEngine: ObservableObject {
     /// (idle/listening/thinking screens, which rely on `.speaking(text)` to
     /// show the right orb state and subtitle). The two guided-walkthrough
     /// call sites below pass `false`: they set `plannerState = .guiding(step)`
-    /// immediately before calling this, and `PTVSimulationView` already shows
+    /// immediately before calling this, and `TripPlannerPracticeView` already shows
     /// its own caption via `viewModel.currentCaption` — so if this function
     /// were allowed to overwrite `plannerState` to `.speaking(text)` here, it
     /// would immediately un-set `.guiding`, and `SessionContainerView` would
     /// switch straight back to the plain voice screen before the simulated
-    /// PTV screen was ever actually visible. That was the root cause of the
+    /// trip planner screen was ever actually visible. That was the root cause of the
     /// guided walkthrough never visibly appearing.
     private func speak(_ text: String, generation: Int, updatesPlannerState: Bool = true) async {
         guard isCurrent(generation) else { return }
@@ -247,7 +247,7 @@ final class TaskPlannerEngine: ObservableObject {
             let extracted = answer.value
 
             guard extracted.kind == .planJourney else {
-                await speak("I can help you plan a PTV journey — try telling me where you'd like to go, like \"I need to get to Melbourne Central.\"", generation: generation)
+                await speak("I can help you use a trip planner practice app. Try saying, \"I need to get to Town Hall\".", generation: generation)
                 guard isCurrent(generation) else { return }
                 await listenAndHandle(generation: generation)
                 return
@@ -286,13 +286,13 @@ final class TaskPlannerEngine: ObservableObject {
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         } else {
-            await openPTVAndGuide(generation: generation)
+            await openPracticeAndGuide(generation: generation)
         }
     }
 
-    // MARK: - Opening PTV + guided walkthrough
+    // MARK: - Opening practice + guided walkthrough
 
-    private func openPTVAndGuide(generation: Int) async {
+    private func openPracticeAndGuide(generation: Int) async {
         guard isCurrent(generation) else { return }
         let answer: BrainAnswer<String>
         do {
@@ -308,24 +308,21 @@ final class TaskPlannerEngine: ObservableObject {
         guard isCurrent(generation) else { return }
 
         plannerState = .openingApp
-        // v1: brief pause, then hand over to the simulated PTV walkthrough.
-        // Phase 2 would call `await PTVLauncher.openJourneyPlanner()` here
-        // and drive `ReplayKitVisionGuidanceService` instead of
-        // `PTVSimulationViewModel`. See that file for what's involved.
+        // Brief pause, then hand over to the trip planner practice walkthrough.
         try? await Task.sleep(nanoseconds: 900_000_000)
         guard isCurrent(generation) else { return }
 
-        let simulation = PTVSimulationViewModel(intent: currentIntent)
+        let simulation = TripPlannerPracticeViewModel(intent: currentIntent)
         simulation.onStepAdvanced = { [weak self] step in
             guard let self else { return }
             Task { await self.handleGuidanceAdvanced(step, generation: generation) }
         }
-        ptvSimulationViewModel = simulation
+        tripPlannerPracticeViewModel = simulation
         plannerState = .guiding(.forYouOpened)
-        await speak(PTVSimStep.forYouOpened.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""), generation: generation, updatesPlannerState: false)
+        await speak(PracticeStep.forYouOpened.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""), generation: generation, updatesPlannerState: false)
     }
 
-    private func handleGuidanceAdvanced(_ step: PTVSimStep, generation: Int) async {
+    private func handleGuidanceAdvanced(_ step: PracticeStep, generation: Int) async {
         guard isCurrent(generation) else { return }
         plannerState = .guiding(step)
         let caption = step.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? "")
@@ -335,7 +332,7 @@ final class TaskPlannerEngine: ObservableObject {
         if step == .showingResults {
             try? await Task.sleep(nanoseconds: 400_000_000)
             guard isCurrent(generation) else { return }
-            ptvSimulationViewModel = nil
+            tripPlannerPracticeViewModel = nil
             currentIntent = .empty
             hasCompletedAtLeastOneJourney = true
             await listenAndHandle(generation: generation)

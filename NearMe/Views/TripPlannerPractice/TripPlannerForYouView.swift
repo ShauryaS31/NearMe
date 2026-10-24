@@ -2,49 +2,49 @@
 
 import SwiftUI
 
-struct PTVForYouView: View {
+struct TripPlannerForYouView: View {
     let onTapJourneyPlanner: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            PTVTopBar(title: "For you", trailing: "Log in")
+            TripPlannerTopBar(title: "For you", trailing: "Log in")
 
             ScrollView {
                 VStack(alignment: .leading, spacing: TTSpacing.lg) {
                     Text("Favourites")
                         .font(.system(.title3, design: .default).weight(.bold))
-                        .foregroundStyle(PTVBrand.textPrimary)
+                        .foregroundStyle(Color.primary)
                         .padding(.top, TTSpacing.md)
 
                     Button(action: onTapJourneyPlanner) {
                         HStack(spacing: TTSpacing.md) {
                             Image(systemName: "point.topleft.down.curvedto.point.bottomright.up.fill")
                                 .font(.system(size: 22))
-                                .foregroundStyle(PTVBrand.accent)
+                                .foregroundStyle(Color.accentColor)
                                 .frame(width: 40, height: 40)
-                                .background(PTVBrand.accent.opacity(0.12))
+                                .background(Color.accentColor.opacity(0.12))
                                 .clipShape(Circle())
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("Journey Planner")
                                     .font(TTFont.headline())
-                                    .foregroundStyle(PTVBrand.textPrimary)
-                                Text("Plan a trip across train, tram, bus & V/Line")
+                                    .foregroundStyle(Color.primary)
+                                Text("Practise planning a public transport trip")
                                     .font(TTFont.caption())
-                                    .foregroundStyle(PTVBrand.textSecondary)
+                                    .foregroundStyle(Color.secondary)
                             }
 
                             Spacer()
 
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(PTVBrand.textSecondary)
+                                .foregroundStyle(Color.secondary)
                         }
                         .padding(TTSpacing.md)
-                        .background(PTVBrand.card)
+                        .background(Color(.secondarySystemBackground))
                         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .strokeBorder(PTVBrand.hairline)
+                                .strokeBorder(Color(.separator))
                         )
                     }
                     .buttonStyle(.plain)
@@ -53,11 +53,11 @@ struct PTVForYouView: View {
                     ForEach(["Home", "Work", "Your location"], id: \.self) { row in
                         HStack {
                             Image(systemName: row == "Home" ? "house.fill" : row == "Work" ? "briefcase.fill" : "location.fill")
-                                .foregroundStyle(PTVBrand.textSecondary)
+                                .foregroundStyle(Color.secondary)
                                 .frame(width: 24)
                             Text(row)
                                 .font(TTFont.body())
-                                .foregroundStyle(PTVBrand.textPrimary)
+                                .foregroundStyle(Color.primary)
                             Spacer()
                         }
                         .padding(.vertical, TTSpacing.sm)
@@ -66,8 +66,8 @@ struct PTVForYouView: View {
                 .padding(.horizontal, TTSpacing.lg)
             }
 
-            PTVTabBar(selected: .forYou)
+            TripPlannerTabBar(selected: .forYou)
         }
-        .background(PTVBrand.background.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
     }
 }

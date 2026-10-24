@@ -11,13 +11,13 @@ struct CaptionBubble: View {
         HStack(alignment: .top, spacing: TTSpacing.sm) {
             Image(systemName: icon)
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .padding(.top, 2)
                 .accessibilityHidden(true)
 
             Text(text)
                 .font(TTFont.callout())
-                .foregroundStyle(.white)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -25,7 +25,7 @@ struct CaptionBubble: View {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(.primary)
                         .padding(6)
                 }
                 .minimumTapTarget(32)
@@ -34,9 +34,12 @@ struct CaptionBubble: View {
         }
         .padding(.horizontal, TTSpacing.md)
         .padding(.vertical, TTSpacing.sm + 2)
-        .background(TTColor.ink)
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: TTRadius.bubble, style: .continuous))
-        .shadow(color: .black.opacity(0.25), radius: 12, y: 6)
+        .overlay(
+            RoundedRectangle(cornerRadius: TTRadius.bubble, style: .continuous)
+                .strokeBorder(Color(.separator))
+        )
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isStaticText)
     }
@@ -44,10 +47,10 @@ struct CaptionBubble: View {
 
 #Preview {
     ZStack {
-        TTColor.background
+        Color(.systemBackground)
         VStack {
             Spacer()
-            CaptionBubble(text: "You're in PTV now — tap Journey Planner.", onDismiss: {})
+            CaptionBubble(text: "You're in Trip planner practice. Tap Journey Planner.", onDismiss: {})
                 .padding()
         }
     }

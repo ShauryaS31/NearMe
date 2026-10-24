@@ -2,18 +2,18 @@
 
 import SwiftUI
 
-struct PTVJourneyPlannerView: View {
-    @ObservedObject var viewModel: PTVSimulationViewModel
+struct TripPlannerJourneyPlannerView: View {
+    @ObservedObject var viewModel: TripPlannerPracticeViewModel
     let onTapDestinationField: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            PTVTopBar(title: "Journey planner")
+            TripPlannerTopBar(title: "Journey planner")
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 fieldRow(
                     icon: "circle.fill",
-                    iconColor: PTVBrand.accent,
+                    iconColor: Color.accentColor,
                     placeholder: "Choose origin",
                     value: viewModel.fromFieldText,
                     isHighlighted: viewModel.step == .tapFrom,
@@ -22,7 +22,7 @@ struct PTVJourneyPlannerView: View {
 
                 fieldRow(
                     icon: "mappin",
-                    iconColor: PTVBrand.primary,
+                    iconColor: Color.primary,
                     placeholder: "Choose destination",
                     value: viewModel.toFieldText,
                     isHighlighted: viewModel.step == .typeOrigin,
@@ -32,11 +32,11 @@ struct PTVJourneyPlannerView: View {
                 HStack {
                     Label("Depart Now", systemImage: "clock")
                         .font(TTFont.callout())
-                        .foregroundStyle(PTVBrand.textSecondary)
+                        .foregroundStyle(Color.secondary)
                     Spacer()
                     Label("Settings", systemImage: "slider.horizontal.3")
                         .labelStyle(.iconOnly)
-                        .foregroundStyle(PTVBrand.textSecondary)
+                        .foregroundStyle(Color.secondary)
                 }
                 .padding(.top, TTSpacing.xs)
 
@@ -44,12 +44,16 @@ struct PTVJourneyPlannerView: View {
                     Button(action: { viewModel.completeCurrentStep() }) {
                         Text("Search")
                             .font(TTFont.headline())
-                            .foregroundStyle(.white)
+                            .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, TTSpacing.md)
                     }
-                    .background(PTVBrand.accent)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.accentColor, lineWidth: 2)
+                    )
                     .padding(.top, TTSpacing.sm)
                 }
 
@@ -59,7 +63,7 @@ struct PTVJourneyPlannerView: View {
 
             Spacer()
         }
-        .background(PTVBrand.background.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
     }
 
     @ViewBuilder
@@ -73,15 +77,15 @@ struct PTVJourneyPlannerView: View {
                     .foregroundStyle(iconColor)
                 Text(value.isEmpty ? placeholder : value)
                     .font(TTFont.body())
-                    .foregroundStyle(value.isEmpty ? PTVBrand.textSecondary : PTVBrand.textPrimary)
+                    .foregroundStyle(value.isEmpty ? Color.secondary : Color.primary)
                 Spacer()
             }
             .padding(TTSpacing.md)
-            .background(PTVBrand.card)
+            .background(Color(.secondarySystemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(isHighlighted ? PTVBrand.accent : PTVBrand.hairline, lineWidth: isHighlighted ? 2 : 1)
+                    .strokeBorder(isHighlighted ? Color.accentColor : Color(.separator), lineWidth: isHighlighted ? 2 : 1)
             )
         }
         .buttonStyle(.plain)

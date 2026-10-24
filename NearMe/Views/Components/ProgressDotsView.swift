@@ -4,6 +4,7 @@ import SwiftUI
 import Combine
 
 struct ProgressDotsView: View {
+    var color: Color = TTColor.accent
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var activeIndex = 0
 
@@ -13,7 +14,7 @@ struct ProgressDotsView: View {
         HStack(spacing: 10) {
             ForEach(0..<3) { index in
                 Circle()
-                    .fill(TTColor.accent.opacity(dotOpacity(for: index)))
+                    .fill(color.opacity(dotOpacity(for: index)))
                     .frame(width: 10, height: 10)
             }
         }

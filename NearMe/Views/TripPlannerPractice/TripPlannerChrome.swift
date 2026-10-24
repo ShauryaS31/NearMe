@@ -2,7 +2,7 @@
 
 import SwiftUI
 
-struct PTVTopBar: View {
+struct TripPlannerTopBar: View {
     var title: String
     var trailing: String? = nil
     var onBack: (() -> Void)? = nil
@@ -18,26 +18,32 @@ struct PTVTopBar: View {
                 .accessibilityLabel("Back")
             }
 
-            Text(title)
-                .font(.system(.title2, design: .default).weight(.bold))
-                .foregroundStyle(.white)
+            VStack(alignment: .leading, spacing: TTSpacing.xs) {
+                Text("Trip planner")
+                    .font(.system(.title2, design: .default).weight(.bold))
+                Label("Practice", systemImage: "hand.tap")
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                Text(title)
+                    .font(TTFont.headline())
+            }
 
             Spacer()
 
             if let trailing {
                 Text(trailing)
                     .font(TTFont.callout())
-                    .foregroundStyle(.white.opacity(0.9))
+                    .foregroundStyle(.secondary)
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(.primary)
         .padding(.horizontal, TTSpacing.lg)
         .padding(.vertical, TTSpacing.md)
-        .background(PTVBrand.primary)
+        .background(Color(.secondarySystemBackground))
     }
 }
 
-enum PTVTab: CaseIterable {
+enum TripPlannerTab: CaseIterable {
     case forYou, plan, search, alerts, settings
 
     var symbol: String {
@@ -61,27 +67,27 @@ enum PTVTab: CaseIterable {
     }
 }
 
-struct PTVTabBar: View {
-    var selected: PTVTab
+struct TripPlannerTabBar: View {
+    var selected: TripPlannerTab
 
     var body: some View {
         HStack {
-            ForEach(PTVTab.allCases, id: \.self) { tab in
+            ForEach(TripPlannerTab.allCases, id: \.self) { tab in
                 VStack(spacing: 3) {
                     Image(systemName: tab.symbol)
                         .font(.system(size: 19))
                     Text(tab.label)
                         .font(.system(size: 10, weight: .medium))
                 }
-                .foregroundStyle(tab == selected ? PTVBrand.accent : PTVBrand.textSecondary)
+                .foregroundStyle(tab == selected ? Color.accentColor : Color.secondary)
                 .frame(maxWidth: .infinity)
                 .minimumTapTarget()
             }
         }
         .padding(.vertical, TTSpacing.sm)
         .background(
-            PTVBrand.card
-                .overlay(Rectangle().fill(PTVBrand.hairline).frame(height: 0.5), alignment: .top)
+            Color(.secondarySystemBackground)
+                .overlay(Rectangle().fill(Color(.separator)).frame(height: 0.5), alignment: .top)
         )
         .accessibilityHidden(true) // decorative in v1 — not functionally navigable
     }

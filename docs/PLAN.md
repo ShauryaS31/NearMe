@@ -22,9 +22,9 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | done (Mac compile OK) |
 | [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | done (Mac compile pending) |
 | [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
-| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | in_progress |
+| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
 
-After P03: owner retests on the Mac before anything else is planned.
+Now: owner compiles and retests P02c, P02b and P03 on the Mac. Nothing else is planned until then.
 
 ## Decisions
 - 2026-10-24 (owner): PIVOT to the iPhone. Start from the prior prototype app and improve it. macOS NearMe parked on `archive/mac-nearme`. macOS code (NearMe/, NearMeCore/) and tasks N00 to N11 removed from main.
@@ -42,3 +42,4 @@ After P03: owner retests on the Mac before anything else is planned.
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
 - [x] P02: full flow works on the simulator (iOS 27); mic needs macOS mic permission for DeviceHub. Findings in tasks/P02-baseline.md.
+- [ ] P02c/P02b/P03 retest: steps in the manager's handoff message and each task's Verify section.

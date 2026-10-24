@@ -6,7 +6,7 @@ import CoreImage
 
 class SampleHandler: RPBroadcastSampleHandler {
     private let ciContext = CIContext()
-    /// Throttle: PTV's UI doesn't need 30-60fps analysis — a frame every
+    /// Throttle: The practice UI doesn't need 30-60fps analysis — a frame every
     /// ~500ms is plenty for "did the user reach a new screen" and keeps
     /// battery/CPU use in the extension's tight memory budget reasonable.
     private var lastWriteTime: CFAbsoluteTime = 0

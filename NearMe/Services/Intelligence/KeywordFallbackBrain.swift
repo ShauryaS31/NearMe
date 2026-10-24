@@ -4,7 +4,7 @@ import Foundation
 
 struct KeywordFallbackBrain: TaskPlannerBrain {
     let initialSource: BrainSource = .keywordFallback
-    private let transportModes = ["train", "tram", "bus", "vline", "v/line"]
+    private let transportModes = ["train", "tram", "bus"]
 
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         let lowered = " \(utterance.lowercased()) " // pad so " to "/" from " matches at the edges too
@@ -55,7 +55,7 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
     /// Finds the LAST occurrence of `marker` (e.g. " to ") and returns
     /// whatever follows it, trimmed at the first of `stopMarkers` or the end
     /// of the sentence. Using the *last* occurrence matters because a
-    /// sentence like "I need to catch the train to Melbourne Central" has
+    /// sentence like "I need to catch the train to Town Hall" has
     /// an earlier, irrelevant "to" (in "need to catch") before the one that
     /// actually introduces the destination.
     private func lastPhrase(after marker: String, in text: String, stoppingAt stopMarkers: [String]) -> String? {

@@ -2,14 +2,14 @@
 
 import Foundation
 
-enum PTVSimScreen: Equatable {
+enum PracticeScreen: Equatable {
     case forYou
     case journeyPlanner
     case destinationSearch
     case results
 }
 
-enum PTVSimStep: Equatable, CaseIterable {
+enum PracticeStep: Equatable, CaseIterable {
     case forYouOpened
     case tapFrom
     case typeOrigin
@@ -18,7 +18,7 @@ enum PTVSimStep: Equatable, CaseIterable {
     case readyToSearch
     case showingResults
 
-    var screen: PTVSimScreen {
+    var screen: PracticeScreen {
         switch self {
         case .forYouOpened: return .forYou
         case .tapFrom, .typeOrigin, .readyToSearch: return .journeyPlanner
@@ -29,11 +29,11 @@ enum PTVSimStep: Equatable, CaseIterable {
 
     /// The caption NearMe overlays/speaks at this step. `origin`/`destination`
     /// are interpolated in so the walkthrough matches whatever the user
-    /// actually said, not just the Box Hill -> Melbourne Central example.
+    /// actually said, not just the Central -> Town Hall example.
     func caption(origin: String, destination: String) -> String {
         switch self {
         case .forYouOpened:
-            return "You're in PTV now — tap Journey Planner."
+            return "You're in Trip planner practice. Tap Journey Planner."
         case .tapFrom:
             return "Now tap From."
         case .typeOrigin:
@@ -43,14 +43,14 @@ enum PTVSimStep: Equatable, CaseIterable {
         case .selectingDestination:
             return "Tap \(destination) to add it as your destination."
         case .readyToSearch:
-            return "Both fields are filled — tap Search to see your options."
+            return "Both fields are filled. Tap Search to see your options."
         case .showingResults:
             return "That's the practice done. In the real app, you'd pick a trip from this list and follow its steps. Anything else you need help with?"
         }
     }
 
-    var next: PTVSimStep? {
-        let all = PTVSimStep.allCases
+    var next: PracticeStep? {
+        let all = PracticeStep.allCases
         guard let index = all.firstIndex(of: self), index + 1 < all.count else { return nil }
         return all[index + 1]
     }
