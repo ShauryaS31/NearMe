@@ -41,19 +41,25 @@ nonisolated enum CoachText {
             .components(separatedBy: "\n").filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     }
 
-    static func validRewrite(_ text: String, guide: HelpGuide, step: HelpGuide.Step) -> Bool {
+    static func validRewrite(_ text: String, guide: HelpGuide, step: HelpGuide.Step, song: String? = nil) -> Bool {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               text.count <= 200, (1...2).contains(sentences(text).count),
               !text.contains(where: { $0.isNewline }),
               !text.contains(where: { "“”„«»".contains($0) }) else { return false }
         let parts = text.components(separatedBy: "\"")
         guard parts.count % 2 == 1 else { return false }
-        let hints = Set(guide.steps.map(\.uiLabelHint))
+        let song = guide.id == "youtube_play_song" && step.uiLabelHint == "Search YouTube" ? song : nil
+        var hints = Set(guide.steps.map(\.uiLabelHint))
+        if let song { hints.insert(song) }
         for index in stride(from: 1, to: parts.count, by: 2) {
             guard hints.contains(parts[index]) else { return false }
         }
         // The current label must survive a rewrite; quoted labels cannot be invented.
-        guard text.contains("\"\(step.uiLabelHint)\"") else { return false }
+        if let song {
+            guard text.contains("\"\(song)\""), matches(text, #"(?i)^type\b"#) else { return false }
+        } else {
+            guard text.contains("\"\(step.uiLabelHint)\"") else { return false }
+        }
         if step.instruction.contains("the person or number"), !text.contains("the person or number") { return false }
         if step.labelIsNearby == true {
             let label = NSRegularExpression.escapedPattern(for: step.uiLabelHint)
@@ -80,7 +86,11 @@ nonisolated enum CoachText {
         return nil
     }
 
-    static func fallback(step: HelpGuide.Step, person: String?, stuck: Bool = false) -> String {
+    static func fallback(step: HelpGuide.Step, person: String?, song: String? = nil, stuck: Bool = false) -> String {
+        if step.uiLabelHint == "Search YouTube", let song = SongNormalization.normalize(song) {
+            return "Type \"\(song)\"."
+        }
+        if step.uiLabelHint == "Search YouTube" { return step.instruction }
         var text = step.instruction
         if step.labelIsNearby == true, step.uiLabelHint == "Chats" {
             let target = PersonNormalization.normalize(person) ?? "the person"

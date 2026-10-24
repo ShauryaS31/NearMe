@@ -213,7 +213,7 @@ private final class AvailabilityCoachBrain: CoachBrain {
         return choice
     }
 
-    func rewrite(request: String, guide: HelpGuide, step: HelpGuide.Step, person: String?, stuck: Bool) async throws -> String {
+    func rewrite(request: String, guide: HelpGuide, step: HelpGuide.Step, person: String?, song: String?, stuck: Bool) async throws -> String {
         calls.append(stuck ? "stuck" : "rewrite")
         return step.instruction
     }

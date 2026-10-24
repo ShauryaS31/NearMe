@@ -29,6 +29,7 @@ EXPECTED_APPS = {
     "call_from_recents": "Phone",
     "turn_on_torch": "Control Centre",
     "send_text_message": "Messages",
+    "youtube_play_song": "YouTube",
 }
 REQUIRED = {"id", "title", "app", "aliases", "steps", "source_note", "last_checked"}
 OPTIONAL = {"app_url_scheme"}
@@ -50,7 +51,7 @@ SECOND_ACTION = re.compile(
 # Ordinary sentence-initial words are ignored. Human review still checks names,
 # unapproved brands, prices, account details and unquoted UI labels in all fields.
 CAPITAL_WORDS = {
-    "WhatsApp", "FaceTime", "Settings", "Display", "Brightness", "Text", "Size",
+    "WhatsApp", "YouTube", "FaceTime", "Settings", "Display", "Brightness", "Text", "Size",
     "Wi", "Fi", "Join", "Save", "Photos", "Library", "Messages", "To", "New",
     "Call", "Contacts", "First", "Last", "Phone", "Do", "Not", "Disturb", "Focus",
     "General", "Software", "Update", "Clock", "Alarms", "AM", "PM", "Calls", "Chats",
@@ -116,7 +117,7 @@ def validate_guide(data, path):
         if not re.fullmatch(r"[a-z]+(?:_[a-z]+)*", guide_id):
             problem("id", "must be snake_case")
         if guide_id not in EXPECTED_APPS:
-            problem("id", "not one of the 15 P07a guide ids")
+            problem("id", "not an expected guide id")
         if guide_id != path.stem:
             problem("id", "must match the filename")
         if guide_id in EXPECTED_APPS and data.get("app") != EXPECTED_APPS[guide_id]:
@@ -136,6 +137,8 @@ def validate_guide(data, path):
             expected_scheme = "whatsapp://"
         elif guide_id == "send_text_message":
             expected_scheme = "sms:"
+        elif guide_id == "youtube_play_song":
+            expected_scheme = "youtube://"
         if expected_scheme is None:
             problem("app_url_scheme", "must be omitted for this guide")
         elif data["app_url_scheme"] != expected_scheme:

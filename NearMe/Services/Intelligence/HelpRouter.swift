@@ -18,6 +18,7 @@ nonisolated enum HelpRoute: Equatable, Sendable {
 nonisolated struct HelpChoice: Equatable, Sendable {
     let route: HelpRoute
     var person: String? = nil
+    var song: String? = nil
 }
 
 nonisolated struct GuideCandidate: Sendable {
@@ -54,6 +55,10 @@ nonisolated enum GuidePrefilter {
             return Double(query.intersection(tokens).count) / Double(max(tokens.count, query.count))
         }.max() ?? 0
         var score = aliasScore
+        if guide.id == "youtube_play_song",
+           !query.isDisjoint(with: ["youtube", "song", "gaana", "bhajan"]) || query.isSuperset(of: ["music", "video"]) {
+            score = 1
+        }
         if guide.id == "whatsapp_send_photo", query.contains("photo"), query.contains("send") {
             score = max(score, query.contains("whatsapp") ? 1 : 0.9)
         }
@@ -90,7 +95,8 @@ nonisolated enum GuidePrefilter {
         if let top = candidates.first, top.score >= fallbackThreshold { route = .guide(top.id) }
         else if CoachText.matches(request, #"(?i)\b(trip|train|travel|journey|station|tram|bus)\b|\bfrom\s+.+\s+to\b|^to\s+|\bget to\b"#) { route = .practiceTripPlanner }
         else { route = .general }
-        return HelpChoice(route: route, person: PersonNormalization.extract(from: request))
+        return HelpChoice(route: route, person: PersonNormalization.extract(from: request),
+                          song: route == .guide("youtube_play_song") ? SongNormalization.extract(from: request) : nil)
     }
 }
 
@@ -127,7 +133,8 @@ final class HelpRouter: HelpRouting {
             }
             // An explicit recipient in the request wins over a model placeholder or wrong person.
             return HelpChoice(route: choice.route, person: PersonNormalization.extract(from: request)
-                              ?? PersonNormalization.extractedPerson(choice.person))
+                              ?? PersonNormalization.extractedPerson(choice.person),
+                              song: SongNormalization.extract(from: request) ?? SongNormalization.normalize(choice.song))
         }
         guard answer.source == .onDeviceModel, let top = strongMatch else { return answer }
         let needsOverride: Bool
@@ -138,7 +145,7 @@ final class HelpRouter: HelpRouting {
         }
         guard needsOverride else { return answer }
         PlannerDiagnostics.logger.notice("On-device model + keyword fill reason=general overridden by guide match topCandidate=\(top.id, privacy: .public) topScore=\(top.score, privacy: .public)")
-        return BrainAnswer(value: HelpChoice(route: .guide(top.id), person: answer.value.person),
+        return BrainAnswer(value: HelpChoice(route: .guide(top.id), person: answer.value.person, song: answer.value.song),
                            source: .onDeviceModelWithKeywordFill, latencyMilliseconds: answer.latencyMilliseconds)
     }
 }

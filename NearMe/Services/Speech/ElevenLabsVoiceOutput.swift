@@ -96,6 +96,12 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         await speakSystem(text, reason: settings.naturalVoiceEnabled ? "greeting before speech preparation" : "natural voice off", started: .now)
     }
 
+    /// Personal song titles must never enter the persistent audio cache.
+    func speakSessionOnly(_ text: String) async {
+        stopPlayback()
+        await speakSystem(text, reason: "session-only content", started: .now)
+    }
+
     func speakAcknowledgement(_ text: String) async {
         // Never wait for a network request before acknowledging a new request.
         if fallbackReason == nil, cache.audio(for: cacheKey(text)) != nil {

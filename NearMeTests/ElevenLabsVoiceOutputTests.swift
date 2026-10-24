@@ -4,6 +4,19 @@ import XCTest
 
 @MainActor
 final class ElevenLabsVoiceOutputTests: XCTestCase {
+    func testSessionOnlySongSpeechDoesNotRequestOrCacheAudio() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        let output = fixture.output()
+        let line = "Type \"Tum Hi Ho\"."
+        await output.speakSessionOnly(line)
+        XCTAssertEqual(fixture.system.lines, [line])
+        XCTAssertEqual(output.lastVoice, "System voice")
+        XCTAssertTrue(fixture.session.requests.isEmpty)
+        XCTAssertNil(fixture.cache.audio(for: fixture.cacheKey(line)))
+        XCTAssertEqual(fixture.player.playCount, 0)
+    }
+
     func testAcknowledgementUsesSystemImmediatelyThenReusesCachedNaturalVoice() async throws {
         let fixture = try VoiceFixture()
         defer { fixture.cleanUp() }
