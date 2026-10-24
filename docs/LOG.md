@@ -125,3 +125,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:32 AEDT | P13b | owner | decision | P13 round 2 replaced by P13b observe-recheck loop (YouTube only), overnight, ScreenSnapshotSource protocol; honest copy per handoff (no unverified claims)
 - 2026-10-24 19:34 AEDT | P07e | owner | iPhone PASS | YouTube guide, song in steps, auto-open, Island over YouTube, asks which song
 - 2026-10-24 19:36 AEDT | P13 | owner | device build | App Group signs (Personal Team), appex embedded; heartbeat result pending; tests at d93ffe7: 204 run, 198 pass, 3 skip, 3 fail (SessionLayoutTests guide count 15 vs 16, two more names pending)
+- 2026-10-24 19:40 AEDT | P09 | owner | decision | remove the home page; orb screen is home; More menu; purple theme; P13b first; sharing offer at guide start goes to P13b review round
