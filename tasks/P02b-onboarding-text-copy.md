@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (Mac compile pending) |
 | Window | Sat 24 Oct, after P02a, before P03 |
 | Depends on | P02c |
 | Assignee | codex |
@@ -74,3 +74,11 @@ Then in the simulator: Settings > Accessibility > Display & Text Size > Larger T
   5. Open `NearMe.xcodeproj` in Xcode and render both previews in each onboarding file. Confirm the default and `.accessibility5` previews compile and display all content with reachable actions. Spot-check other screens' primary buttons because their shared wrapping behavior changed.
   6. Run `bash scripts/mac-run.sh quick` twice. Confirm the second run skips project generation, reuses the same booted iPhone, installs/launches and prints elapsed seconds; inspect `build/.xcodegen-hash` and `build/xcodebuild.log`. The mock suite checks generation invalidation and failure paths without altering the real project or simulator inventory.
 - Not done / risks / questions: Real Swift compilation, simulator safe-area/large-text checks, and native macOS Bash execution remain pending. The shared button now wraps at natural height everywhere, so include the noted spot-check outside onboarding. Existing forced light appearance and fixed color palette are outside this task's scope. No secrets or generated Xcode project were added. Git could not write its lock file in the sandbox; stopped uncommitted as instructed. The post-commit `docs/LOG.md` line was not appended because the commit failed and the user explicitly requested stopping in that case; the manager should append it after committing.
+
+## Review (round 1)
+- Date: 2026-10-24 15:23 AEDT
+- Verdict: PASS (static). Committed by manager (sandbox blocked .git). Mac compile and large-text walk pending (owner).
+- 5: Welcome, greeting and How NearMe works scroll via ScreenScaffold, use text styles and @ScaledMetric icons, no fixed heights, no minimumScaleFactor; wordmark stacks at accessibility sizes; accessibility5 previews. PrimaryButton now wraps at any size (affects every screen; spot-check practice screens).
+- 6: exact explainer copy; ScreenPermissionView replaced by HowItWorksView with one continue button; route .howItWorks; didGrantScreenGuidancePermission removed; grep for screen-watching claims clean in NearMe/.
+- 7: quick mode (no pull, hash-gated xcodegen, reuse booted iPhone, incremental build, elapsed seconds); empty or failed simulator id now stops every mode (bash 3.2 has no inherit_errexit, so explicit checks). bash -n OK; scripts/tests/test_mac_run.py 6 tests OK on Windows.
+- Out of scope, noted for later: practice screens still use fixed font sizes and a fixed min height (OpeningPTVView.swift:31).

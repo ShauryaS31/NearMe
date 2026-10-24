@@ -2,9 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Status | todo |
+| Status | in_progress |
 | Window | Sat 24 Oct, after P02a |
-| Depends on | P02a |
+| Depends on | P02b |
 | Assignee | codex |
 | Branch | task/P03-generic-trip-planner |
 
