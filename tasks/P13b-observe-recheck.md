@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested (round 2) |
+| Status | done (device test Sun 10:00) |
 | Window | Sat 24 Oct overnight; owner device test Sun 25 Oct 10:00; kill decision 11:00 |
 | Depends on | P13 spike (17440c1, merged), P07e |
 | Assignee | codex (main folder) |
@@ -158,3 +158,8 @@ Static checks only on Windows; stop when they pass. Give the owner exact device 
   9. In macOS Console select the iPhone, stream process NearMeBroadcast/subsystem au.nearme.ios/category broadcast. Record `available_memory_bytes`, `processing_ms` and `ocr_failures` during at least five minutes of navigation/rotation and static screens; no text should be logged, metrics at most once per ten seconds. Use Xcode/Instruments to measure actual peak extension footprint and comfortable headroom below about 50 MB; available-memory logging alone is not proof. Blank/protected or failed OCR must clear the old words rather than perpetually heartbeat old guidance. The authored writer test supplies deterministic failure coverage; record real-device failures if they occur.
   10. Stop/pause broadcasting and inspect `po SharedScreenBridge.snapshotURL.map { FileManager.default.fileExists(atPath: $0.path) }` in the NearMe debugger: expect false after normal cleanup. Restart, then terminate only NearMeBroadcast; keep a guide polling in NearMe and inspect after more than ten seconds: the abandoned snapshot must be deleted. Confirm Screen: off, Manual mode and only one lost-capture warning per outage. In the App Group directory confirm no screen images/movies and only the latest words file while broadcasting. The badge intentionally reads the current capture, which may be NearMe's UI; the coach's retained external observation is tested separately in step 6.
 - Not done / risks / questions: all 11 requested changes are implemented, but Swift compilation, the 28 screen tests and the three formerly failing tests have not run. Signing/provider visibility, real OCR accuracy, extension memory, audio interruptions/A2DP, cold-intent speech and sustained background execution remain owner device gates. A refreshed timestamp proves the broadcast process is alive; it does not prove a new video frame arrived. The extension intentionally holds only its last filtered words until a new frame, OCR failure, pause or finish. Secret recognition remains heuristic. Stale-file cleanup is driven by app/source polling, so a stopped extension's abandoned file can persist until the app runs again. No other task was started.
+
+## Review (round 2)
+- Date: 2026-10-24 21:10 AEDT
+- Verdict: PASS (static). Merged to main; owner device test Sunday 10:00.
+- Verified: 1 s heartbeat timer in the nonisolated extension processor rewrites the last filtered lines (cleared on OCR failure, file deleted on stop); own-screen snapshots ignored while NearMe is active and pending questions kept (tested); home with no label says "Tap the magnifying glass at the top right."; audio lease uses .allowBluetoothA2DP, restarts after interruptions, 10 s grace; Live Activity Done without a song says "Type the song name."; en-US OCR with failure count in the memory log; sharing offer "Let me see your screen so I can guide you." with the native picker and Not now, declining gives manual mode without the lost-capture line; picker fallback sentence; the 3 failing tests updated to intended behaviour. Default-argument scan clean.
