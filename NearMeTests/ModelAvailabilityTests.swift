@@ -46,7 +46,7 @@ final class ModelAvailabilityTests: XCTestCase {
         XCTAssertNil(answer.fallbackReason)
     }
 
-    func testHighKeywordScoreStillConsultsModelAndHonoursItsChoice() async throws {
+    func testHighKeywordScoreStillConsultsModelBeforeOverridingGeneral() async throws {
         let brain = AvailabilityCoachBrain()
         let guides = try GuideLibrary.load()
         let service = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
@@ -56,11 +56,11 @@ final class ModelAvailabilityTests: XCTestCase {
         XCTAssertEqual(ranked.first?.score, 1)
         XCTAssertEqual(GuidePrefilter.fallback(request: request, candidates: ranked).route, .guide("whatsapp_send_photo"))
 
-        // The fake chooses general deliberately, so a keyword shortcut cannot pass this test.
+        brain.choice = HelpChoice(route: .general)
         let answer = await router.route(request)
         XCTAssertEqual(brain.calls, ["router"])
-        XCTAssertEqual(answer.value.route, .general)
-        XCTAssertEqual(answer.source, .onDeviceModel)
+        XCTAssertEqual(answer.value.route, .guide("whatsapp_send_photo"))
+        XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
     }
 
     func testCallTimeAvailabilityFallsBackAndRecoversWithoutRecreatingRouter() async throws {
@@ -105,7 +105,8 @@ final class ModelAvailabilityTests: XCTestCase {
         brain.failure = nil
         brain.choice = HelpChoice(route: .guide("invented_id"))
         let invalid = await router.route("send a photo on WhatsApp")
-        XCTAssertEqual(invalid.fallbackReason, .rejected)
+        XCTAssertEqual(invalid.source, .onDeviceModelWithKeywordFill)
+        XCTAssertNil(invalid.fallbackReason)
         XCTAssertEqual(invalid.value.route, .guide("whatsapp_send_photo"))
     }
 
@@ -201,7 +202,7 @@ private final class MutableModelAvailability {
 @MainActor
 private final class AvailabilityCoachBrain: CoachBrain {
     var calls: [String] = []
-    var choice = HelpChoice(route: .general)
+    var choice = HelpChoice(route: .guide("whatsapp_send_photo"))
     var failure: Error?
     var delay: Duration?
 

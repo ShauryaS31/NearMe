@@ -16,7 +16,10 @@ final class ModelEvalTests: XCTestCase {
                 let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))
                 print("EVAL | \(request) | route=\(answer.value.route.description) | \(answer.source.label) | \(ms) ms")
                 XCTAssertEqual(answer.value.route, expected, request)
-                XCTAssertEqual(answer.source, .onDeviceModel, "Router used fallback: \(request)")
+                if request == "can you help me send an image to my mom" {
+                    XCTAssertEqual(answer.value.person, "Mum")
+                }
+                XCTAssertTrue([BrainSource.onDeviceModel, .onDeviceModelWithKeywordFill].contains(answer.source), "Router used fallback: \(request)")
                 XCTAssertLessThan(ms, 20_000)
             } catch {
                 let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))

@@ -15,20 +15,24 @@
   "steps": [
     {
       "instruction": "Open \"Settings\".",
-      "ui_label_hint": "Settings"
+      "ui_label_hint": "Settings",
+      "icon": "gearshape"
     },
     {
       "instruction": "Tap \"General\".",
-      "ui_label_hint": "General"
+      "ui_label_hint": "General",
+      "icon": "gearshape"
     },
     {
       "instruction": "Tap \"Software Update\".",
-      "ui_label_hint": "Software Update"
+      "ui_label_hint": "Software Update",
+      "icon": "arrow.triangle.2.circlepath"
     },
     {
       "instruction": "Wait for the update check to finish. This screen will show whether an update is available.",
       "ui_label_hint": "Software Update",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "hourglass"
     }
   ],
   "source_note": "Settings on iOS 26/27, English, October 2026 documentation review. An internet connection is needed. This guide only checks availability; it does not download or install an update. Managed phones and connection errors can change the result shown. Not checked on a phone. Source: https://support.apple.com/en-ie/118575",
