@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | done (combined iPhone check pending) |
 | Window | Sat 24 Oct evening |
 | Depends on | P07b |
 | Assignee | codex, then owner on a real iPhone |
@@ -159,3 +159,9 @@ Round 3 (after the branch is rebased onto main with P07d):
   6. Repeat the P07d checks with WhatsApp missing (audible missing-app explanation, step 1 retained), fallback routing, nearby wording, Repeat/Slower, Stop during acknowledgement, and general ringtone/practice requests. On an Apple Intelligence-ready runtime, run `bash scripts/mac-run.sh eval --current` for the existing routing/personalization gate. Keep prior-round large-text/VoiceOver, privacy and background-intent acceptance checks.
 - Not done / risks / questions: actual Dynamic Island expansion, device sound behavior (including paired Apple Watch), Swift SDK compilation and physical background intent execution remain unverified. This change requests alerts; iOS controls their presentation. The silent named asset avoids requesting the system default, but the owner must confirm resource packaging and sound behavior on-device. No unrelated task work was done.
 - Git handoff: `git add Shared/LiveActivity/CoachActivityUpdater.swift NearMe/ViewModels/TaskPlannerEngine.swift NearMe/Resources/coach-step-silent.wav NearMeTests/CoachLiveActivityTests.swift NearMeTests/CoachAppOpenTests.swift tasks/P11-live-activity-coach.md` FAILED with `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/index.lock': Permission denied`. The sandbox blocks Git writes. All Round 3 changes are left unstaged and uncommitted; no retry, permission escalation or commit was attempted after that failure. The manager must stage these files plus `docs/LOG.md` and commit with `P11: Alert quietly on Live Activity step changes`. The required P11 log entry is appended and work stops here as instructed.
+
+## Review (round 3)
+- Date: 2026-10-24 18:56 AEDT
+- Verdict: PASS (static). Merged to main after P07d (owner merge order); combined iPhone check next.
+- Island alert: `Activity.update(_:alertConfiguration:)` only when the displayed activity of the same session moves to a different step (in-app Done, Done intent, auto-open step 2, warm or cold resume); no alert on start, same-step republish, completion, rollback or end. Generic text (guide title and the guide's own instruction, never the person). Sound is a bundled 0.1 s all-zero PCM file because ActivityKit requires a sound. P07d behaviour intact after the main merge. Default-argument scan clean.
+- Mac watch point: tests read `AlertConfiguration.body`; if that property is not public in the SDK, drop those assertions as a macfix (test-only).

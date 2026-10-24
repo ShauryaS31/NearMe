@@ -113,3 +113,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:51 AEDT | P07d | claude | review r1 PASS | static; merged to main first; P11 rebases on it next
 - 2026-10-24 18:52 AEDT | P11 | claude | merge main | P07d merged into P11 (3 additive conflicts in TaskPlannerEngine kept both sides); round 3 next
 - 2026-10-24 18:55 AEDT | P11 | codex | dev-report r3 | Generic silent Live Activity step alerts; P07d preserved; Git index.lock permission denied, uncommitted for manager.
+- 2026-10-24 18:56 AEDT | P11 | claude | review r3 PASS | Island alert on step change with silent sound, generic text; merged to main; stopping for the combined iPhone check (P07d + P11)
