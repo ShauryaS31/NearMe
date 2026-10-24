@@ -44,6 +44,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 
 - 2026-10-24 (owner): new tasks P04 (ElevenLabs voice and rough edges), P05 (consented family voice), P06 (Core AI: router, grounded help, wrong-tap help, tap and hold, privacy). Start P04 once the current Mac check passes; stop after each task for the owner's Mac check. Gate for each: `bash scripts/mac-run.sh quick` builds and launches and default tests pass.
 - 2026-10-24 (owner): all P04 to P06 brief choices approved. Voice input is always on-device (ElevenLabs speech-to-text removed, in P04), because recorded speech must not leave the phone. Settings toggle "Natural voice (online)": off means only the system voice and nothing leaves the phone (logic in P04, toggle in P05). P06 privacy copy is the owner's exact wording, naming place names sent to ElevenLabs.
+- 2026-10-24 (owner): Apple speech must run strictly on-device (requiresOnDeviceRecognition = true or SpeechAnalyzer); if on-device recognition is unavailable for the locale, show Type instead, never a server. Added to P04.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).

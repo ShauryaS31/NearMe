@@ -43,3 +43,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 15:27 AEDT | P03 | claude | review r1 PASS | static; merged to main; stopping for owner Mac compile and retest of P02c, P02b, P03
 - 2026-10-24 15:57 AEDT | P04-P06 | claude | queued | owner decision: P04 ElevenLabs voice + rough edges, P05 consented family voice, P06 Core AI (router, grounded help, wrong-tap, tap and hold, privacy); P04 waits for owner Mac check of P02c/P02b/P03; stop after each task
 - 2026-10-24 16:00 AEDT | P04-P06 | owner | decision | briefs approved; voice input always on-device (ElevenLabs STT removed in P04); Natural voice (online) toggle (logic P04, UI P05); P06 privacy copy names place names sent to ElevenLabs
+- 2026-10-24 16:00 AEDT | P04 | owner | decision | Apple speech strictly on-device (current code silently uses Apple servers when unsupported); unsupported locale shows Type instead; added to P04
