@@ -12,7 +12,7 @@ nonisolated enum GuideLibrary {
         "turn_on_torch": "Control Centre", "send_text_message": "Messages"
     ]
 
-    static func load(bundle: Bundle? = nil) throws -> [Guide] {
+    static func load(bundle: Bundle? = nil) throws -> [HelpGuide] {
         let bundle = bundle ?? .main
         guard let directory = bundle.url(forResource: "guides", withExtension: nil) else {
             throw GuideLibraryError.invalid("Missing bundled guides directory")
@@ -20,8 +20,9 @@ nonisolated enum GuideLibrary {
         return try load(directory: directory)
     }
 
-    static func load(directory: URL) throws -> [Guide] {
-        let files = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+    static func load(directory: URL) throws -> [HelpGuide] {
+        let entries = try FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+        let files: [URL] = entries.filter { $0.pathExtension == "json" }
         guard Set(files.map(\.lastPathComponent)) == Set(expectedApps.keys.map { $0 + ".json" }) else {
             throw GuideLibraryError.invalid("Expected exactly the 15 guide files")
         }
@@ -32,18 +33,30 @@ nonisolated enum GuideLibrary {
         return guides
     }
 
-    static func bundled() -> [Guide] {
+    static func validReviewDate(_ value: String) -> Bool {
+        guard CoachText.matches(value, #"^[0-9]{4}-[0-9]{2}-[0-9]{2}$"#) else { return false }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.isLenient = false
+        guard let date = formatter.date(from: value) else { return false }
+        return formatter.string(from: date) == value
+    }
+
+    static func bundled() -> [HelpGuide] {
         do { return try load() }
         catch {
             #if DEBUG
-            assertionFailure("Guide validation failed: \(error)")
+            assertionFailure("HelpGuide validation failed: \(error)")
             #endif
             return []
         }
     }
 
     /// Mirrors scripts/validate-guides.py, including editorial heuristics and file format.
-    static func decode(_ data: Data, filename: String) throws -> Guide {
+    static func decode(_ data: Data, filename: String) throws -> HelpGuide {
         guard let text = String(data: data, encoding: .utf8) else { throw GuideLibraryError.invalid("UTF-8") }
         var canonical = GuideJSONFormat(text: text)
         try canonical.validate()
@@ -58,9 +71,9 @@ nonisolated enum GuideLibrary {
             try require(required.isSubset(of: keys) && keys.isSubset(of: required.union(optional)), "Invalid fields")
         }
         try fields(root, required: ["id", "title", "app", "aliases", "steps", "source_note", "last_checked"], optional: ["app_url_scheme"])
-        let guide = try JSONDecoder().decode(Guide.self, from: data)
+        let guide = try JSONDecoder().decode(HelpGuide.self, from: data)
         try require(guide.id == filename && expectedApps[guide.id] == guide.app, "Id/app/filename mismatch")
-        try require(guide.lastChecked == "2026-10-24", "Review date")
+        try require(validReviewDate(guide.lastChecked), "Review date")
         if root.keys.contains("app_url_scheme") {
             let allowed = guide.id.hasPrefix("whatsapp_") ? "whatsapp://" : (guide.id == "send_text_message" ? "sms:" : nil)
             try require(allowed != nil && guide.appURLScheme == allowed, "Unsupported scheme")

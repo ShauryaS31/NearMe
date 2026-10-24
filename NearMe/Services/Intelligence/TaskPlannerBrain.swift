@@ -8,6 +8,7 @@ enum BrainSource: String, Sendable {
     case onDeviceModelWithKeywordFill
     case keywordFallback
     case template
+    case practiceCard
 
     var label: String {
         switch self {
@@ -15,6 +16,7 @@ enum BrainSource: String, Sendable {
         case .onDeviceModelWithKeywordFill: return "On-device model + keyword fill"
         case .keywordFallback: return "Keyword fallback"
         case .template: return "Template"
+        case .practiceCard: return "practice card"
         }
     }
 }
@@ -23,11 +25,14 @@ struct BrainAnswer<Value: Sendable>: Sendable {
     let value: Value
     let source: BrainSource
     let latencyMilliseconds: Int?
+    let fallbackReason: ModelFallbackReason?
 
-    init(value: Value, source: BrainSource, latencyMilliseconds: Int? = nil) {
+    init(value: Value, source: BrainSource, latencyMilliseconds: Int? = nil,
+         fallbackReason: ModelFallbackReason? = nil) {
         self.value = value
         self.source = source
         self.latencyMilliseconds = latencyMilliseconds
+        self.fallbackReason = fallbackReason
     }
 }
 
@@ -57,14 +62,26 @@ enum PlannerDiagnostics {
         return Int(parts.seconds * 1_000 + parts.attoseconds / 1_000_000_000_000_000)
     }
 
-    static func modelCall(_ kind: String, outcome: String, milliseconds: Int) {
-        VoiceDiagnostics.logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public)")
-        logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public)")
+    static func modelCall(_ kind: String, outcome: String, milliseconds: Int,
+                          reason: ModelFallbackReason? = nil, error: Error? = nil,
+                          candidates: [GuideCandidate]? = nil) {
+        let availability: String
+        if let reason, case .unavailable(let value) = reason { availability = value.rawValue }
+        else { availability = "available" }
+        let errorType = error.map { String(reflecting: type(of: $0)) } ?? "none"
+        let errorCode = error.map { ($0 as NSError).code } ?? 0
+        // Only bundled candidate ids and numeric scores are public, never requests or error descriptions.
+        let topID = candidates?.first?.id ?? "none"
+        let topScore = candidates?.first?.score ?? 0
+        let count = candidates?.count ?? 0
+        logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public) availability=\(availability, privacy: .public) errorType=\(errorType, privacy: .public) errorCode=\(errorCode, privacy: .public) topCandidate=\(topID, privacy: .public) topScore=\(topScore, privacy: .public) candidates=\(count, privacy: .public)")
     }
 
     static func fallback(after error: Error, call: String) {
-        let nsError = error as NSError
-        logger.error("Model call=\(call, privacy: .public) failed type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .private) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .private); using keyword fallback")
+        // The shared access layer already logged measured failures with the original error metadata.
+        guard !(error is PlannerModelFailure) else { return }
+        let reason = PlannerModelAccess.reason(for: error)
+        modelCall(call, outcome: reason.outcome, milliseconds: 0, reason: reason, error: error)
     }
 }
 
@@ -86,7 +103,8 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
             PlannerDiagnostics.fallback(after: error, call: "extractIntent")
             let fallbackAnswer = try await fallback.extractIntent(from: utterance)
             return BrainAnswer(value: fallbackAnswer.value.normalizingPlaces(), source: fallbackAnswer.source,
-                               latencyMilliseconds: fallbackAnswer.latencyMilliseconds)
+                               latencyMilliseconds: (error as? PlannerModelFailure)?.milliseconds ?? fallbackAnswer.latencyMilliseconds,
+                               fallbackReason: PlannerModelAccess.reason(for: error))
         }
 
         // Parse every sentence again, filling only absent model values.
@@ -128,7 +146,8 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
             PlannerDiagnostics.fallback(after: error, call: "extractPlace")
             let fallbackAnswer = try await fallback.extractPlace(from: answer, for: slot)
             return BrainAnswer(value: PlaceNormalization.normalize(fallbackAnswer.value), source: fallbackAnswer.source,
-                               latencyMilliseconds: fallbackAnswer.latencyMilliseconds)
+                               latencyMilliseconds: (error as? PlannerModelFailure)?.milliseconds ?? fallbackAnswer.latencyMilliseconds,
+                               fallbackReason: PlannerModelAccess.reason(for: error))
         }
 
         // The model can return a whole sentence rather than just the place.
@@ -153,13 +172,11 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
 }
 
 enum TaskPlannerBrainFactory {
-    @MainActor static func makeDefault() -> TaskPlannerBrain {
+    @MainActor static func makeDefault(modelAccess: PlannerModelAccess? = nil) -> TaskPlannerBrain {
         #if canImport(FoundationModels)
-        if #available(iOS 26.0, *), FoundationModelsBrain.isAvailable {
-            return ResilientTaskPlannerBrain(primary: FoundationModelsBrain(), fallback: KeywordFallbackBrain())
-        }
-        #endif
-        PlannerDiagnostics.logger.notice("On-device model unavailable; using keyword fallback")
+        return ResilientTaskPlannerBrain(primary: FoundationModelsBrain(modelAccess: modelAccess), fallback: KeywordFallbackBrain())
+        #else
         return KeywordFallbackBrain()
+        #endif
     }
 }

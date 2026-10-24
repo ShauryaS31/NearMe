@@ -8,12 +8,14 @@ import Foundation
 @MainActor
 final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
     let initialSource: BrainSource = .onDeviceModel
-    private static let callTimeout: Duration = .seconds(10)
+    private let modelAccess: PlannerModelAccess
+
+    init(modelAccess: PlannerModelAccess? = nil) {
+        self.modelAccess = modelAccess ?? PlannerModelAccess()
+    }
+
     static var isAvailable: Bool {
-        if case .available = SystemLanguageModel.default.availability {
-            return true
-        }
-        return false
+        PlannerModelAccess.systemAvailability() == .available
     }
 
     private let extractionInstructions = """
@@ -38,7 +40,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
 
     @Generable
     struct PlaceAnswer: Sendable {
-        @FoundationModels.Guide(description: "A short station, suburb or place name of at most 5 words, without filler. Nil if none is clear.")
+        @Guide(description: "A short station, suburb or place name of at most 5 words, without filler. Nil if none is clear.")
         var place: String?
     }
 
@@ -57,18 +59,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
         _ kind: String,
         operation: @escaping @MainActor @Sendable () async throws -> Value
     ) async throws -> BrainAnswer<Value> {
-        let clock = ContinuousClock()
-        let start = clock.now
-        do {
-            let value = try await PlannerCallDeadline.run(timeout: Self.callTimeout, operation: operation)
-            let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))
-            PlannerDiagnostics.modelCall(kind, outcome: "ok", milliseconds: ms)
-            return BrainAnswer(value: value, source: .onDeviceModel, latencyMilliseconds: ms)
-        } catch {
-            let ms = PlannerDiagnostics.milliseconds(start.duration(to: clock.now))
-            PlannerDiagnostics.modelCall(kind, outcome: error is PlannerCallTimeout ? "timeout" : "error", milliseconds: ms)
-            throw error
-        }
+        try await modelAccess.run(kind, operation: operation)
     }
 }
 #endif

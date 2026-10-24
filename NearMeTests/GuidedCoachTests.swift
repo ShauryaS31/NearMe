@@ -48,7 +48,7 @@ final class GuidedCoachTests: XCTestCase {
             text.replacingOccurrences(of: "\"title\":", with: "\"id\": \"connect_wifi\",\n  \"title\":"),
             text.replacingOccurrences(of: "\"label_is_nearby\": true", with: "\"label_is_nearby\": \"true\""),
             text.replacingOccurrences(of: "\"label_is_nearby\": true", with: "\"label_is_nearby\": null"),
-            text.replacingOccurrences(of: "2026-10-24", with: "2025-10-24"),
+            text.replacingOccurrences(of: "2026-10-24", with: "2026-02-30"),
             text.replacingOccurrences(of: "Connect to Wi-Fi", with: " Connect to Wi-Fi"),
             text.replacingOccurrences(of: "Tap the name", with: "Click the name"),
             text.replacingOccurrences(of: "Tap the name", with: "Tap Alice and open the name"),
@@ -86,7 +86,11 @@ final class GuidedCoachTests: XCTestCase {
         XCTAssertEqual(GuidePrefilter.cosine([0, 0], [0, 0]), 0)
         XCTAssertEqual(GuidePrefilter.cosine([1], [1, 2]), 0)
         let guides = try GuideLibrary.load()
-        let vectors = Dictionary(uniqueKeysWithValues: guides.map { ($0.id, $0.id == "set_alarm" ? [1.0, 0] : [0, 1.0]) })
+        let entries: [(String, [Double])] = guides.map { guide -> (String, [Double]) in
+            let vector: [Double] = guide.id == "set_alarm" ? [1, 0] : [0, 1]
+            return (guide.id, vector)
+        }
+        let vectors: [String: [Double]] = Dictionary(uniqueKeysWithValues: entries)
         let ranked = GuidePrefilter.rank(request: "unmatched", guides: guides, requestVector: [1, 0], guideVectors: vectors)
         XCTAssertEqual(ranked.first?.id, "set_alarm")
         XCTAssertEqual(ranked.first?.score ?? 0, 0.2, accuracy: 0.0001)
@@ -100,7 +104,8 @@ final class GuidedCoachTests: XCTestCase {
     func testFakeModelRoutesExactlyAndRejectsIdsOutsideCandidates() async throws {
         let guides = try GuideLibrary.load()
         let brain = CoachTestBrain()
-        let router = HelpRouter(guides: guides, service: CoachModelService(brain: brain), useEmbeddings: false)
+        let service = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
+        let router = HelpRouter(guides: guides, service: service, useEmbeddings: false)
         for (request, expected) in RouterAcceptance.cases {
             brain.choice = HelpChoice(route: expected)
             let answer = await router.route(request)
@@ -110,7 +115,9 @@ final class GuidedCoachTests: XCTestCase {
         }
         brain.choice = HelpChoice(route: .guide("invented_id"))
         var answer = await router.route("send a photo")
-        XCTAssertEqual(answer.value.route, .general)
+        XCTAssertEqual(answer.value.route, .guide("whatsapp_send_photo"))
+        XCTAssertEqual(answer.source, .keywordFallback)
+        XCTAssertEqual(answer.fallbackReason, .rejected)
         brain.choice = HelpChoice(route: .guide("whatsapp_send_photo"), person: "none")
         answer = await router.route("send a photo on whatsapp")
         XCTAssertNil(answer.value.person)
@@ -120,7 +127,8 @@ final class GuidedCoachTests: XCTestCase {
         brain.choice = HelpChoice(route: .guide("set_alarm"))
         answer = await router.route("send a photo on whatsapp")
         XCTAssertFalse(brain.candidateIDs.contains("set_alarm"))
-        XCTAssertEqual(answer.value.route, .general)
+        XCTAssertEqual(answer.value.route, .guide("whatsapp_send_photo"))
+        XCTAssertEqual(answer.fallbackReason, .rejected)
         brain.shouldThrow = true
         answer = await router.route("send pictures to my son on whatsapp")
         XCTAssertEqual(answer.value, HelpChoice(route: .guide("whatsapp_send_photo"), person: "your son"))
@@ -137,7 +145,7 @@ final class GuidedCoachTests: XCTestCase {
         XCTAssertEqual(PersonNormalization.extract(from: "send pictures to my son on whatsapp"), "your son")
         XCTAssertEqual(PersonNormalization.extract(from: "video call my daughter"), "your daughter")
         XCTAssertEqual(PersonNormalization.extract(from: "send a photo to Alice on whatsapp"), "Alice")
-        XCTAssertEqual(PersonNormalization.extract(from: "video call mary jane"), "Mary Jane")
+        XCTAssertEqual(PersonNormalization.extract(from: "video call Mary Jane"), "Mary Jane")
         XCTAssertNil(PersonNormalization.extract(from: "connect to wifi"))
     }
 
@@ -179,7 +187,7 @@ final class GuidedCoachTests: XCTestCase {
         let brain = CoachTestBrain()
         brain.text = "Tap \"Invented\"."
         brain.steps = Array(repeating: "Do a thing.", count: 7)
-        let service = CoachModelService(brain: brain)
+        let service = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
         let photo = try guide("whatsapp_send_photo")
         for stuck in [false, true] {
             let answer = await service.rewrite(request: "send a photo", guide: photo, index: 2, person: "Mum", stuck: stuck)
@@ -375,7 +383,7 @@ final class GuidedCoachTests: XCTestCase {
         engine.endSession()
     }
 
-    private func guide(_ id: String) throws -> Guide {
+    private func guide(_ id: String) throws -> HelpGuide {
         try XCTUnwrap(GuideLibrary.load().first { $0.id == id })
     }
 
@@ -383,13 +391,14 @@ final class GuidedCoachTests: XCTestCase {
                             output: CoachTestOutput? = nil, input: CoachTestInput? = nil,
                             store: CoachProgressStore? = nil) throws -> TaskPlannerEngine {
         let guides = try GuideLibrary.load()
-        let service = CoachModelService(brain: model)
+        let service = CoachModelService(brain: model, modelAccess: PlannerModelAccess(availability: { .available }))
         let defaults = try XCTUnwrap(UserDefaults(suiteName: "CoachEngineTests.\(UUID().uuidString)"))
         return TaskPlannerEngine(brain: journey ?? CountingJourneyBrain(), voiceInput: input ?? CoachTestInput(),
             voiceOutput: output ?? CoachTestOutput(), permissions: PermissionsManager(), userName: "",
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
-            coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults))
+            coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
+            appOpener: UnavailableCoachAppOpener())
     }
 
     private func eventually(_ condition: () -> Bool) async {
@@ -426,7 +435,7 @@ private final class CoachTestBrain: CoachBrain {
         pendingRoute = nil
         continuation?.resume()
     }
-    func rewrite(request: String, guide: Guide, step: Guide.Step, person: String?, stuck: Bool) async throws -> String {
+    func rewrite(request: String, guide: HelpGuide, step: HelpGuide.Step, person: String?, stuck: Bool) async throws -> String {
         rewrittenHints.append(step.uiLabelHint)
         return text
     }

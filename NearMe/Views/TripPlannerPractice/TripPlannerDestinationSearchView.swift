@@ -8,7 +8,7 @@ struct TripPlannerDestinationSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: PracticeLabels.journeyPlanner, onBack: onBack)
+            TripPlannerTopBar(title: PracticeScreen.ForYouLabels.journeyPlanner, onBack: onBack)
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 Button {
@@ -19,7 +19,7 @@ struct TripPlannerDestinationSearchView: View {
                     HStack(spacing: TTSpacing.sm) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(Color.secondary)
-                        Text(viewModel.destinationSearchQuery.isEmpty ? PracticeLabels.searchDestination : viewModel.destinationSearchQuery)
+                        Text(viewModel.destinationSearchQuery.isEmpty ? PracticeScreen.DestinationSearchLabels.searchDestination : viewModel.destinationSearchQuery)
                             .font(TTFont.body())
                             .foregroundStyle(viewModel.destinationSearchQuery.isEmpty ? Color.secondary : Color.primary)
                         Spacer()
@@ -38,6 +38,7 @@ struct TripPlannerDestinationSearchView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.step != .tapToAndTypeDestination)
+                .practiceTarget(PracticeScreen.DestinationSearchLabels.searchDestination, active: viewModel.step == .tapToAndTypeDestination)
 
                 if viewModel.step == .selectingDestination {
                     Text("Train")
@@ -53,7 +54,7 @@ struct TripPlannerDestinationSearchView: View {
                                 .foregroundStyle(Color.accentColor)
                                 .frame(width: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(PracticeLabels.station(viewModel.destinationDisplayName))
+                                Text(PracticeScreen.DestinationSearchLabels.station(viewModel.destinationDisplayName))
                                     .font(TTFont.headline())
                                     .foregroundStyle(Color.primary)
                                 Text("Practice destination")
@@ -71,6 +72,7 @@ struct TripPlannerDestinationSearchView: View {
                         )
                     }
                     .buttonStyle(.plain)
+                    .practiceTarget(PracticeScreen.DestinationSearchLabels.station(viewModel.destinationDisplayName), active: true)
                 }
 
                 Spacer()

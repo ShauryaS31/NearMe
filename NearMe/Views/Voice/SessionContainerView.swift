@@ -25,18 +25,7 @@ struct SessionContainerView: View {
             } else if engine.coach != nil {
                 CoachView(engine: engine)
             } else if let simulation = engine.tripPlannerPracticeViewModel {
-                TripPlannerPracticeView(viewModel: simulation,
-                                        onRepeat: { engine.repeatPracticeCaption() },
-                                        onSlower: { engine.repeatPracticeCaption(slower: true) },
-                                        onStop: engine.stopPracticeSpeech,
-                                        isSpeaking: engine.isVoiceOutputActive,
-                                        plannerState: engine.plannerState,
-                                        isStartingListening: engine.isStartingListening,
-                                        lastErrorMessage: engine.lastErrorMessage,
-                                        onTalk: engine.userTappedToTalk,
-                                        onTypeInstead: engine.useTypedInput, onEndSession: {
-                    engine.endSession()
-                })
+                TripPlannerPracticeView(viewModel: simulation, engine: engine)
             } else if engine.plannerState == .openingApp {
                 OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
             } else {
@@ -48,19 +37,15 @@ struct SessionContainerView: View {
         .preferredColorScheme(nil)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            Text("\(brainBadge) | \(engine.latestVoice ?? "Voice pending")\n\(engine.timingBadge)")
-                .font(.caption)
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity)
-                .background(.background)
-                .accessibilityLabel("Brain source: \(brainBadge). Voice: \(engine.latestVoice ?? "pending"). \(engine.timingBadge)")
+            if engine.showsDebugInfo {
+                SessionDebugBadgeView(badge: engine.debugBadge)
+            }
         }
         #endif
         .onAppear {
             guard !didRestore else { return }
             didRestore = true
+            PlannerModelAccess().prewarm()
             engine.restoreCoach()
         }
         .onChange(of: scenePhase) { _, phase in
@@ -69,8 +54,26 @@ struct SessionContainerView: View {
         }
     }
 
-    #if DEBUG
-    private var brainBadge: String { engine.latestBrainSource.label }
-    #endif
-
 }
+
+#if DEBUG
+private struct SessionDebugBadgeView: View {
+    let badge: SessionDebugBadge
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(badge.lines, id: \.self) { line in
+                Text(line)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background)
+    }
+}
+#endif

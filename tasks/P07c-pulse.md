@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (right after P07b merges) |
+| Status | in_progress |
 | Window | Sat 24 Oct |
 | Depends on | P07b |
 | Assignee | codex |
@@ -21,6 +21,7 @@ Swift 6.4 rules: default arguments must not construct NearMe types or read MainA
 - [ ] Repeat (dock menu, voice command "repeat", and the practice repeat path) replays the 3 pulses on the current target
 - [ ] Reduce Motion: no pulse at all, static 6 pt ring from the start; Repeat does not animate either. Increase Contrast keeps the 8 pt ring
 - [ ] A small pure highlight-state helper drives it: pulses remaining = 3 for each new target id, decremented per cycle, reset to 3 by Repeat, always 0 with Reduce Motion
+- [ ] Nits from the P07b final review: the engine's starting understanding source is `.template` (badge "Pending") until the first turn, not "On-device model"; remove the unused `.practiceCard` case in TaskPlannerBrain.swift:11,19 if nothing uses it; fix rename leftovers in comments ("MARK: - HelpGuide and general coach" in TaskPlannerEngine.swift, "HelpGuide validation failed" in GuideLibrary.swift); log general stuck as "generalStuck" (CoachModelService.swift:72); map `assetsUnavailable` to "model not ready"; log a cancelled call as "cancelled", not "error"
 - [ ] Tests (default run): new target gives 3 pulses then static; Repeat resets to 3; Reduce Motion gives 0; changing step resets for the new target
 
 ## Verify (Mac)

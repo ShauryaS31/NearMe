@@ -9,13 +9,13 @@ struct TripPlannerJourneyPlannerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: PracticeLabels.journeyPlanner)
+            TripPlannerTopBar(title: PracticeScreen.ForYouLabels.journeyPlanner)
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 fieldRow(
                     icon: "circle.fill",
                     iconColor: Color.accentColor,
-                    placeholder: PracticeLabels.chooseOrigin,
+                    placeholder: PracticeScreen.JourneyPlannerLabels.chooseOrigin,
                     value: viewModel.fromFieldText,
                     isHighlighted: viewModel.step == .tapFrom,
                     action: viewModel.step == .tapFrom ? { viewModel.completeCurrentStep() } : nil
@@ -24,7 +24,7 @@ struct TripPlannerJourneyPlannerView: View {
                 fieldRow(
                     icon: "mappin",
                     iconColor: Color.primary,
-                    placeholder: PracticeLabels.chooseDestination,
+                    placeholder: PracticeScreen.JourneyPlannerLabels.chooseDestination,
                     value: viewModel.toFieldText,
                     isHighlighted: viewModel.step == .typeOrigin,
                     action: viewModel.step == .typeOrigin ? onTapDestinationField : nil
@@ -43,7 +43,7 @@ struct TripPlannerJourneyPlannerView: View {
 
                 if viewModel.step == .readyToSearch {
                     Button(action: { viewModel.completeCurrentStep() }) {
-                        Text(PracticeLabels.search)
+                        Text(PracticeScreen.JourneyPlannerLabels.search)
                             .font(TTFont.headline())
                             .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity)
@@ -55,6 +55,7 @@ struct TripPlannerJourneyPlannerView: View {
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
                             .strokeBorder(Color.accentColor, lineWidth: 2)
                     )
+                    .practiceTarget(PracticeScreen.JourneyPlannerLabels.search, active: true, cornerRadius: 14)
                     .padding(.top, TTSpacing.sm)
                 }
 
@@ -91,5 +92,6 @@ struct TripPlannerJourneyPlannerView: View {
         }
         .buttonStyle(.plain)
         .disabled(action == nil)
+        .practiceTarget(placeholder, active: isHighlighted)
     }
 }

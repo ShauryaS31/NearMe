@@ -13,6 +13,10 @@ struct VoiceSessionView: View {
     var body: some View {
         ScreenScaffold {
             VStack(spacing: TTSpacing.xl) {
+                #if DEBUG
+                SessionDebugMenu(engine: engine)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                #endif
                 Spacer(minLength: TTSpacing.xxl)
 
                 Text(statusLabel)
@@ -200,3 +204,17 @@ struct VoiceSessionView: View {
         }
     }
 }
+
+#if DEBUG
+struct SessionDebugMenu: View {
+    @ObservedObject var engine: TaskPlannerEngine
+
+    var body: some View {
+        Menu {
+            Toggle("Show debug info", isOn: $engine.showsDebugInfo)
+        } label: {
+            Label("More", systemImage: "ellipsis.circle").minimumTapTarget()
+        }
+    }
+}
+#endif

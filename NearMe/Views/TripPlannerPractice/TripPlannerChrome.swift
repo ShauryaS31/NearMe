@@ -65,7 +65,7 @@ enum TripPlannerTab: CaseIterable {
         switch self {
         case .forYou: return "For you"
         case .plan: return "Plan"
-        case .search: return PracticeLabels.search
+        case .search: return PracticeScreen.JourneyPlannerLabels.search
         case .alerts: return "Alerts"
         case .settings: return "Settings"
         }
@@ -73,32 +73,53 @@ enum TripPlannerTab: CaseIterable {
 }
 
 struct TripPlannerTabBar: View {
-    @ScaledMetric(relativeTo: .body) private var tabIconSize = 19.0
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @State private var tappedTab: TripPlannerTab?
     var selected: TripPlannerTab
 
     var body: some View {
-        let layout = dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 12))
-            : AnyLayout(HStackLayout())
-        layout {
-            ForEach(TripPlannerTab.allCases, id: \.self) { tab in
-                VStack(spacing: 3) {
-                    Image(systemName: tab.symbol)
-                        .font(.system(size: tabIconSize))
-                    Text(tab.label)
-                        .font(.body.weight(.medium))
+        Group {
+            if dynamicTypeSize >= .xLarge {
+                ScrollView(.horizontal) {
+                    tabs
                 }
-                .foregroundStyle(tab == selected ? Color.accentColor : Color.secondary)
-                .frame(maxWidth: .infinity)
-                .minimumTapTarget()
+                .scrollBounceBehavior(.basedOnSize)
+            } else {
+                tabs
             }
         }
         .padding(.vertical, TTSpacing.sm)
-        .background(
-            Color(.secondarySystemBackground)
-                .overlay(Rectangle().fill(Color(.separator)).frame(height: 0.5), alignment: .top)
-        )
-        .accessibilityHidden(true) // decorative in v1 — not functionally navigable
+        .background(Color(.secondarySystemBackground))
+        .overlay(alignment: .top) { Divider() }
+        .alert(tappedTab?.label ?? "Practice", isPresented: Binding(
+            get: { tappedTab != nil }, set: { if !$0 { tappedTab = nil } }
+        )) {
+            Button("Continue practice", role: .cancel) { tappedTab = nil }
+        } message: {
+            Text("In this practice, follow the highlighted control to plan your trip.")
+        }
+    }
+
+    private var tabs: some View {
+        HStack(spacing: 12) {
+            ForEach(TripPlannerTab.allCases, id: \.self) { tab in
+                Button { tappedTab = tab } label: {
+                    VStack(spacing: 3) {
+                        Image(systemName: tab.symbol).font(.body)
+                        Text(tab.label)
+                            .font(.footnote.weight(.medium))
+                            .fixedSize(horizontal: true, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .minimumTapTarget()
+                    .padding(.horizontal, 4)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(tab == selected ? Color.accentColor : Color.secondary)
+                .accessibilityAddTraits(tab == selected ? [.isSelected] : [])
+            }
+        }
+        .padding(.horizontal, 8)
     }
 }

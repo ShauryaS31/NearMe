@@ -116,6 +116,8 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         XCTAssertEqual(intent.value.origin, "Central")
         XCTAssertEqual(intent.value.destination, "Holsworthy")
         XCTAssertEqual(place.value, "Central")
+        XCTAssertEqual(intent.fallbackReason, .error)
+        XCTAssertEqual(place.fallbackReason, .error)
         for source in [intent.source, place.source] {
             XCTAssertEqual(source, .keywordFallback)
         }
@@ -151,6 +153,8 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         let confirmation = try await brain.confirmationLine(for: .empty)
         XCTAssertEqual(intent.value.origin, "Central")
         XCTAssertEqual(place.value, "Central")
+        XCTAssertEqual(intent.fallbackReason, .timeout)
+        XCTAssertEqual(place.fallbackReason, .timeout)
         for source in [intent.source, place.source] {
             XCTAssertEqual(source, .keywordFallback)
         }

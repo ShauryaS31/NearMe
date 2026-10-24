@@ -5,12 +5,13 @@ import XCTest
 final class PracticeCaptionTests: XCTestCase {
     func testEveryActionCaptionNamesTheActualControlLabel() {
         let labels: [(PracticeStep, String)] = [
-            (.forYouOpened, PracticeLabels.journeyPlanner),
-            (.tapFrom, PracticeLabels.chooseOrigin),
-            (.typeOrigin, PracticeLabels.chooseDestination),
-            (.tapToAndTypeDestination, PracticeLabels.searchDestination),
-            (.selectingDestination, PracticeLabels.station("Town Hall")),
-            (.readyToSearch, PracticeLabels.search)
+            (.forYouOpened, PracticeScreen.ForYouLabels.journeyPlanner),
+            (.tapFrom, PracticeScreen.JourneyPlannerLabels.chooseOrigin),
+            (.typeOrigin, PracticeScreen.JourneyPlannerLabels.chooseDestination),
+            (.tapToAndTypeDestination, PracticeScreen.DestinationSearchLabels.searchDestination),
+            (.selectingDestination, PracticeScreen.DestinationSearchLabels.station("Town Hall")),
+            (.readyToSearch, PracticeScreen.JourneyPlannerLabels.search),
+            (.showingResults, PracticeScreen.ResultsLabels.tripOption(1))
         ]
         for (step, label) in labels {
             XCTAssertTrue(step.caption(origin: "Central", destination: "Town Hall").contains("Tap \(label)") ||

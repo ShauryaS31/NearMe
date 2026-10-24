@@ -4,70 +4,50 @@ import SwiftUI
 
 struct TripPlannerPracticeView: View {
     @ObservedObject var viewModel: TripPlannerPracticeViewModel
-    var onRepeat: () -> Void = {}
-    var onSlower: () -> Void = {}
-    var onStop: () -> Void = {}
-    var isSpeaking = false
-    var plannerState: TaskPlannerState
-    var isStartingListening = false
-    var lastErrorMessage: String?
-    var onTalk: () -> Void = {}
-    var onTypeInstead: () -> Void = {}
-    var onEndSession: () -> Void = {}
+    @ObservedObject var engine: TaskPlannerEngine
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: TTSpacing.md) {
-                CaptionBubble(text: viewModel.currentCaption, onDismiss: nil)
-                    .padding(.horizontal, TTSpacing.md)
-                VoiceOrbButton(state: orbState, instruction: orbInstruction, action: onTalk)
-                    .disabled(plannerState == .finishing || plannerState == .thinking || isStartingListening)
-                if let lastErrorMessage {
-                    Text(lastErrorMessage)
-                        .font(.body)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Group {
-                    switch viewModel.step.screen {
-                    case .forYou:
-                        TripPlannerForYouView(onTapJourneyPlanner: { viewModel.completeCurrentStep() })
-                    case .journeyPlanner:
-                        TripPlannerJourneyPlannerView(viewModel: viewModel, onTapDestinationField: { viewModel.completeCurrentStep() })
-                    case .destinationSearch:
-                        TripPlannerDestinationSearchView(viewModel: viewModel, onBack: { /* simulation only moves forward */ })
-                    case .results:
-                        TripPlannerResultsView(origin: viewModel.originDisplayName, destination: viewModel.destinationDisplayName)
+        GeometryReader { geometry in
+            VStack(spacing: 0) {
+                VStack(spacing: 0) {
+                    ScrollViewReader { scroll in
+                        ScrollView {
+                            practiceScreen
+                                .frame(maxWidth: .infinity)
+                        }
+                        .scrollBounceBehavior(.basedOnSize)
+                        .task(id: viewModel.step) {
+                            await Task.yield()
+                            scroll.scrollTo(viewModel.step.targetLabel(destination: viewModel.destinationDisplayName), anchor: .center)
+                        }
                     }
+                    .clipped()
+                    TripPlannerTabBar(selected: viewModel.step.screen == .forYou ? .forYou : .plan)
                 }
-                .transition(.opacity)
-                .animation(.easeInOut(duration: 0.25), value: viewModel.step)
+                .overlayPreferenceValue(PracticeTargetPreference.self) { targets in
+                    PracticeHighlightLayer(targets: targets,
+                        label: viewModel.step.targetLabel(destination: viewModel.destinationDisplayName))
+                }
+                .clipped()
 
-                VStack(spacing: 12) {
-                    Button(action: onRepeat) { Label("Repeat", systemImage: "arrow.counterclockwise").minimumTapTarget() }
-                    Button(action: onSlower) { Label("Slower", systemImage: "tortoise").minimumTapTarget() }
-                    Button(action: onStop) { Label("Stop", systemImage: "stop.fill").minimumTapTarget() }
-                    Button(action: onTypeInstead) { Label("Type instead", systemImage: "keyboard").minimumTapTarget() }
-                    Button(action: onEndSession) { Label("End session", systemImage: "xmark.circle").minimumTapTarget() }
-                }
-                .font(.body)
-                .buttonStyle(.bordered)
-                .padding(.bottom, TTSpacing.lg)
+                SessionDock(engine: engine, instruction: viewModel.currentCaption,
+                            targetLabel: nil, availableHeight: geometry.size.height)
             }
-            .fixedSize(horizontal: false, vertical: true)
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .accessibilityElement(children: .contain)
+        .background(Color(.systemBackground))
     }
 
-    private var orbState: VoiceOrbState {
-        if plannerState == .listening { return .listening }
-        return isSpeaking ? .speaking : .idle
-    }
-
-    private var orbInstruction: String {
-        if isStartingListening { return "Getting ready to listen..." }
-        if plannerState == .finishing { return "Finishing..." }
-        return orbState.instruction
+    @ViewBuilder
+    private var practiceScreen: some View {
+        switch viewModel.step.screen {
+        case .forYou:
+            TripPlannerForYouView(onTapJourneyPlanner: { viewModel.completeCurrentStep() })
+        case .journeyPlanner:
+            TripPlannerJourneyPlannerView(viewModel: viewModel, onTapDestinationField: { viewModel.completeCurrentStep() })
+        case .destinationSearch:
+            TripPlannerDestinationSearchView(viewModel: viewModel, onBack: { })
+        case .results:
+            TripPlannerResultsView(origin: viewModel.originDisplayName, destination: viewModel.destinationDisplayName)
+        }
     }
 }

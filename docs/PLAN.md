@@ -29,8 +29,8 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P04b](../tasks/P04b-tap-to-finish.md) | Tap to finish speaking, word-based auto-stop, 12 s cap, voice processing, barge-in | P03a | codex | done (iPhone check pending) |
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | done (owner verify-step check pending) |
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
-| [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | in_progress |
-| [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | todo (right after P07b) |
+| [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | done (owner compile and phrase-1 check pending) |
+| [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | in_progress |
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | todo |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P09 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | todo |
@@ -84,7 +84,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [x] P03a (iPhone): "from Central to Newtown" accepted, straight to practice; STT 93 ms, first audio 1.06 s, ElevenLabs. Remaining: a mumbled place gives suggestions plus Keep what I said; a mumbled place gives suggestions plus Keep what I said.
 - [ ] P07a: owner checks every step flagged `verify: true` on the iPhone (list in tasks/P07a-guides.md Dev Report).
 - [ ] P04b (iPhone, noisy venue): tap, speak, tap captures words over music; barge-in stops NearMe and listens; NearMe never transcribes itself; no words gives the message.
-- [ ] P07b: screenshot of each practice step shows the dock, a visible highlight and an unobstructed tab bar (also at the largest text size); Debug badge shows Understood and Voice lines.
+- [ ] P07b: screenshot of each practice step shows the dock, a visible highlight and an unobstructed tab bar (also at the largest text size); Debug badge shows Understood and Voice lines. Also at xxxLarge: tab labels not wrapped or truncated.
 - [ ] P09: screenshots of Home, conversation (listening, speaking), coach card, onboarding at default and Accessibility XXXL, light and dark; nothing clipped; Reduce Motion, Reduce Transparency, Bold Text, Button Shapes readable; VoiceOver order on Home.
 - [ ] P10 (iPhone): Home and Lock Screen widgets open NearMe listening (closed, backgrounded, locked); mid-guide keeps the guide; "Hey Siri, ask NearMe" works; mic denied gives Type instead and Open Settings.
 - [ ] P11 (iPhone): Dynamic Island shows NearMe and step count inside WhatsApp; Done advances; Lock Screen Done and Resume; no names on the Lock Screen; activity ends with the guide.
