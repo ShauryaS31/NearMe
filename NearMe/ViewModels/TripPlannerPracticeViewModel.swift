@@ -6,6 +6,7 @@ import Combine
 @MainActor
 final class TripPlannerPracticeViewModel: ObservableObject {
     @Published private(set) var step: PracticeStep = .forYouOpened
+    @Published private(set) var highlightRepeatRevision = 0
     @Published var fromFieldText: String = ""
     @Published var toFieldText: String = ""
     @Published var destinationSearchQuery: String = ""
@@ -22,6 +23,10 @@ final class TripPlannerPracticeViewModel: ObservableObject {
 
     var currentCaption: String {
         step.caption(origin: originDisplayName, destination: destinationDisplayName)
+    }
+
+    func repeatHighlight() {
+        highlightRepeatRevision += 1
     }
 
     /// Called by whichever simulated trip planner control the current step tells the

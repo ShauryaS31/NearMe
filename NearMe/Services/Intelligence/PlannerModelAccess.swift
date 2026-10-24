@@ -23,7 +23,7 @@ nonisolated enum PlannerModelAvailability: Equatable, Sendable {
 
 nonisolated enum ModelFallbackReason: Equatable, Sendable {
     case unavailable(ModelUnavailability)
-    case timeout, rejected, error
+    case timeout, rejected, error, cancelled
 
     var label: String {
         switch self {
@@ -31,6 +31,7 @@ nonisolated enum ModelFallbackReason: Equatable, Sendable {
         case .timeout: return "timeout"
         case .rejected: return "rejected"
         case .error: return "error"
+        case .cancelled: return "cancelled"
         }
     }
 
@@ -40,6 +41,7 @@ nonisolated enum ModelFallbackReason: Equatable, Sendable {
         case .timeout: return "timeout"
         case .rejected: return "invalid"
         case .error: return "error"
+        case .cancelled: return "cancelled"
         }
     }
 }
@@ -82,6 +84,7 @@ final class PlannerModelAccess {
 
     static func reason(for error: Error) -> ModelFallbackReason {
         if let failure = error as? PlannerModelFailure { return failure.reason }
+        if error is CancellationError { return .cancelled }
         if error is PlannerCallTimeout { return .timeout }
         if let error = error as? CoachModelError {
             switch error {
@@ -93,7 +96,7 @@ final class PlannerModelAccess {
         if let error = error as? LanguageModelSession.GenerationError {
             switch error {
             case .guardrailViolation, .refusal, .decodingFailure: return .rejected
-            case .assetsUnavailable: return .unavailable(.other)
+            case .assetsUnavailable: return .unavailable(.modelNotReady)
             default: return .error
             }
         }

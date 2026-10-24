@@ -99,7 +99,7 @@ final class TaskPlannerEngine: ObservableObject {
         self.coachStore = coachStore ?? CoachProgressStore()
         self.appOpener = appOpener ?? SystemCoachAppOpener()
         self.brain = brain
-        self.latestBrainSource = brain.initialSource
+        self.latestBrainSource = .template
         self.voiceInput = voiceInput
         self.voiceOutput = voiceOutput
         self.permissions = permissions
@@ -702,6 +702,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     func repeatPracticeCaption(slower: Bool = false) {
         guard let practice = tripPlannerPracticeViewModel else { return }
+        if !slower { practice.repeatHighlight() }
         stopPracticeSpeech()
         voiceOutput.setSlower(slower)
         let generation = sessionGeneration
@@ -713,7 +714,7 @@ final class TaskPlannerEngine: ObservableObject {
         }
     }
 
-    // MARK: - HelpGuide and general coach
+    // MARK: - Guided and general coach
 
     func startPractice() {
         cancelCurrentAction()

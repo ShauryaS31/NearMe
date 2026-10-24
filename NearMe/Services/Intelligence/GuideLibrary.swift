@@ -49,7 +49,7 @@ nonisolated enum GuideLibrary {
         do { return try load() }
         catch {
             #if DEBUG
-            assertionFailure("HelpGuide validation failed: \(error)")
+            assertionFailure("Guide library validation failed: \(error)")
             #endif
             return []
         }

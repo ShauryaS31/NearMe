@@ -1,9 +1,35 @@
 import Foundation
 import XCTest
+#if canImport(FoundationModels)
+import FoundationModels
+#endif
 @testable import NearMe
 
 @MainActor
 final class ModelAvailabilityTests: XCTestCase {
+    func testCancelledCallReportsCancelledOutcome() async {
+        let access = PlannerModelAccess(availability: { .available })
+        do {
+            let _: BrainAnswer<String> = try await access.run("cancelled-test") {
+                throw CancellationError()
+            }
+            XCTFail("A cancelled call must fail")
+        } catch {
+            let reason = PlannerModelAccess.reason(for: error)
+            XCTAssertEqual(reason, .cancelled)
+            XCTAssertEqual(reason.outcome, "cancelled")
+        }
+    }
+
+    func testUnavailableAssetsReportModelNotReady() {
+        #if canImport(FoundationModels)
+        let error = LanguageModelSession.GenerationError.assetsUnavailable(.init(debugDescription: "Test assets unavailable"))
+        let reason = PlannerModelAccess.reason(for: error)
+        XCTAssertEqual(reason, .unavailable(.modelNotReady))
+        XCTAssertEqual(reason.label, "model not ready")
+        #endif
+    }
+
     func testUnavailableAtConstructionButReadyAtFirstRouteUsesModel() async throws {
         let probe = MutableModelAvailability()
         let brain = AvailabilityCoachBrain()
@@ -150,7 +176,7 @@ final class ModelAvailabilityTests: XCTestCase {
             (.unavailable(.appleIntelligenceNotEnabled), "Apple Intelligence off"),
             (.unavailable(.deviceNotEligible), "device not eligible"),
             (.unavailable(.other), "model unavailable"),
-            (.timeout, "timeout"), (.rejected, "rejected"), (.error, "error")
+            (.timeout, "timeout"), (.rejected, "rejected"), (.error, "error"), (.cancelled, "cancelled")
         ]
         for (reason, label) in cases {
             let badge = SessionDebugBadge(understanding: .keywordFallback, modelMilliseconds: 0,
