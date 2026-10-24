@@ -119,3 +119,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:16 AEDT | P07e | codex | dev-report r1 | YouTube song guide, one-time song question, private song speech and auto-open; validator 16 guides/0 problems; Mac gate pending; commit denied (.git/index.lock), uncommitted for manager.
 - 2026-10-24 19:16 AEDT | P07e | claude | review r1 PASS | merged to main (Lane A); P12 merges next
 - 2026-10-24 19:25 AEDT | P13 | owner | decision | page awareness is the core feature; P12 parked (reverted on main 271bb84); P13 See my screen, spike first (broadcast extension, App Group, picker); test Sun 10:00, kill 11:00
+- 2026-10-24 19:27 AEDT | P13 | owner | decision | explainer copy approved with tweak; loopback fallback approved; signed spike build tonight or Sun 10:00
