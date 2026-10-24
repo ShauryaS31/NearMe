@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested (round 3) |
+| Status | done (owner compile and phrase-1 check pending) |
 | Window | Sat 24 Oct |
 | Depends on | P07 |
 | Assignee | codex |
@@ -228,3 +228,12 @@ Mac gate addition: also check the practice tab bar at xxxLarge (largest non-acce
   6. Confirm a gentle 1.2-second ring pulse. Enable Settings > Accessibility > Motion > Reduce Motion: the ring is static at 6 pt, including when toggled during practice. Enable Accessibility > Display & Text Size > Increase Contrast: ring is 8 pt. Check VoiceOver's next-step hint on the highlighted target and that inactive targets retain their own hints; decorative layers must not receive focus. Check coach target text remains bold in the dock wherever displayed.
   7. Run `bash scripts/mac-run.sh device --current` and repeat the focus, Pending-to-understood transition, target, tab-bar, pulse/Reduce Motion and large-text checks on the connected iPhone.
 - Not done / risks / questions: Swift 6.4 compilation, fake-test execution and all visual/device checks above remain unverified. Two concurrent developer sessions used different same-named review sections; this report follows the explicit eight-item dispatch and resolves the badge conflict in favor of Pending. Existing owner-addition work and its unused `.practiceCard` enum case were left in place. Git staging succeeded in this session; the commit outcome and identifier are recorded in the following handoff line in `docs/LOG.md`.
+
+## Review (final, whole branch)
+- Date: 2026-10-24 18:10 AEDT
+- Verdict: PASS (static). Merged to main; owner compile and phrase-1 check next (Apple Intelligence download finishing).
+- Reviewed both overlapping round 2 runs (d40805f, 677eadf; the second from the stood-down session, input only) and round 3 together: no merge leftovers, duplicate types or duplicate tests; default-argument scan clean; DEBUG-only members guarded.
+- Round 3: availability read at call time through one injectable probe for router, rewrite, stuck, general, intent and place calls; no snapshot at construction; reasons (model not ready, Apple Intelligence off, device not eligible, timeout, error, rejected) logged under "planner" with router top candidate and score, and shown on the badge; router always consults the model; prewarm without user text.
+- Round 2 items 1 to 12 and the stood-down session's findings 1 to 6: all present in code.
+- Pulse still repeats forever: P07c (owner decision). Nits moved to P07c: initial badge source, unused .practiceCard case, rename leftovers in comments.
+- Mac compile watch points: GenerationError case names in PlannerModelAccess.swift:93-98 (default branch present); Font equality assertion in CoachAppOpenTests.swift:54 may fail at runtime.

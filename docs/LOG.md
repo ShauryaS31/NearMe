@@ -90,3 +90,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:57 AEDT | N07b | codex | dev-report r2 | final eight-item review complete, Pending badge reset and regression coverage; handoff commit 677eadf (shared fixes captured concurrently in d40805f/4fb35aa); Mac gate pending
 - 2026-10-24 18:01 AEDT | N07b | codex | dev-report r3 | live per-call model availability, planner diagnostics, fallback reasons, prompt-free prewarm and fake regressions; commit denied by sandbox (.git/index.lock Permission denied), manager to commit; Mac/iPhone gate pending
 - 2026-10-24 18:02 AEDT | P07b | codex | dev-report r3 | model availability checked per call, reasons logged and on badge, prewarm (committed by manager)
+- 2026-10-24 18:10 AEDT | P07b | claude | final review PASS | whole branch incl. overlapping r2 runs and r3 availability fix; merged to main; pulse and nits to P07c
