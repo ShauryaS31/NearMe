@@ -28,7 +28,7 @@ enum CoachAppLaunch {
               first.uiLabelHint == guide.app,
               let scheme = guide.appURLScheme else { return nil }
         switch (guide.app, scheme) {
-        case ("WhatsApp", "whatsapp://"), ("Messages", "sms:"):
+        case ("WhatsApp", "whatsapp://"), ("Messages", "sms:"), ("YouTube", "youtube://"):
             return URL(string: scheme)
         default:
             return nil

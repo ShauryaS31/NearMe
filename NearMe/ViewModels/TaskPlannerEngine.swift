@@ -84,6 +84,8 @@ final class TaskPlannerEngine: ObservableObject {
     private let userName: String
 
     private var pendingClarification: MissingSlot?
+    private var pendingSong: (guide: HelpGuide, request: String, person: String?)?
+    var isAwaitingSong: Bool { pendingSong != nil }
     private var clarificationFailures = 0
     /// Guards against overlapping listen/speak loops if the user mashes buttons.
     private var sessionGeneration = 0
@@ -227,7 +229,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     func submitTypedInput(_ text: String) {
         let transcript = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard canSubmitTypedInput, !transcript.isEmpty else { return }
+        guard canSubmitTypedInput, !transcript.isEmpty || isAwaitingSong else { return }
         sessionGeneration += 1
         let generation = sessionGeneration
         lastErrorMessage = nil
@@ -357,6 +359,9 @@ final class TaskPlannerEngine: ObservableObject {
         }
         if acknowledgement { await voiceOutput.speakAcknowledgement(text) }
         else if greeting { await voiceOutput.speakGreeting(text) }
+        else if let song = coach?.song, text.localizedCaseInsensitiveContains(song) {
+            await voiceOutput.speakSessionOnly(text)
+        }
         else { await voiceOutput.speak(text) }
         await prefetch.value
         latestVoice = voiceOutput.lastVoice
@@ -410,6 +415,10 @@ final class TaskPlannerEngine: ObservableObject {
         } catch VoiceInputError.noSpeechDetected {
             VoiceDiagnostics.log(VoiceInputError.noSpeechDetected)
             guard isCurrent(generation) else { return }
+            if isAwaitingSong {
+                await receive(transcript: "", generation: generation)
+                return
+            }
             if acknowledgementGeneration == generation { stopOutput() }
             consecutiveInputFailures = 0
             lastErrorMessage = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
@@ -444,6 +453,13 @@ final class TaskPlannerEngine: ObservableObject {
         lastErrorMessage = nil
         VoiceDiagnostics.logger.debug("User input: \(transcript, privacy: .private)")
         conversation.append(ConversationTurn(speaker: .user, text: transcript))
+        if let pending = pendingSong {
+            pendingSong = nil
+            if CoachCommand.parse(transcript) == .stop { cancelCurrentAction(); return }
+            await startCoach(guide: pending.guide, request: pending.request, person: pending.person,
+                             song: SongNormalization.normalize(transcript), generation: generation)
+            return
+        }
         if coach != nil {
             latestBrainSource = .keywordFallback
             latestBrainFallbackReason = nil
@@ -482,7 +498,16 @@ final class TaskPlannerEngine: ObservableObject {
                 tripRouteActive = true
             case .guide(let id):
                 if let guide = guides.first(where: { $0.id == id }) {
-                    await startCoach(guide: guide, request: transcript, person: answer.value.person, generation: generation)
+                    let song = SongNormalization.extract(from: transcript) ?? SongNormalization.normalize(answer.value.song)
+                    if guide.id == "youtube_play_song", song == nil {
+                        pendingSong = (guide, transcript, answer.value.person)
+                        await speak("Which song would you like to play?", generation: generation)
+                        guard isCurrent(generation) else { return }
+                        await listenAndHandle(generation: generation)
+                    } else {
+                        await startCoach(guide: guide, request: transcript, person: answer.value.person,
+                                         song: song, generation: generation)
+                    }
                 } else {
                     await startGeneral(request: transcript, generation: generation)
                 }
@@ -734,7 +759,7 @@ final class TaskPlannerEngine: ObservableObject {
     private func beginAcknowledgement(for transcript: String, generation: Int) {
         guard isCurrent(generation), acknowledgementGeneration != generation,
               coach == nil, !tripRouteActive, tripPlannerPracticeViewModel == nil,
-              pendingClarification == nil, suggestionSlot == nil,
+              pendingClarification == nil, pendingSong == nil, suggestionSlot == nil,
               !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               CoachCommand.parse(transcript) == nil else { return }
         acknowledgementGeneration = generation
@@ -787,11 +812,12 @@ final class TaskPlannerEngine: ObservableObject {
         Task { await proceedAfterIntentUpdate(generation: generation) }
     }
 
-    private func startCoach(guide: HelpGuide, request: String, person: String?, generation: Int) async {
+    private func startCoach(guide: HelpGuide, request: String, person: String?, song: String?, generation: Int) async {
         let person = PersonNormalization.extract(from: request) ?? PersonNormalization.normalize(person)
         voiceOutput.setSlower(false)
         coach = CoachSession(guide: guide, request: request, person: PersonNormalization.normalize(person),
-                             generalSteps: [], stepIndex: 0, text: CoachText.fallback(step: guide.steps[0], person: person))
+                             generalSteps: [], stepIndex: 0, text: CoachText.fallback(step: guide.steps[0], person: person),
+                             song: guide.id == "youtube_play_song" ? song : nil)
         persistCoach(startIfNeeded: true)
         if await autoOpenCoachApp(generation: generation) { return }
         await presentCoachStep(generation: generation)
@@ -830,7 +856,7 @@ final class TaskPlannerEngine: ObservableObject {
         // Persist before open can background the app. A failed open rolls this back.
         coach?.stepIndex = 1
         coach?.revision += 1
-        coach?.text = CoachText.fallback(step: guide.steps[1], person: session.person)
+        coach?.text = CoachText.fallback(step: guide.steps[1], person: session.person, song: session.song)
         persistCoach()
         plannerState = .idle
         // Publish step 2 before handing off, while the app is still foregrounded.
@@ -949,7 +975,7 @@ final class TaskPlannerEngine: ObservableObject {
             if let guide = session.guide {
                 plannerState = .thinking
                 let answer = await coachService.rewrite(request: session.request, guide: guide, index: session.stepIndex,
-                                                        person: session.person, stuck: true)
+                                                        person: session.person, song: session.song, stuck: true)
                 guard isCurrent(generation), coach?.id == session.id else { return }
                 coach?.text = answer.value
                 coachReplySource = answer.source == .keywordFallback ? .template : answer.source
@@ -972,13 +998,14 @@ final class TaskPlannerEngine: ObservableObject {
     private func presentCoachStep(generation: Int) async {
         guard let session = coach, isCurrent(generation) else { return }
         if let guide = session.guide {
-            coach?.text = CoachText.fallback(step: guide.steps[session.stepIndex], person: session.person)
+            coach?.text = CoachText.fallback(step: guide.steps[session.stepIndex], person: session.person, song: session.song)
             plannerState = .thinking
             let answer: BrainAnswer<String>
             if let preparedStep, preparedStep.index == session.stepIndex {
                 answer = await preparedStep.task.value
             } else {
-                answer = await coachService.rewrite(request: session.request, guide: guide, index: session.stepIndex, person: session.person)
+                answer = await coachService.rewrite(request: session.request, guide: guide, index: session.stepIndex,
+                                                    person: session.person, song: session.song)
             }
             guard isCurrent(generation), coach?.id == session.id else { return }
             preparedStep = nil
@@ -997,7 +1024,7 @@ final class TaskPlannerEngine: ObservableObject {
         let service = coachService
         preparedStep?.task.cancel()
         preparedStep = (index, Task {
-            await service.rewrite(request: session.request, guide: guide, index: index, person: session.person)
+            await service.rewrite(request: session.request, guide: guide, index: index, person: session.person, song: session.song)
         })
     }
 
@@ -1011,6 +1038,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func clearCoach(clearProgress: Bool = true) {
+        pendingSong = nil
         if clearProgress {
             if let coach, coach.guide != nil {
                 activityUpdater.enqueue(.stop(coach.id))
@@ -1072,7 +1100,7 @@ final class TaskPlannerEngine: ObservableObject {
         resumeAfterAppOpen = false
         coach?.stepIndex = progress.stepIndex
         coach?.revision = progress.revision
-        coach?.text = CoachText.fallback(step: guide.steps[progress.stepIndex], person: session.person)
+        coach?.text = CoachText.fallback(step: guide.steps[progress.stepIndex], person: session.person, song: session.song)
         coachReplySource = .template
         isPreparingSpeech = false
         plannerState = .idle

@@ -27,6 +27,112 @@ struct PracticeOnlyTestRouter: HelpRouting {
 
 @MainActor
 final class GuidedCoachTests: XCTestCase {
+    func testYouTubeRoutesAndSongRewriteWithFakeModelAndKeywordFallback() async throws {
+        let guides = try GuideLibrary.load()
+        let youtube = try guide("youtube_play_song")
+        let brain = CoachTestBrain()
+        let cases: [(String, String?)] = [
+            ("can you help me open youtube and play this song", nil),
+            ("play tum hi ho on youtube", "Tum Hi Ho"),
+            ("youtube pe gaana chalao", nil),
+            ("play the song Tum Hi Ho", "Tum Hi Ho"),
+            ("Tum Hi Ho on youtube", "Tum Hi Ho")
+        ]
+        let brains: [CoachTestBrain?] = [nil, brain]
+        for fake in brains {
+            let service = CoachModelService(brain: fake, modelAccess: PlannerModelAccess(availability: { .available }))
+            let router = HelpRouter(guides: guides, service: service, useEmbeddings: false)
+            for (request, song) in cases {
+                brain.choice = HelpChoice(route: .guide(youtube.id), song: "none")
+                let answer = await router.route(request)
+                XCTAssertEqual(answer.value.route, .guide(youtube.id), request)
+                XCTAssertEqual(answer.value.song, song, request)
+                let rewrite = await service.rewrite(request: request, guide: youtube, index: 2,
+                                                    person: nil, song: answer.value.song)
+                XCTAssertEqual(rewrite.value, song.map { "Type \"\($0)\"." } ?? "Type the song name.")
+            }
+            for request in ["youtube", "song", "gaana", "bhajan", "music video"] {
+                XCTAssertEqual(GuidePrefilter.rank(request: request, guides: guides).first?.id, youtube.id)
+            }
+        }
+        let service = CoachModelService(brain: brain, modelAccess: PlannerModelAccess(availability: { .available }))
+        let router = HelpRouter(guides: guides, service: service, useEmbeddings: false)
+        brain.choice = HelpChoice(route: .general, song: "nil")
+        let overridden = await router.route("play tum hi ho on youtube")
+        XCTAssertEqual(overridden.value.song, "Tum Hi Ho")
+        XCTAssertEqual(overridden.source, .onDeviceModelWithKeywordFill)
+        brain.choice = HelpChoice(route: .guide(youtube.id), song: "Tum Hi Ho")
+        let modelSong = await router.route("youtube pe Tum Hi Ho lagao")
+        XCTAssertEqual(modelSong.value.song, "Tum Hi Ho")
+        brain.text = "Type \"Tum Hi Ho\"."
+        let rewritten = await service.rewrite(request: "youtube", guide: youtube, index: 2, person: nil, song: "Tum Hi Ho")
+        XCTAssertEqual(rewritten.source, .onDeviceModel)
+        XCTAssertEqual(brain.rewrittenSongs.last ?? nil, "Tum Hi Ho")
+        brain.text = "Type \"Invented Song\"."
+        let rejected = await service.rewrite(request: "youtube", guide: youtube, index: 2, person: nil, song: "Tum Hi Ho")
+        XCTAssertEqual(rejected.source, .keywordFallback)
+        XCTAssertEqual(rejected.value, "Type \"Tum Hi Ho\".")
+    }
+
+    func testSongCleaningPreservesCapitalisationAndRejectsPlaceholders() {
+        XCTAssertEqual(SongNormalization.normalize("um, it's Tum Hi Ho, please"), "Tum Hi Ho")
+        XCTAssertEqual(SongNormalization.normalize("please play iPhone Song thanks"), "iPhone Song")
+        XCTAssertEqual(SongNormalization.extract(from: "please play the song tum hi ho on youtube please"), "Tum Hi Ho")
+        for placeholder in ["this song", "a song", "nil", "none", "", "um, please"] {
+            XCTAssertNil(SongNormalization.normalize(placeholder), placeholder)
+        }
+    }
+
+    func testMissingSongAsksOnceAndAcceptsTypedOrEmptyAnswer() async throws {
+        let brain = CoachTestBrain()
+        brain.choice = HelpChoice(route: .guide("youtube_play_song"))
+        let brains: [CoachTestBrain?] = [nil, brain]
+        for model in brains {
+            for reply in ["um, it's Tum Hi Ho please", "   "] {
+                let output = CoachTestOutput()
+                let engine = try makeEngine(model: model, output: output)
+                engine.useTypedInput()
+                engine.submitTypedInput("can you help me open youtube and play this song")
+                await eventually { engine.isAwaitingSong && engine.plannerState == .idle }
+                XCTAssertNil(engine.coach)
+                XCTAssertEqual(output.lines.last, "Which song would you like to play?")
+                engine.useTypedInput()
+                engine.submitTypedInput(reply)
+                await eventually { engine.coach != nil && engine.plannerState == .idle }
+                for index in 1...2 {
+                    engine.coachCommand(.next)
+                    await eventually { engine.coach?.stepIndex == index && engine.plannerState == .idle }
+                }
+                XCTAssertEqual(engine.coach?.text, reply == "   " ? "Type the song name." : "Type \"Tum Hi Ho\".")
+                if reply != "   " { XCTAssertEqual(output.sessionOnlyLines.last, "Type \"Tum Hi Ho\".") }
+                XCTAssertEqual(output.lines.filter { $0 == "Which song would you like to play?" }.count, 1)
+                XCTAssertFalse(engine.isAwaitingSong)
+                engine.endSession()
+                XCTAssertNil(engine.coach)
+                XCTAssertTrue(engine.conversation.isEmpty)
+            }
+        }
+    }
+
+    func testMissingSongAcceptsVoiceAndClearsPendingQuestionOnStop() async throws {
+        let input = CoachTestInput()
+        let output = CoachTestOutput()
+        let engine = try makeEngine(output: output, input: input)
+        engine.useTypedInput()
+        engine.submitTypedInput("youtube pe gaana chalao")
+        await eventually { engine.isAwaitingSong && engine.plannerState == .idle }
+        input.nextTranscript = "Tum Hi Ho please"
+        engine.userTappedToTalk()
+        await eventually { engine.coach != nil && engine.plannerState == .idle }
+        XCTAssertEqual(engine.coach?.song, "Tum Hi Ho")
+        engine.endSession()
+        engine.useTypedInput()
+        engine.submitTypedInput("youtube")
+        await eventually { engine.isAwaitingSong && engine.plannerState == .idle }
+        engine.endSession()
+        XCTAssertFalse(engine.isAwaitingSong)
+    }
+
     func testGeneralAndRejectedPicksUseStrongMatchButPreserveModelGuideAndPracticeChoices() async throws {
         let guides = try GuideLibrary.load()
         let brain = CoachTestBrain()
@@ -112,8 +218,8 @@ final class GuidedCoachTests: XCTestCase {
 
     func testAllBundledGuidesPassTheContentValidator() throws {
         let guides = try GuideLibrary.load()
-        XCTAssertEqual(guides.count, 15)
-        XCTAssertEqual(Set(guides.map(\.id)).count, 15)
+        XCTAssertEqual(guides.count, 16)
+        XCTAssertEqual(Set(guides.map(\.id)).count, 16)
         XCTAssertTrue(guides.allSatisfy { !$0.steps.isEmpty && $0.steps.allSatisfy { !$0.uiLabelHint.isEmpty } })
         for id in ["whatsapp_send_photo", "whatsapp_video_call", "whatsapp_voice_message"] {
             XCTAssertEqual(try guide(id).steps[2].labelIsNearby, true)
@@ -526,6 +632,7 @@ private final class CoachTestBrain: CoachBrain {
     var pendingRoute: CheckedContinuation<Void, Never>?
     var routeReturned = false
     var rewrittenHints: [String] = []
+    var rewrittenSongs: [String?] = []
     func route(request: String, candidates: [GuideCandidate]) async throws -> HelpChoice {
         candidateIDs = candidates.map(\.id)
         if shouldThrow { throw CoachModelError.unavailable }
@@ -538,8 +645,9 @@ private final class CoachTestBrain: CoachBrain {
         pendingRoute = nil
         continuation?.resume()
     }
-    func rewrite(request: String, guide: HelpGuide, step: HelpGuide.Step, person: String?, stuck: Bool) async throws -> String {
+    func rewrite(request: String, guide: HelpGuide, step: HelpGuide.Step, person: String?, song: String?, stuck: Bool) async throws -> String {
         rewrittenHints.append(step.uiLabelHint)
+        rewrittenSongs.append(song)
         return text
     }
     func general(request: String) async throws -> [String] { steps }
@@ -577,8 +685,13 @@ private final class CoachTestInput: VoiceInputService {
 @MainActor
 private final class CoachTestOutput: VoiceOutputService {
     var lines: [String] = []
+    var sessionOnlyLines: [String] = []
     var slower = false
     func speak(_ text: String) async { lines.append(text) }
+    func speakSessionOnly(_ text: String) async {
+        sessionOnlyLines.append(text)
+        await speak(text)
+    }
     func stop() {}
     func setSlower(_ slower: Bool) { self.slower = slower }
 }
