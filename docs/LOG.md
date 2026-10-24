@@ -96,6 +96,7 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:10 AEDT | P07b | claude | final review PASS | whole branch incl. overlapping r2 runs and r3 availability fix; merged to main; pulse and nits to P07c
 - 2026-10-24 18:10 AEDT | P07c | claude | dispatch r1 | pulse 3 cycles then static plus P07b nits; branch task/P07c-pulse
 - 2026-10-24 17:39 AEDT | P09-P10 | owner | decision | UI upgrade from HIG research (report moved to docs/design/UI-WIDGETS-REPORT.md); P09 UI polish, P10 Ask NearMe widget and Siri shortcut; after P07b, before P05; Live Activity deferred (later superseded by the owner's final order: P11 next, P09 Sunday morning, P10 if time)
-- 2026-10-24 18:14 AEDT | N07c | codex | dev-report r1 | three-cycle practice pulse, Repeat replay, Reduce Motion and P07b nits; commit 5ef50d8; Mac test and visual gate pending
+- 2026-10-24 18:14 AEDT | P07c | codex | dev-report r1 | three-cycle practice pulse, Repeat replay, Reduce Motion and P07b nits; commit 5ef50d8; Mac test and visual gate pending
 - 2026-10-24 18:14 AEDT | P07c | codex | dev-report r1 | pulse 3 cycles then static, Repeat replays, Reduce Motion static, nits (committed by manager)
 - 2026-10-24 18:14 AEDT | P07c | claude | review r1 PASS | static; merged to main; next P11 in parallel with owner's compile and phrase-1 check
+- 2026-10-24 18:15 AEDT | P07c | claude | review r1 PASS | static; 3-cycle pulse via task(id:) and pure state, Repeat replays, Reduce Motion 0; nits applied; merged to main; Mac check pending

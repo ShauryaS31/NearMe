@@ -58,3 +58,6 @@ Mac check: each practice step's ring pulses 3 times then holds still; Repeat pul
 - Date: 2026-10-24 18:14 AEDT
 - Verdict: PASS (static). Merged to main; owner Mac check folded into the P07b/P07c phone check.
 - Pure PracticeHighlightState: 3 pulses per new target id or Repeat revision, 0 with Reduce Motion, layout updates do not restart; pulse task cancels on change (no repeatForever); Repeat restarts from an opaque ring. Nits done (Pending start source, unused case removed, comments, generalStuck, assetsUnavailable as model not ready, cancelled outcome). Default-argument scan clean.
+
+## Review (round 1)
+PASS (static; no Swift toolchain here). Three cycles driven by `task(id:)` on a pure `PracticeHighlightState`; no `repeatForever`; Repeat bumps a revision that recreates the ring (`.id`), Slower does not; Reduce Motion gives 0 pulses and full opacity, toggling mid-pulse cancels; new step recreates the layer via `.id(viewModel.step)` (PracticeStep has no associated values, so implicitly Hashable). Nits applied: Pending start source, `.practiceCard` removed with no remaining uses, comments, `generalStuck`, `modelNotReady`, `cancelled`. 8 new default-run tests. Runtime timing and Reduce Motion behaviour: PENDING MAC (checklist in PLAN.md).
