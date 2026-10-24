@@ -21,10 +21,10 @@ struct JourneyIntent: Sendable {
     @Guide(description: "What the user is trying to do. Use plan_journey when they want help getting from one place to another via public transport; otherwise unknown.")
     var intent: JourneyIntentKindGenerable
 
-    @Guide(description: "The destination station or place name the user wants to travel to, exactly as they said it. Nil if not mentioned.")
+    @Guide(description: "A short destination station or place name of at most 5 words. Nil if not mentioned.")
     var destination: String?
 
-    @Guide(description: "The origin station or place name the user is travelling from, exactly as they said it. Nil if not mentioned.")
+    @Guide(description: "A short origin station or place name of at most 5 words. Nil if not mentioned.")
     var origin: String?
 
     @Guide(description: "The transport mode if the user specified one, e.g. train, tram, bus. Nil if not mentioned.")

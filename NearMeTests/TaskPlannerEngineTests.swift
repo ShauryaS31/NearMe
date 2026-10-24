@@ -75,8 +75,25 @@ final class TaskPlannerEngineTests: XCTestCase {
         engine.endSession()
     }
 
-    private func makeEngine(input: SilentInput? = nil) -> TaskPlannerEngine {
-        TaskPlannerEngine(brain: KeywordFallbackBrain(), voiceInput: input ?? SilentInput(),
+    func testLatestCallLatencyIsPublishedAndClearedForKeywordAnswer() async {
+        let engine = makeEngine(brain: CannedEngineBrain(reportsModelLatency: true))
+        XCTAssertNil(engine.latestBrainLatencyMilliseconds)
+        engine.useTypedInput()
+        await submit("hello", to: engine)
+        XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 120)
+        await submit("to Holsworthy", to: engine)
+        XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 240)
+        await submit("um", to: engine)
+        XCTAssertEqual(engine.latestBrainSource, .keywordFallback)
+        XCTAssertNil(engine.latestBrainLatencyMilliseconds)
+        await submit("I'm leaving from Central", to: engine, until: .guiding(.forYouOpened))
+        XCTAssertEqual(engine.latestBrainSource, .onDeviceModel)
+        XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 360)
+        engine.endSession()
+    }
+
+    private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain = CannedEngineBrain()) -> TaskPlannerEngine {
+        TaskPlannerEngine(brain: brain, voiceInput: input ?? SilentInput(),
                           voiceOutput: SilentOutput(), permissions: PermissionsManager(), userName: "")
     }
 
@@ -88,6 +105,38 @@ final class TaskPlannerEngineTests: XCTestCase {
         engine.submitTypedInput(text)
         await fulfillment(of: [ready], timeout: 5)
         subscription.cancel()
+    }
+}
+
+/// Canned answers keep engine state tests independent of parsing and model availability.
+private struct CannedEngineBrain: TaskPlannerBrain {
+    var reportsModelLatency = false
+    var initialSource: BrainSource { reportsModelLatency ? .onDeviceModel : .keywordFallback }
+
+    func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
+        let intents: [String: JourneyIntent] = [
+            "I need to get to Holsworthy": JourneyIntent(intent: .planJourney, destination: "Holsworthy", origin: nil, mode: nil),
+            "to Holsworthy": JourneyIntent(intent: .planJourney, destination: "Holsworthy", origin: nil, mode: nil),
+            "to Town Hall": JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: nil, mode: nil),
+            "travel from Central": JourneyIntent(intent: .planJourney, destination: nil, origin: "Central", mode: nil)
+        ]
+        return BrainAnswer(value: intents[utterance] ?? .empty, source: initialSource,
+                           latencyMilliseconds: reportsModelLatency ? 120 : nil)
+    }
+
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
+        let places = ["I'm leaving from Central": "Central", "to Holsworthy please": "Holsworthy"]
+        return BrainAnswer(value: places[answer], source: .keywordFallback)
+    }
+
+    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
+        BrainAnswer(value: "Which place?", source: initialSource,
+                    latencyMilliseconds: reportsModelLatency ? 240 : nil)
+    }
+
+    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
+        BrainAnswer(value: "Let's plan that journey.", source: initialSource,
+                    latencyMilliseconds: reportsModelLatency ? 360 : nil)
     }
 }
 

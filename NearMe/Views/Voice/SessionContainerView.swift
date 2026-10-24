@@ -41,19 +41,28 @@ struct SessionContainerView: View {
         }
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            Text(engine.latestBrainSource.label)
+            Text(brainBadge)
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
                 .background(.background)
-                .accessibilityLabel("Brain source: \(engine.latestBrainSource.label)")
+                .accessibilityLabel("Brain source: \(brainBadge)")
         }
         #endif
         .onAppear { engine.beginSession() }
         .animation(.easeInOut(duration: 0.2), value: isGuiding)
     }
+
+    #if DEBUG
+    private var brainBadge: String {
+        if let ms = engine.latestBrainLatencyMilliseconds {
+            return "\(engine.latestBrainSource.label), \(ms) ms"
+        }
+        return engine.latestBrainSource.label
+    }
+    #endif
 
     private var isGuiding: Bool {
         if case .guiding = engine.plannerState { return true }

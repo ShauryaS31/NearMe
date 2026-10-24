@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # NearMe Mac test helper.
-# Usage: bash scripts/mac-run.sh [sim|device|test|report] [--current]
+# Usage: bash scripts/mac-run.sh [sim|device|test|eval|report] [--current]
 #   sim (default)  build for the newest iPhone simulator, boot it, install and launch
 #   device         build, install and launch on a connected iPhone (needs Config/Team.xcconfig)
 #   test           run NearMeTests on the newest iPhone simulator
+#   eval           run the three opt-in real-model sentences on that simulator
 #   report         write docs/mac-results/<timestamp>.md, then commit and push it
 #   --current      build the checked-out branch without switching to main or pulling
 set -euo pipefail
@@ -12,9 +13,9 @@ cd "$(dirname "$0")/.."
 mode="sim"; current=0
 for arg in "$@"; do
   case "$arg" in
-    sim|device|test|report) mode="$arg" ;;
+    sim|device|test|eval|report) mode="$arg" ;;
     --current) current=1 ;;
-    *) echo "Usage: bash scripts/mac-run.sh [sim|device|test|report] [--current]"; exit 1 ;;
+    *) echo "Usage: bash scripts/mac-run.sh [sim|device|test|eval|report] [--current]"; exit 1 ;;
   esac
 done
 
@@ -44,9 +45,11 @@ mkdir -p build
 run_build() {
   # Full log in build/xcodebuild.log; show errors and the result line here.
   if ! xcodebuild "$@" > build/xcodebuild.log 2>&1; then
-    grep -E "error:|\*\* (BUILD|TEST) FAILED" build/xcodebuild.log | head -40
+    grep -F "EVAL |" build/xcodebuild.log || true
+    grep -E "error:|\*\* (BUILD|TEST) FAILED" build/xcodebuild.log | head -40 || true
     echo "Build failed. Full log: build/xcodebuild.log"; exit 1
   fi
+  grep -F "EVAL |" build/xcodebuild.log || true
   grep -E "\*\* (BUILD|TEST) SUCCEEDED|Executed [0-9]+ tests?|Test run with" build/xcodebuild.log | tail -3 || true
 }
 
@@ -77,6 +80,10 @@ case "$mode" in
   test)
     udid="$(newest_simulator)"
     run_build -scheme NearMe -destination "id=$udid" -derivedDataPath build CODE_SIGNING_ALLOWED=NO test
+    ;;
+  eval)
+    udid="$(newest_simulator)"
+    TEST_RUNNER_NEARME_MODEL_EVAL=1 run_build -scheme NearMe -destination "id=$udid" -derivedDataPath build CODE_SIGNING_ALLOWED=NO test -only-testing:NearMeTests/ModelEvalTests
     ;;
   device)
     [[ -f Config/Team.xcconfig ]] || {
