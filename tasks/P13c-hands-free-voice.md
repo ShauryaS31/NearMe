@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (device test Sun 10:00) |
 | Window | Sat 24 Oct night; owner device test Sun 25 Oct 10:00 |
 | Depends on | P13b |
 | Assignee | codex |
@@ -73,3 +73,8 @@ iPhone check: start sharing, "play tum hi ho on youtube", stay in YouTube: the o
   9. Repeat command responses with Natural voice enabled and configured through the existing Secrets.xcconfig, then offline after local recognition assets are installed, and with Natural voice disabled. Require ElevenLabs for ordinary online instructions when available and system output for fallback; song-containing session-only lines retain P07e's system output. Check the status/resume line with VoiceOver and the largest text size. Run at least five minutes without the debugger attached to test actual background survival.
   10. In macOS Console select the iPhone and filter subsystem `au.nearme.ios`, category `voice`. Require canonical `Command=` values only for accepted commands, no publicly logged recognized utterances, and the command voice-processing diagnostic. Use the fake policy test plus device playback observations to check mixing and speech-only ducking; static source checks cannot establish routing or background execution.
 - Not done / risks / questions: Mac compilation, default XCTest and all iPhone behavior remain the owner's gate. Apple only guarantees silence-secondary notifications for foreground listeners; property polling and a per-buffer guard supplement them ([Apple documentation](https://developer.apple.com/documentation/avfaudio/avaudiosession/silencesecondaryaudiohintnotification)). The hint describes nonmixable other-app audio; real YouTube/hardware behavior must be measured. Voice processing has its own minimum attenuation setting, separate from category duckOthers ([Apple documentation](https://developer.apple.com/documentation/avfaudio/avaudiovoiceprocessingotheraudioduckingconfiguration/level)); no claim of perfectly unchanged output volume is made from Windows. The command path requires local SFSpeech support for en-AU or the device locale and pauses if unavailable. Existing P07e song/system-voice privacy behavior is intentionally retained. No other task was started.
+
+## Review (round 1)
+- Date: 2026-10-24 21:22 AEDT
+- Verdict: PASS (static). Merged to main; owner iPhone test Sunday 10:00.
+- UIBackgroundModes audio; on-device recognition only (requiresOnDeviceRecognition, command phrases as contextual strings); audio tap into a nonisolated gate; session always mixes with others with A2DP, ducks only while NearMe speaks; matcher longest phrase first with word boundaries; status lines "Listening for commands" and "Voice commands paused, tap to resume". Default-argument scan clean.

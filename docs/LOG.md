@@ -133,3 +133,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 21:10 AEDT | P13b | claude | review r2 PASS | merged to main; P13c next, then P09
 - 2026-10-24 21:10 AEDT | P13c | claude | dispatch r1 | hands-free voice commands on top of P13b
 - 2026-10-24 21:22 AEDT | P13c | codex | dev-report r1 | Hands-free local command listener, foreground mic lifetime, audio/recognition pauses, bounded observed-page rechecks and resume UI; 19 fake tests authored, static checks passed, Mac/iPhone gate pending; commit cdbb233.
+- 2026-10-24 21:22 AEDT | P13c | claude | review r1 PASS | merged to main; P09 next
