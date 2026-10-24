@@ -20,3 +20,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 13:50 AEDT | N03 | claude | review r1 PASS | CI 40055664698 green, 17 tests; merged to main; M7 pending Mac
 - 2026-10-24 13:53 AEDT | - | claude | history rewrite | owner-authorised: filter-repo replace-text removed prior project names from all commits; log -p verified clean; Secrets.xcconfig never in history; main and task branches force-pushed; old CI runs deleted; going public on hold (Activity feed keeps old SHAs)
 - 2026-10-24 13:53 AEDT | - | claude | decision | owner: import prior iOS prototype as second target NearMeiOS (N10, before N04a)
+- 2026-10-24 14:04 AEDT | - | claude | decision | owner: PIVOT to iPhone; macOS main archived to archive/mac-nearme (04a69d2); repo stays private (recreate deferred); CI manual only
+- 2026-10-24 14:04 AEDT | N10 | codex | dev-report r1 | iOS prototype imported (48 Swift, 15 assets, name check clean); committed by manager (sandbox blocked .git)
+- 2026-10-24 14:04 AEDT | P01 | claude | import | N10 tree moved to repo root as NearMe/Shared/NearMeBroadcastExtension/NearMeTests; macOS code and tasks N00 to N11 removed; project.yml, mac-run.sh (sim, device, test, report), manual CI, SPEC v2, PLAN rewritten; names clean; Mac pending (P02)

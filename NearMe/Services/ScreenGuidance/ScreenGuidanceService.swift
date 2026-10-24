@@ -1,0 +1,27 @@
+// Adapted from a prior prototype, used with permission.
+
+import Foundation
+import CoreGraphics
+
+struct DetectedScreenElement {
+    let text: String
+    /// Normalized (0...1) bounding box in the captured frame, matching
+    /// Vision's coordinate convention (origin bottom-left).
+    let boundingBox: CGRect
+}
+
+@MainActor
+protocol ScreenGuidanceService: AnyObject {
+    /// Begins watching the shared screen-capture feed. No-ops if the user
+    /// never started a system broadcast for NearMe (see
+    /// ReplayKitVisionGuidanceService's header comment).
+    func startWatching()
+    func stopWatching()
+
+    /// Tell the service what on-screen text/labels currently matter (e.g.
+    /// ["Journey Planner"] right after opening PTV). It will call
+    /// `onElementDetected` once a frame's OCR result contains a close match.
+    func lookFor(labels: [String])
+
+    var onElementDetected: ((DetectedScreenElement) -> Void)? { get set }
+}

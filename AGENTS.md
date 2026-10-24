@@ -1,13 +1,15 @@
 # AGENTS.md: you are the Developer
 
-You implement exactly one task, then stop. You have no memory of earlier work. Everything you need is in: this file; your task file `tasks/Nxx-*.md` including any Review sections (address every numbered point); `docs/SPEC.md` sections the task points to; the code.
+You implement exactly one task, then stop. You have no memory of earlier work. Everything you need is in: this file; your task file `tasks/Pxx-*.md` including any Review sections (address every numbered point); `docs/SPEC.md` sections the task points to; the code.
 
 ## Project
-NearMe: a native macOS 26 SwiftUI app. It reads the frontmost app's Accessibility tree (roles, labels, frames only), asks Apple's on-device Foundation Models to choose the next element from that real list, validates the choice, draws a highlight ring over it and speaks the step. It re-plans when the screen changes. It never clicks for the user. See docs/SPEC.md.
+NearMe: a voice-first iOS 26.5 SwiftUI app for older people, adapted from a prior prototype (used with permission). See docs/SPEC.md (section 2 lists what exists).
 
 Layout:
-- `NearMeCore/`: Swift package, pure logic (element list model, validator, privacy filter, session state machine, prompt rendering). No AppKit, ApplicationServices, FoundationModels or SwiftUI imports. Every public function has unit tests.
-- `NearMe/`: app target (SwiftUI, AppKit, ApplicationServices AX APIs, FoundationModels, AVFoundation, Speech, ElevenLabs REST).
+- `NearMe/`: app target (SwiftUI, FoundationModels, AVFoundation, Speech, ReplayKit, Vision, ElevenLabs REST).
+- `Shared/`: compiled into the app target.
+- `NearMeBroadcastExtension/`: source only, not a target.
+- `NearMeTests/`: hosted unit tests (`@testable import NearMe`).
 - `project.yml`: XcodeGen. Never commit `NearMe.xcodeproj`.
 
 ## Rules
@@ -16,8 +18,8 @@ Layout:
 - Never commit secrets. Keys come from `Secrets.xcconfig` via Info.plist build settings.
 - The planner session has no tools. The model chooses an element index from the provided list; it never invents labels.
 - Prior prototype code may be reused only where your task brief says so. Every reused or adapted file starts with the header `// Adapted from a prior prototype, used with permission.` Strip all original header comments, author names and the original project or product names; never write them anywhere. Do not copy code from any other unlicensed repo.
-- Swift 6 strict concurrency; AX calls off the main thread with a time budget; no force unwraps outside tests.
-- This machine has no Swift or Xcode. Say so plainly; do not claim verify commands passed. CI on GitHub is the compile gate.
+- Keep the imported build settings (Swift 5 mode, MainActor default isolation). No new force unwraps; existing ones change only when a task says so.
+- This machine has no Swift or Xcode. Say so plainly; do not claim verify commands passed. The owner's Mac is the gate; CI is manual only. Give exact Mac test steps.
 
 ## When finished
 1. Append to the task file:

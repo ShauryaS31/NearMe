@@ -3,7 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
-    <string>en</string>
+    <string>$(DEVELOPMENT_LANGUAGE)</string>
+    <key>CFBundleDisplayName</key>
+    <string>NearMe</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIdentifier</key>
@@ -18,21 +20,17 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-    <key>LSMinimumSystemVersion</key>
-    <string>$(MACOSX_DEPLOYMENT_TARGET)</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
-    <key>NSMicrophoneUsageDescription</key>
-    <string>NearMe uses the microphone to hear what you need help with on your Mac.</string>
-    <key>NSSpeechRecognitionUsageDescription</key>
-    <string>NearMe turns your spoken request into text to guide you on your Mac.</string>
     <key>ELEVENLABS_API_KEY</key>
     <string>$(ELEVENLABS_API_KEY)</string>
-    <key>ELEVENLABS_VOICE_ID</key>
-    <string>$(ELEVENLABS_VOICE_ID)</string>
-    <key>SCX_API_KEY</key>
-    <string>$(SCX_API_KEY)</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>NearMe listens when you tap the mic so it can understand what you're trying to do on your phone.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>NearMe converts your spoken request into text so it can help you find the right app.</string>
+    <key>UIApplicationSupportsIndirectInputEvents</key>
+    <true/>
+    <key>UILaunchScreen</key>
+    <dict/>
 </dict>
 </plist>

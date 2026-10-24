@@ -71,16 +71,16 @@ Manager                                     Developer (fresh process each time)
 ```
 Windows (factory)                      GitHub                        Mac (owner)
 Claude Code + Codex write code  --push-->  main + task branches  --pull-->  scripts/mac-run.sh
-CI (macos-26) compiles + tests  <------ runs on every push                builds, launches NearMe
+CI (macos-26), manual only     <------ workflow_dispatch                  builds, launches NearMe
                                                                           owner runs checklist
 Manager reads results  <--pull-- docs/mac-results/YYYY-MM-DD-HHMM.md <--push-- owner (or tells manager)
 ```
 
 - Only Windows edits code. The Mac only adds files under `docs/mac-results/`. This avoids merge conflicts.
-- Gate per task: CI green. Gate per milestone (G1 to G4): owner Mac checks pass.
+- Gate per task: owner Mac checks pass (CI is manual only, run on request).
 
 ## Gates
-1. CI green on the task branch: NearMeCore tests and NearMe compile.
+1. Owner Mac checks pass on the task branch (`scripts/mac-run.sh --current`, simulator and iPhone when available).
 2. Every acceptance criterion checked with evidence, or marked PENDING MAC with exact test steps.
 3. No secrets in the diff.
 
