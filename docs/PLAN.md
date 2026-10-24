@@ -30,6 +30,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | done (owner verify-step check pending) |
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
 | [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | in_progress |
+| [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | todo (right after P07b) |
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | todo |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P09 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | todo |
@@ -69,6 +70,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): UI upgrade from the Apple HIG research (docs/design/UI-WIDGETS-REPORT.md). P09 UI polish and P10 Ask NearMe widget plus Siri shortcut, after P07b and before P05. Current-step widget, Live Activity and Control Center control deferred (post-freeze P11 if time). Order: P07b, P09, P10, P05, P06; P08 likely dropped.
 - 2026-10-24 (owner): FINAL ORDER. 1. P07b (round 2 adds: hidden debug badge, calm step card, auto-open WhatsApp). 2. P11 Live Activity coach (Dynamic Island step and Done). 3. P05 family voice plus the privacy screen (moved from P06; owner is recording the voice clone). 4. P09 UI polish (Sunday morning). 5. P10 widget and Siri shortcut, only if done by Sunday 12:00. Dropped: P06 leftovers, P08. Code freeze Sunday 25 Oct 13:00. The P09/P10 planning files came from the owner's other session; committed to main separately.
 - 2026-10-24 (owner): other owner sessions work in their own git worktree or only write under docs/, never in the main folder while the manager has a task running (see CLAUDE.md).
+- 2026-10-24 (owner): target ring pulses 3 cycles of about 1.2 s when a step's target first appears, then static; Repeat replays the 3 pulses; Reduce Motion static 6 pt from the start (resolves HIG rule 9). Done as P07c right after P07b (P07b used its 3 review rounds). The manager is now the only manager; the other session stood down. Order confirmed: P07b, P07c, P11, P05 with privacy, P09 Sunday morning, P10 if done by Sun 12:00; P06 and P08 dropped.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
