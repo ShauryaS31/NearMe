@@ -120,3 +120,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:16 AEDT | P07e | claude | review r1 PASS | merged to main (Lane A); P12 merges next
 - 2026-10-24 19:25 AEDT | P13 | owner | decision | page awareness is the core feature; P12 parked (reverted on main 271bb84); P13 See my screen, spike first (broadcast extension, App Group, picker); test Sun 10:00, kill 11:00
 - 2026-10-24 19:29 AEDT | P13 | codex | dev-report r1 | Spike only: broadcast target, signed App Group configuration, native picker and JSON heartbeat; static checks passed, Mac/device gate pending; commit 17440c1.
+- 2026-10-24 19:30 AEDT | P13 | claude | review r1 spike PASS | merged to main for the owner's signed device build; round 2 after App Group result
