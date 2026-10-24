@@ -383,3 +383,20 @@ PASS (static; no Swift toolchain here). 1: `showsCoachCard` depends only on the 
 PENDING MAC: everything in Verify (Mac), plus: no-words during a guide step keeps the coach card and its step; I'm stuck without the model keeps the card; new Stop on Home does not change cancel or barge-in; dock mic symbol readable with its state text; Open WhatsApp button opens WhatsApp without changing the step.
 Follow-up for the manager: resuming a held fallback session after backgrounding says "You were on step 1: I'm not sure about that one" (engine, after P11).
 - 2026-10-24 18:49 AEDT | P09 | claude (P09 lane) | review r3 PASS | coach card kept through errors, fallback from session kind only, preview compile fix, Cancel only while listening or preparing; rebased on origin/main, pushed, not merged
+
+## Review (manager, merge round)
+- Date: 2026-10-24 19:03 AEDT
+- Branch: task/P09-merged = the lane's task/P09-ui-polish (5574517) merged with main (P07d, P11); conflicts resolved by the manager (AppCoordinator keeps P09's placeholderName and P11's init, pendingCoachURL, handleOpenURL; SessionContainerView.sessionContent: P11's isHome first, then P09's coach-card condition, practice, opening, P09 Home). Owner: do not merge to main until the combined iPhone check is reported.
+- Scope guard met; P04b, Type instead, P03a, P07 coach, P07b dock, P07c intact.
+
+Fixes (this round):
+1. `NearMeTests/UIPolishTests.swift:104`: use `AppCoordinator(guides: [])` (main's AppCoordinator restores saved coach progress). If `Color(uiColor:)` equality at :15-18 is not stable, compare resolved components or drop it.
+2. Home hint text exactly: "Try: 'Help me send a photo to Mum on WhatsApp'" (`HelpHomeView.swift:164`).
+3. `VoiceOrbView.swift:13`: the dock's listening symbol back to `waveform` (P07b behaviour); Home's own button may keep its symbol choice.
+4. Cancel: when not on Home and there is no step reply (`!engine.isHome && reply == nil`), for example waiting for "Where from?" or showing "Did you mean", show a bordered "Cancel" that calls the existing cancel action. Keep "End session" after a completed journey.
+5. Home Stop only while NearMe is actually speaking (`activity == .speaking`), never during `isPreparingSpeech` or the P07d acknowledgement's preparation, so a request is not silently dropped.
+6. Voice Control: add "Use voice" to the Talk button's `accessibilityInputLabels`.
+7. Type-checker safety: move `showsCancel`, the button title and label choices in `HelpHomeView.swift:43-68` and the ternaries in `VoiceOrbView.swift:55-63` into small computed properties.
+8. Open app row in the coach card only on step 1 (`CoachView.swift:94`).
+9. Owner: big per-step icon on the coach card. In `CoachStepContent` between the progress block and the instruction text: `CoachStepPresentation.icon` from `session.guide?.steps[session.stepIndex].icon` (field from P07d); `Image(systemName:)`, `@ScaledMetric` about 60 pt, capped (smaller) at accessibility sizes, `.symbolRenderingMode(.hierarchical)`, accent colour, `.accessibilityHidden(true)`; skip when nil or `UIImage(systemName:)` is nil; no symbol effects; it fades with the existing step transition. Not in the dock or the Live Activity.
+10. Tests for 2, 4, 5 and 9 (icon present when the step has one, absent otherwise).
