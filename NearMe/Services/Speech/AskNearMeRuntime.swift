@@ -52,7 +52,7 @@ import UIKit
     func engine(userName: String = "Friend") -> TaskPlannerEngine {
         if let stored { return stored }
         let engine = TaskPlannerEngine(brain: TaskPlannerBrainFactory.makeDefault(),
-            voiceInput: VoiceInputRouter(), voiceOutput: ElevenLabsVoiceOutput(),
+            voiceInput: VoiceInputRouter(), voiceOutput: NearMeVoiceOutput.make(),
             permissions: PermissionsManager(), userName: userName)
         stored = engine
         return engine

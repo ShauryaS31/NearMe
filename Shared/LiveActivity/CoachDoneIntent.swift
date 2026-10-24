@@ -65,7 +65,7 @@ nonisolated struct CoachDoneIntent: LiveActivityIntent {
         await updater.flush()
         if let screenSpeech {
             // The warm engine owns speech when present; a cold launch has no engine.
-            let output = ElevenLabsVoiceOutput()
+            let output = NearMeVoiceOutput.make()
             await output.speak(screenSpeech)
         }
         #endif
