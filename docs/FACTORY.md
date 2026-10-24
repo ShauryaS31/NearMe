@@ -76,7 +76,7 @@ CI (macos-26), manual only     <------ workflow_dispatch                  builds
 Manager reads results  <--pull-- docs/mac-results/YYYY-MM-DD-HHMM.md <--push-- owner (or tells manager)
 ```
 
-- Only Windows edits code. The Mac only adds files under `docs/mac-results/`. This avoids merge conflicts.
+- Only Windows edits code, with one exception: the Mac may push compile-only fixes to main as `macfix:` commits (see CLAUDE.md), which the manager reviews on resume. Otherwise the Mac only adds files under `docs/mac-results/`. This avoids merge conflicts.
 - Gate per task: owner Mac checks pass (CI is manual only, run on request).
 
 ## Gates

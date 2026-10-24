@@ -55,3 +55,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:38 AEDT | P04 | claude | review r3 PASS | static; merged to main; stopping for owner Mac check
 - 2026-10-24 16:51 AEDT | P04a | owner | mac build FAILED | Xcode 27.1 / Swift 6.4: default arguments construct MainActor types (ElevenLabsVoiceOutput, VoiceInputRouter); Info.plist change blocks pull; model returns "nil" as origin
 - 2026-10-24 16:51 AEDT | P04a | claude | hotfix | whole-project scan: 7 offending defaults in 2 inits made optional and built in the MainActor body; constants nonisolated, APIKeys nonisolated; mac-run.sh restores tool-changed Info.plist before pull; "nil" place added to P03a
+- 2026-10-24 16:55 AEDT | P04a | owner | mac build FAILED | 2 errors, ElevenLabsVoiceOutput.swift:81-82 use optional init params (manager's P04a slip); Mac fixes it as the first macfix
+- 2026-10-24 16:55 AEDT | - | owner | decision | macfix rule: Mac may push compile-only fixes to main as 'macfix:' commits with a LOG line; manager reviews them on resume (CLAUDE.md, FACTORY.md, PLAN.md)

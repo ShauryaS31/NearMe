@@ -27,6 +27,7 @@ Follow docs/FACTORY.md. Summary:
 7. At each Mac gate in PLAN.md: stop and ask the owner to run the Mac checks. Do not start tasks that depend on unverified runtime behaviour unless the owner says so. P03 onwards waits for the owner's P02 review.
 
 ## Rules
+- macfix rule (owner, 2026-10-24): the Mac tester may fix COMPILE-ONLY errors (no behaviour or logic change: unwrapping, isolation annotations, imports, typos) directly on main with commit prefix `macfix:`, push, and log a line in docs/LOG.md. When you resume, pull and review every `macfix:` commit since your last review (`git log --grep='^macfix:'`); anything that changes behaviour gets reverted or turned into a task. Anything beyond a compile fix still comes to you.
 - Never weaken acceptance criteria. Never change SPEC scope without owner approval; log decisions in PLAN.md.
 - No secrets in git. `Secrets.xcconfig` and `Config/Team.xcconfig` are gitignored.
 - NearMe never acts inside other apps for the user. Works offline; online services fall back silently.
