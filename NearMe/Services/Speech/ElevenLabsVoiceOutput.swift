@@ -21,7 +21,7 @@ final class VoiceConnectivity {
     private(set) var isOffline = false
 
     init() {
-        monitor.pathUpdateHandler = { [weak self] path in
+        monitor.pathUpdateHandler = { @Sendable [weak self] path in
             let offline = path.status != .satisfied
             Task { @MainActor in self?.isOffline = offline }
         }
@@ -53,6 +53,7 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     private var routeObserver: NSObjectProtocol?
     private(set) var lastVoice: String?
     private(set) var lastFallbackReason: String?
+    var onPlaybackStarted: (() -> Void)?
     var onVoiceChanged: ((String) -> Void)?
 
     private enum AudioOutcome { case ready(String), fallback(String), stopped }
@@ -70,6 +71,8 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         self.player = player
         self.fallback = fallback
         self.deadline = deadline
+        player.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
+        fallback.onPlaybackStarted = { [weak self] in self?.onPlaybackStarted?() }
         if let isOffline {
             self.isOffline = isOffline
         } else {
@@ -85,6 +88,11 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
 
     deinit {
         if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
+    }
+
+    func speakGreeting(_ text: String) async {
+        stopPlayback()
+        await speakSystem(text, reason: settings.naturalVoiceEnabled ? "greeting before speech preparation" : "natural voice off", started: .now)
     }
 
     func speak(_ text: String) async {
@@ -174,11 +182,9 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         if let data = cache.audio(for: cacheKey) {
             do {
                 try player.prepare(data)
-                guard ContinuousClock.now < cutoff else { player.stop(); return .fallback("timeout") }
                 return .ready("ElevenLabs cache hit")
             } catch {
-                cache.remove(cacheKey)
-                return .fallback("audio decode failed")
+                return .fallback(preparationFailure(error, cacheKey: cacheKey))
             }
         }
         let download = download(text, cacheKey: cacheKey)
@@ -196,8 +202,7 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
                     guard ContinuousClock.now < cutoff else { self.resolveAudio(.fallback("timeout")); return }
                     do { try self.player.prepare(data) }
                     catch {
-                        self.cache.remove(cacheKey)
-                        self.resolveAudio(.fallback("audio decode failed"))
+                        self.resolveAudio(.fallback(self.preparationFailure(error, cacheKey: cacheKey)))
                         return
                     }
                     guard ContinuousClock.now < cutoff else {
@@ -215,6 +220,15 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
                 }
             }
         }
+    }
+
+    private func preparationFailure(_ error: Error, cacheKey: String) -> String {
+        if case VoicePlaybackError.decode = error {
+            cache.remove(cacheKey)
+            return "audio decode failed"
+        }
+        if case VoicePlaybackError.preparation = error { return "audio playback unavailable" }
+        return "audio session unavailable"
     }
 
     private func resolveAudio(_ outcome: AudioOutcome) {

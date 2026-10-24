@@ -35,6 +35,35 @@ final class OnDeviceVoiceInputTests: XCTestCase {
         XCTAssertEqual(capability.input.startCount, 1)
     }
 
+    func testCapabilityIsCachedForSessionAndDuplicateLocalesAreRemoved() async throws {
+        let capability = FakeSpeechCapability()
+        capability.supportedIdentifier = "fr-FR"
+        let router = VoiceInputRouter(capabilities: capability,
+                                     locales: [Locale(identifier: "en-AU"), Locale(identifier: "en_AU"), Locale(identifier: "fr-FR")])
+        try await router.prepareForListening()
+        for _ in 0..<3 {
+            router.stopListening()
+            try await router.prepareForListening()
+            _ = try await router.startListening { _ in }
+        }
+        XCTAssertEqual(capability.checked.map(\.identifier), ["en-AU", "fr-FR"])
+        XCTAssertEqual(capability.input.startCount, 3)
+        router.resetSession()
+        try await router.prepareForListening()
+        XCTAssertEqual(capability.checked.count, 4)
+    }
+
+    func testUnsupportedCapabilityIsAlsoCachedUntilSessionReset() async {
+        let capability = FakeSpeechCapability()
+        let router = VoiceInputRouter(capabilities: capability, locales: [Locale(identifier: "en-AU")])
+        for _ in 0..<3 {
+            do { try await router.prepareForListening(); XCTFail("Expected unsupported locale") }
+            catch { XCTAssertTrue((error as? VoiceInputError)?.requiresTyping == true) }
+            router.stopListening()
+        }
+        XCTAssertEqual(capability.checked.count, 1)
+    }
+
     func testEveryLegacyRecognitionRequestRequiresOnDeviceRecognition() {
         for _ in 0..<3 {
             let request = AppleSpeechFallbackService.makeRecognitionRequest()

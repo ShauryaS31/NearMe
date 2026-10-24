@@ -18,6 +18,24 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var isTyping = false
     @Published private(set) var latestVoice: String?
 
+    @Published private(set) var isPreparingSpeech = false
+    @Published private(set) var placeSuggestions: [String] = []
+    @Published private(set) var suggestionTranscript = ""
+    @Published private(set) var sttMilliseconds: Int?
+    @Published private(set) var firstAudioMilliseconds: Int?
+    private var speechEndedAt: TimeInterval?
+    private var suggestionSlot: MissingSlot?
+    private var remainingSuggestions: [(MissingSlot, String)] = []
+    private var spokenInput = false
+    private let permissionCheck: (() async -> Bool)?
+
+    var timingBadge: String {
+        let stt = sttMilliseconds.map { "STT \($0) ms" } ?? "STT pending"
+        let model = latestBrainLatencyMilliseconds.map { "model \($0) ms" } ?? "model n/a"
+        let audio = firstAudioMilliseconds.map { String(format: "first audio %.2f s", Double($0) / 1000) } ?? "first audio pending"
+        return "\(stt), \(model), \(audio)"
+    }
+
     private let brain: TaskPlannerBrain
     private let voiceInput: VoiceInputService
     private let voiceOutput: VoiceOutputService
@@ -34,14 +52,16 @@ final class TaskPlannerEngine: ObservableObject {
          voiceInput: VoiceInputService,
          voiceOutput: VoiceOutputService,
          permissions: PermissionsManager,
-         userName: String) {
+         userName: String, permissionCheck: (() async -> Bool)? = nil) {
         self.brain = brain
         self.latestBrainSource = brain.initialSource
         self.voiceInput = voiceInput
         self.voiceOutput = voiceOutput
         self.permissions = permissions
         self.userName = userName
+        self.permissionCheck = permissionCheck
         self.voiceOutput.onVoiceChanged = { [weak self] voice in self?.latestVoice = voice }
+        self.voiceOutput.onPlaybackStarted = { [weak self] in self?.recordFirstAudio() }
     }
 
     // MARK: - Entry points
@@ -50,6 +70,8 @@ final class TaskPlannerEngine: ObservableObject {
         sessionGeneration += 1
         voiceInput.stopListening()
         voiceOutput.stop()
+        voiceInput.resetSession()
+        clearTurn()
         let generation = sessionGeneration
         Task { await runGreeting(generation: generation) }
     }
@@ -60,18 +82,22 @@ final class TaskPlannerEngine: ObservableObject {
         voiceInput.stopListening()
         voiceOutput.stop()
         isTyping = false
+        clearSuggestions()
         lastErrorMessage = nil
         let generation = sessionGeneration
         Task {
-            guard await ensurePermissions(generation: generation), isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         }
     }
 
     func useTypedInput() {
+        if let suggestionSlot { pendingClarification = suggestionSlot }
         sessionGeneration += 1
         voiceInput.stopListening()
         voiceOutput.stop()
+        clearSuggestions()
+        clearTurn()
+        isPreparingSpeech = false
         isTyping = true
         tripPlannerPracticeViewModel = nil
         liveTranscript = ""
@@ -85,6 +111,9 @@ final class TaskPlannerEngine: ObservableObject {
         sessionGeneration += 1
         let generation = sessionGeneration
         lastErrorMessage = nil
+        clearSuggestions()
+        clearTurn()
+        spokenInput = false
         plannerState = .thinking
         Task { await receive(transcript: transcript, generation: generation) }
     }
@@ -92,6 +121,9 @@ final class TaskPlannerEngine: ObservableObject {
     /// "cancel" — stops whatever NearMe is currently doing and returns to a
     /// neutral, tappable idle state rather than silently continuing.
     func cancelCurrentAction() {
+        clearSuggestions()
+        clearTurn()
+        isPreparingSpeech = false
         sessionGeneration += 1
         isTyping = false
         voiceInput.stopListening()
@@ -107,6 +139,9 @@ final class TaskPlannerEngine: ObservableObject {
     /// screen in the mockups; the caller (SessionContainerView) navigates
     /// straight back to onboarding once this returns.
     func endSession() {
+        clearSuggestions()
+        clearTurn()
+        isPreparingSpeech = false
         sessionGeneration += 1
         isTyping = false
         voiceInput.stopListening()
@@ -118,15 +153,14 @@ final class TaskPlannerEngine: ObservableObject {
     // MARK: - Greeting
 
     private func runGreeting(generation: Int) async {
-        guard await ensurePermissions(generation: generation) else { return }
         guard isCurrent(generation) else { return }
-        await speak("Hi, what can we help you with?", generation: generation)
+        await speak("Hi, what can we help you with?", generation: generation, greeting: true)
         guard isCurrent(generation) else { return }
         await listenAndHandle(generation: generation)
     }
 
     private func ensurePermissions(generation: Int) async -> Bool {
-        guard await ensureOnDeviceSpeech(generation: generation) else { return false }
+        if let permissionCheck { return await permissionCheck() }
         let didPromptJustNow = !permissions.isFullyAuthorized
         if didPromptJustNow {
             await permissions.requestAll()
@@ -140,28 +174,23 @@ final class TaskPlannerEngine: ObservableObject {
             return false
         }
         if didPromptJustNow {
-            // FIX: the system's microphone/speech-recognition permission
-            // alerts briefly disrupt the audio hardware layer. Activating
-            // our own AVAudioSession (the greeting's TTS, right after this
-            // returns) the instant those dialogs dismiss can race the OS
-            // still settling from presenting them, producing
-            // kAudioUnitErr_CannotDoInCurrentContext ("IPCAUClient: can't
-            // connect to server") on that very first activation. Only
-            // needed the one time permissions are actually being granted —
-            // once already authorized on a later session, skip the wait.
+            // Let audio hardware settle after the first permission dialogs before capture.
             try? await Task.sleep(nanoseconds: 500_000_000)
         }
         return true
     }
 
     private func ensureOnDeviceSpeech(generation: Int) async -> Bool {
+        isPreparingSpeech = true
+        defer { if isCurrent(generation) { isPreparingSpeech = false } }
         do {
             try await voiceInput.prepareForListening()
             return isCurrent(generation)
         } catch {
             guard isCurrent(generation) else { return false }
             VoiceDiagnostics.log(error)
-            useTypedInput()
+            if let error = error as? VoiceInputError, error.requiresTyping { useTypedInput() }
+            else { plannerState = .idle }
             lastErrorMessage = VoiceDiagnostics.message(for: error)
             return false
         }
@@ -180,14 +209,23 @@ final class TaskPlannerEngine: ObservableObject {
     /// switch straight back to the plain voice screen before the simulated
     /// trip planner screen was ever actually visible. That was the root cause of the
     /// guided walkthrough never visibly appearing.
-    private func speak(_ text: String, generation: Int, updatesPlannerState: Bool = true) async {
+    private func speak(_ text: String, generation: Int, updatesPlannerState: Bool = true, greeting: Bool = false) async {
         guard isCurrent(generation) else { return }
         if updatesPlannerState {
             plannerState = .speaking(text)
         }
         conversation.append(ConversationTurn(speaker: .nearme, text: text))
         if voiceInput.isListening { voiceInput.stopListening() }
-        await voiceOutput.speak(text)
+        // Yield to foreground speech before doing next-caption cache work.
+        let speechGeneration = guidanceSpeechGeneration
+        let prefetch = Task { [weak self] in
+            await Task.yield()
+            guard let self, self.isCurrent(generation), speechGeneration == self.guidanceSpeechGeneration, let step = self.tripPlannerPracticeViewModel?.step else { return }
+            self.prefetchCaption(after: step)
+        }
+        if greeting { await voiceOutput.speakGreeting(text) }
+        else { await voiceOutput.speak(text) }
+        await prefetch.value
         latestVoice = voiceOutput.lastVoice
     }
 
@@ -197,10 +235,19 @@ final class TaskPlannerEngine: ObservableObject {
             plannerState = .idle
             return
         }
-        guard await ensureOnDeviceSpeech(generation: generation), isCurrent(generation) else { return }
+        guard await ensureOnDeviceSpeech(generation: generation), isCurrent(generation),
+              await ensurePermissions(generation: generation), isCurrent(generation) else { return }
         lastErrorMessage = nil
         plannerState = .listening
         liveTranscript = ""
+        speechEndedAt = nil
+        voiceInput.onSpeechEnd = { [weak self] transcript in
+            guard let self, self.isCurrent(generation) else { return }
+            self.clearTurn()
+            self.liveTranscript = transcript
+            self.speechEndedAt = self.voiceInput.lastTurn.endedAt
+            self.plannerState = .thinking
+        }
 
         do {
             let transcript = try await voiceInput.startListening { [weak self] partial in
@@ -208,6 +255,15 @@ final class TaskPlannerEngine: ObservableObject {
                 self.liveTranscript = partial
             }
             guard isCurrent(generation) else { return }
+            if speechEndedAt == nil { clearTurn() }
+            liveTranscript = transcript
+            speechEndedAt = voiceInput.lastTurn.endedAt ?? ProcessInfo.processInfo.systemUptime
+            sttMilliseconds = elapsedSinceSpeechEnd()
+            VoiceDiagnostics.logger.info("STT ms=\(self.sttMilliseconds ?? 0)")
+            plannerState = .thinking
+            spokenInput = true
+            // Publish the final transcript before starting extraction.
+            await Task.yield()
             await receive(transcript: transcript, generation: generation)
         } catch VoiceInputError.noSpeechDetected {
             VoiceDiagnostics.log(VoiceInputError.noSpeechDetected)
@@ -219,9 +275,15 @@ final class TaskPlannerEngine: ObservableObject {
         } catch {
             VoiceDiagnostics.log(error)
             guard isCurrent(generation) else { return }
-            useTypedInput()
-            lastErrorMessage = VoiceDiagnostics.message(for: error)
-            plannerState = .idle
+            if let inputError = error as? VoiceInputError,
+               inputError.requiresTyping {
+                useTypedInput()
+                lastErrorMessage = VoiceDiagnostics.message(for: error)
+            } else if !(error is CancellationError) {
+                await speak("Sorry, I didn't catch that. Could you say it again?", generation: generation)
+                guard isCurrent(generation) else { return }
+                await listenAndHandle(generation: generation)
+            }
         }
     }
 
@@ -239,6 +301,10 @@ final class TaskPlannerEngine: ObservableObject {
 
         do {
             if let missing = pendingClarification {
+                if spokenInput, needsSuggestion(transcript) {
+                    await suggest(transcript, for: missing, generation: generation)
+                    return
+                }
                 let answer = try await brain.extractPlace(from: transcript, for: missing)
                 guard isCurrent(generation) else { return }
                 latestBrainSource = answer.source
@@ -280,6 +346,23 @@ final class TaskPlannerEngine: ObservableObject {
             }
 
             currentIntent = extracted
+            if spokenInput {
+                let lowConfidence = (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold
+                remainingSuggestions = [(MissingSlot.origin, extracted.origin), (.destination, extracted.destination)]
+                    .compactMap { slot, place in
+                        guard let place, lowConfidence || !PracticeVocabulary.containsPlace(place) else { return nil }
+                        return (slot, place)
+                    }
+                if let next = remainingSuggestions.first {
+                    remainingSuggestions.removeFirst()
+                    await suggest(next.1, for: next.0, generation: generation, transcript: transcript)
+                    return
+                }
+                if !PracticeVocabulary.containsPlace(transcript), let missing = extracted.firstMissingSlot {
+                    await suggest(transcript, for: missing, generation: generation)
+                    return
+                }
+            }
             await proceedAfterIntentUpdate(generation: generation)
         } catch {
             guard isCurrent(generation) else { return }
@@ -298,17 +381,8 @@ final class TaskPlannerEngine: ObservableObject {
         if let missing = currentIntent.firstMissingSlot {
             pendingClarification = missing
             clarificationFailures = 0
-            let answer: BrainAnswer<String>
-            do {
-                answer = try await brain.clarifyingQuestion(for: missing, currentIntent: currentIntent)
-            } catch {
-                PlannerDiagnostics.fallback(after: error, call: "clarifyingQuestion")
-                answer = BrainAnswer(value: missing == .origin ? "Sure! Where are you leaving from?" : "And where are you headed?", source: .keywordFallback)
-            }
-            guard isCurrent(generation) else { return }
-            latestBrainSource = answer.source
-            latestBrainLatencyMilliseconds = answer.latencyMilliseconds
-            await speak(answer.value, generation: generation)
+            latestBrainSource = .template
+            await speak(PlannerTemplates.question(for: missing), generation: generation)
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         } else {
@@ -320,17 +394,8 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func openPracticeAndGuide(generation: Int) async {
         guard isCurrent(generation) else { return }
-        let answer: BrainAnswer<String>
-        do {
-            answer = try await brain.confirmationLine(for: currentIntent)
-        } catch {
-            PlannerDiagnostics.fallback(after: error, call: "confirmationLine")
-            answer = BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
-        }
-        guard isCurrent(generation) else { return }
-        latestBrainSource = answer.source
-        latestBrainLatencyMilliseconds = answer.latencyMilliseconds
-        await speak(answer.value, generation: generation)
+        latestBrainSource = .template
+        await speak(PlannerTemplates.confirmation(for: currentIntent), generation: generation)
         guard isCurrent(generation) else { return }
 
         plannerState = .openingApp
@@ -341,20 +406,19 @@ final class TaskPlannerEngine: ObservableObject {
         let simulation = TripPlannerPracticeViewModel(intent: currentIntent)
         simulation.onStepAdvanced = { [weak self] step in
             guard let self else { return }
-            Task { await self.handleGuidanceAdvanced(step, generation: generation) }
+            self.guidanceSpeechGeneration += 1
+            let speechGeneration = self.guidanceSpeechGeneration
+            Task { await self.handleGuidanceAdvanced(step, generation: generation, speechGeneration: speechGeneration) }
         }
         tripPlannerPracticeViewModel = simulation
         plannerState = .guiding(.forYouOpened)
-        prefetchCaption(after: .forYouOpened)
         await speak(PracticeStep.forYouOpened.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""), generation: generation, updatesPlannerState: false)
     }
 
-    private func handleGuidanceAdvanced(_ step: PracticeStep, generation: Int) async {
-        guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step else { return }
-        guidanceSpeechGeneration += 1
-        let speechGeneration = guidanceSpeechGeneration
+    private func handleGuidanceAdvanced(_ step: PracticeStep, generation: Int, speechGeneration: Int) async {
+        guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step,
+              speechGeneration == guidanceSpeechGeneration else { return }
         plannerState = .guiding(step)
-        prefetchCaption(after: step)
         let caption = step.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? "")
         await speak(caption, generation: generation, updatesPlannerState: false)
         guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step,
@@ -370,6 +434,79 @@ final class TaskPlannerEngine: ObservableObject {
         }
     }
 
+    func stopPracticeSpeech() {
+        guard tripPlannerPracticeViewModel != nil else { return }
+        guidanceSpeechGeneration += 1
+        voiceOutput.stop()
+    }
+
+    private func needsSuggestion(_ text: String) -> Bool {
+        (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold || !PracticeVocabulary.containsPlace(text)
+    }
+
+    private func suggest(_ place: String, for slot: MissingSlot, generation: Int, transcript: String? = nil) async {
+        suggestionSlot = slot
+        suggestionTranscript = transcript ?? place
+        placeSuggestions = PracticeVocabulary.closestPlaces(to: place)
+        latestBrainSource = .template
+        await speak("Did you mean \(placeSuggestions.joined(separator: " or "))?", generation: generation)
+        guard isCurrent(generation), suggestionSlot != nil else { return }
+        plannerState = .idle
+    }
+
+    func chooseSuggestedPlace(_ place: String) {
+        guard let slot = suggestionSlot, placeSuggestions.contains(place) else { return }
+        sessionGeneration += 1
+        voiceOutput.stop()
+        currentIntent.intent = .planJourney
+        currentIntent = currentIntent.filling(slot, with: place)
+        pendingClarification = nil
+        clarificationFailures = 0
+        placeSuggestions = []
+        suggestionSlot = nil
+        let generation = sessionGeneration
+        Task {
+            if let next = remainingSuggestions.first {
+                remainingSuggestions.removeFirst()
+                await suggest(next.1, for: next.0, generation: generation, transcript: suggestionTranscript)
+            } else {
+                await proceedAfterIntentUpdate(generation: generation)
+            }
+        }
+    }
+
+    func retrySuggestedPlace() {
+        guard let slot = suggestionSlot else { return }
+        pendingClarification = slot
+        if slot == .origin { currentIntent.origin = nil } else { currentIntent.destination = nil }
+        clearSuggestions()
+        userTappedToTalk()
+    }
+
+    private func clearSuggestions() {
+        placeSuggestions = []
+        suggestionSlot = nil
+        remainingSuggestions = []
+        suggestionTranscript = ""
+    }
+
+    private func clearTurn() {
+        speechEndedAt = nil
+        sttMilliseconds = nil
+        firstAudioMilliseconds = nil
+        latestBrainLatencyMilliseconds = nil
+    }
+
+    private func elapsedSinceSpeechEnd() -> Int? {
+        speechEndedAt.map { max(0, Int((ProcessInfo.processInfo.systemUptime - $0) * 1000)) }
+    }
+
+    private func recordFirstAudio() {
+        guard firstAudioMilliseconds == nil, let elapsed = elapsedSinceSpeechEnd() else { return }
+        firstAudioMilliseconds = elapsed
+        VoiceDiagnostics.logger.info("First audio ms=\(elapsed)")
+    }
+
     private func isCurrent(_ generation: Int) -> Bool {
         generation == sessionGeneration
     }
@@ -383,6 +520,8 @@ final class TaskPlannerEngine: ObservableObject {
         guard let step = tripPlannerPracticeViewModel?.step else { return }
         voiceOutput.setSlower(slower)
         let generation = sessionGeneration
-        Task { await handleGuidanceAdvanced(step, generation: generation) }
+        guidanceSpeechGeneration += 1
+        let speechGeneration = guidanceSpeechGeneration
+        Task { await handleGuidanceAdvanced(step, generation: generation, speechGeneration: speechGeneration) }
     }
 }

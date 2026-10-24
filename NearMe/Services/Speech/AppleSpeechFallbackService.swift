@@ -11,8 +11,14 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
     private var task: SFSpeechRecognitionTask?
     private(set) var isListening = false
 
-    private var silenceTimer: Timer?
-    private let silenceInterval: TimeInterval = 1.4
+    private var silenceTask: Task<Void, Never>?
+    private var finalizationTask: Task<Void, Never>?
+    private var silenceRule = SpeechSilenceRule()
+    private var ending = false
+    private var receivedFinal = false
+    private var generation = 0
+    private(set) var lastTurn = SpeechTurn()
+    var onSpeechEnd: ((String) -> Void)?
     /// Backstop if the recognizer never calls back at all.
     private let hardTimeout: TimeInterval = 25
 
@@ -41,8 +47,14 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             throw VoiceInputError.unsupportedOnDeviceLocale
         }
 
+        stopListening()
+        let token = generation
+        lastTurn = SpeechTurn()
+        silenceRule = SpeechSilenceRule()
+        ending = false
+        receivedFinal = false
         isListening = true
-        defer { isListening = false }
+        defer { if generation == token { isListening = false } }
 
         // FIX: was a per-call setCategory/setActive here — see
         // NearMeAudioSession.swift. The session is configured once for the
@@ -59,8 +71,13 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             throw VoiceInputError.microphoneUnavailable
         }
         inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
             request.append(buffer)
+            let active = SpeechSilenceRule.hasSpeech(buffer)
+            Task { @MainActor in
+                guard let self, token == self.generation, !self.ending else { return }
+                self.silenceRule.observe(isSpeech: active)
+            }
         }
 
         engine.prepare()
@@ -82,6 +99,9 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                 if let error { VoiceDiagnostics.log(error) }
                 let transcript = result?.bestTranscription.formattedString
                 let failed = error != nil
+                let final = result?.isFinal == true
+                let confidences = result?.bestTranscription.segments.map { Double($0.confidence) } ?? []
+                let confidence = confidences.isEmpty ? nil : confidences.reduce(0, +) / Double(confidences.count)
                 Task { @MainActor in
                     guard let self else { return }
                     guard self.activeResume === resume else { return }
@@ -89,31 +109,32 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                     if let transcript {
                         self.latestTranscript = transcript
                         onPartialTranscript(transcript)
-                        self.resetSilenceTimer {
-                            guard self.activeResume === resume else { return }
-                            self.activeResume = nil
-                            self.finish()
-                            if self.latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
-                                resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
-                            } else {
-                                resume.fulfill(returning: self.latestTranscript)
-                            }
-                        }
+                        self.lastTurn.confidence = confidence
+                        self.receivedFinal = final
+                        if final, self.ending { self.complete(resume) }
+
                     }
 
-                    if failed {
+                    if failed, self.activeResume === resume {
                         self.activeResume = nil
                         self.finish()
-                        if self.latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
-                            resume.fulfill(throwing: VoiceInputError.recognizerUnavailable)
-                        } else {
-                            // Prefer a usable transcript if cancellation follows it.
-                            resume.fulfill(returning: self.latestTranscript)
-                        }
+                        let failure: VoiceInputError = self.recognizer?.isAvailable == false
+                            ? .recognizerUnavailable : .noSpeechDetected
+                        resume.fulfill(throwing: failure)
                     }
                 }
             }
 
+            self.silenceTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
+                    guard let self, self.activeResume === resume else { return }
+                    if self.silenceRule.hasEnded {
+                        self.endSpeech(resume)
+                        return
+                    }
+                }
+            }
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(self?.hardTimeout ?? 25) * 1_000_000_000)
                 guard let self, self.activeResume === resume else { return }
@@ -132,23 +153,47 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         finish()
     }
 
-    private func resetSilenceTimer(onSilence: @escaping () -> Void) {
-        silenceTimer?.invalidate()
-        silenceTimer = Timer.scheduledTimer(withTimeInterval: silenceInterval, repeats: false) { _ in
-            Task { @MainActor in onSilence() }
+    private func endSpeech(_ resume: ResumeOnce<String>) {
+        guard !ending else { return }
+        ending = true
+        lastTurn.endedAt = silenceRule.lastActivity
+        engine.stop()
+        engine.inputNode.removeTap(onBus: 0)
+        isListening = false
+        onSpeechEnd?(latestTranscript)
+        request?.endAudio()
+        if receivedFinal { complete(resume); return }
+        finalizationTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            guard let self, self.activeResume === resume else { return }
+            self.activeResume = nil
+            self.finish()
+            resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
         }
+    }
+
+    private func complete(_ resume: ResumeOnce<String>) {
+        activeResume = nil
+        let transcript = latestTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        finish()
+        if transcript.isEmpty { resume.fulfill(throwing: VoiceInputError.noSpeechDetected) }
+        else { resume.fulfill(returning: transcript) }
     }
 
     static func makeRecognitionRequest() -> SFSpeechAudioBufferRecognitionRequest {
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.requiresOnDeviceRecognition = true
+        request.contextualStrings = PracticeVocabulary.phrases
         return request
     }
 
     private func finish() {
-        silenceTimer?.invalidate()
-        silenceTimer = nil
+        generation += 1
+        silenceTask?.cancel()
+        silenceTask = nil
+        finalizationTask?.cancel()
+        finalizationTask = nil
         if engine.isRunning {
             engine.stop()
             engine.inputNode.removeTap(onBus: 0)

@@ -8,9 +8,16 @@ import Speech
 final class AnalyzerVoiceInputService: VoiceInputService {
     private let transcriber: SpeechTranscriber
     private let engine = AVAudioEngine()
+    private var cleanupTask: Task<Void, Never>?
     private var analyzer: SpeechAnalyzer?
     private var input: AsyncStream<AnalyzerInput>.Continuation?
     private var resultsTask: Task<Void, Never>?
+    private var finalizationTask: Task<Void, Never>?
+    private var silenceRule = SpeechSilenceRule()
+    private var latestTranscript = ""
+    private var ending = false
+    private(set) var lastTurn = SpeechTurn()
+    var onSpeechEnd: ((String) -> Void)?
     private var silenceTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
     private var pending: CheckedContinuation<String, Error>?
@@ -23,6 +30,12 @@ final class AnalyzerVoiceInputService: VoiceInputService {
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
         stopListening()
         let token = generation
+        await cleanupTask?.value
+        guard token == generation else { throw CancellationError() }
+        silenceRule = SpeechSilenceRule()
+        lastTurn = SpeechTurn()
+        latestTranscript = ""
+        ending = false
         guard AVAudioApplication.shared.recordPermission == .granted else {
             throw VoiceInputError.microphonePermissionDenied
         }
@@ -41,12 +54,19 @@ final class AnalyzerVoiceInputService: VoiceInputService {
         self.analyzer = analyzer
         input = stream.continuation
         do {
+            try await analyzer.setContext(PracticeVocabulary.analysisContext())
+            guard token == generation else { throw CancellationError() }
             try await analyzer.start(inputSequence: stream.stream)
             guard token == generation else {
                 await analyzer.cancelAndFinishNow()
                 throw CancellationError()
             }
             engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: sourceFormat) { [weak self] buffer, _ in
+                let active = SpeechSilenceRule.hasSpeech(buffer)
+                Task { @MainActor in
+                    guard let self, token == self.generation, !self.ending else { return }
+                    self.silenceRule.observe(isSpeech: active)
+                }
                 do {
                     let converted = try converter.convert(buffer)
                     stream.continuation.yield(AnalyzerInput(buffer: converted))
@@ -70,26 +90,39 @@ final class AnalyzerVoiceInputService: VoiceInputService {
             resultsTask = Task { [weak self, transcriber] in
                 var finalized = ""
                 var latest = ""
+                var finalizedConfidence: [Double] = []
                 do {
                     for try await result in transcriber.results {
                         guard let self, token == self.generation else { return }
                         let segment = String(result.text.characters)
-                        if result.isFinal { finalized += segment }
-                        latest = result.isFinal ? finalized : finalized + segment
-                        onPartialTranscript(latest)
-                        self.silenceTask?.cancel()
-                        let transcript = latest
-                        self.silenceTask = Task { [weak self] in
-                            do { try await Task.sleep(for: .seconds(1.4)) } catch { return }
-                            guard let self, token == self.generation else { return }
-                            self.complete(transcript)
+                        let confidence = result.text.runs.compactMap { run in
+                            run[AttributeScopes.SpeechAttributes.ConfidenceAttribute.self].map { Double($0) }
                         }
+                        if result.isFinal {
+                            finalized += segment
+                            finalizedConfidence += confidence
+                        }
+                        latest = result.isFinal ? finalized : finalized + segment
+                        let allConfidence = result.isFinal ? finalizedConfidence : finalizedConfidence + confidence
+                        self.lastTurn.confidence = allConfidence.isEmpty ? nil : allConfidence.reduce(0, +) / Double(allConfidence.count)
+                        self.latestTranscript = latest
+                        onPartialTranscript(latest)
                     }
                     guard let self, token == self.generation else { return }
                     self.complete(latest)
                 } catch {
                     guard let self, token == self.generation else { return }
                     self.finish(.failure(VoiceInputError.recognizerUnavailable))
+                }
+            }
+            silenceTask = Task { [weak self] in
+                while !Task.isCancelled {
+                    do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
+                    guard let self, token == self.generation else { return }
+                    if self.silenceRule.hasEnded {
+                        self.endSpeech(token: token)
+                        return
+                    }
                 }
             }
             timeoutTask = Task { [weak self] in
@@ -102,6 +135,33 @@ final class AnalyzerVoiceInputService: VoiceInputService {
 
     func stopListening() { finish(.failure(CancellationError())) }
 
+    private func endSpeech(token: Int) {
+        guard !ending else { return }
+        ending = true
+        lastTurn.endedAt = silenceRule.lastActivity
+        engine.stop()
+        if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
+        isListening = false
+        input?.finish()
+        input = nil
+        onSpeechEnd?(latestTranscript)
+        timeoutTask?.cancel()
+        finalizationTask = Task { [weak self] in
+            guard let self, let analyzer = self.analyzer else { return }
+            do { try await analyzer.finalizeAndFinishThroughEndOfInput() }
+            catch {
+                guard token == self.generation else { return }
+                self.finish(.failure(VoiceInputError.noSpeechDetected))
+            }
+            // The results stream completes with the final transcript.
+        }
+        timeoutTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            guard let self, token == self.generation else { return }
+            self.finish(.failure(VoiceInputError.noSpeechDetected))
+        }
+    }
+
     private func complete(_ text: String) {
         let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
         finish(text.isEmpty ? .failure(VoiceInputError.noSpeechDetected) : .success(text))
@@ -109,6 +169,8 @@ final class AnalyzerVoiceInputService: VoiceInputService {
 
     private func finish(_ result: Result<String, Error>) {
         generation += 1
+        finalizationTask?.cancel()
+        finalizationTask = nil
         engine.stop()
         if tapInstalled { engine.inputNode.removeTap(onBus: 0); tapInstalled = false }
         input?.finish()
@@ -119,7 +181,7 @@ final class AnalyzerVoiceInputService: VoiceInputService {
         silenceTask = nil
         timeoutTask?.cancel()
         timeoutTask = nil
-        if let analyzer { Task { await analyzer.cancelAndFinishNow() } }
+        if let analyzer { cleanupTask = Task { await analyzer.cancelAndFinishNow() } }
         analyzer = nil
         isListening = false
         let continuation = pending
@@ -137,6 +199,7 @@ nonisolated private final class SpeechBufferConverter: @unchecked Sendable {
         guard let converter = AVAudioConverter(from: source, to: target) else {
             throw VoiceInputError.microphoneUnavailable
         }
+        converter.primeMethod = .none
         self.converter = converter
         self.target = target
     }

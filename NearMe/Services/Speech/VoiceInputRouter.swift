@@ -16,7 +16,7 @@ struct OnDeviceSpeechCapabilities: OnDeviceSpeechCapabilityChecking {
         if #available(iOS 26.0, *), SpeechTranscriber.isAvailable,
            let supported = await SpeechTranscriber.supportedLocale(equivalentTo: locale) {
             let transcriber = SpeechTranscriber(locale: supported, transcriptionOptions: [],
-                                              reportingOptions: [.volatileResults], attributeOptions: [])
+                                              reportingOptions: [.volatileResults], attributeOptions: [.transcriptionConfidence])
             do {
                 let installation = try await AssetInventory.assetInstallationRequest(supporting: [transcriber])
                 if let installation {
@@ -51,13 +51,19 @@ final class VoiceInputRouter: VoiceInputService {
     init(capabilities: OnDeviceSpeechCapabilityChecking = OnDeviceSpeechCapabilities(),
          locales: [Locale] = [Locale(identifier: "en-AU"), .current]) {
         self.capabilities = capabilities
-        self.locales = locales
+        var seen = Set<String>()
+        self.locales = locales.filter { seen.insert($0.identifier(.bcp47).lowercased()).inserted }
     }
+
+    var onSpeechEnd: ((String) -> Void)?
+    var lastTurn: SpeechTurn { activeService?.lastTurn ?? SpeechTurn() }
+    private var preparationError: VoiceInputError?
 
     var isListening: Bool { activeService?.isListening ?? false }
 
     func prepareForListening() async throws {
-        stopListening()
+        if activeService != nil { return }
+        if let preparationError { throw preparationError }
         let token = generation
         var temporarilyUnavailable = false
         for locale in locales {
@@ -73,18 +79,25 @@ final class VoiceInputRouter: VoiceInputService {
         }
         let error: VoiceInputError = temporarilyUnavailable ? .recognizerUnavailable : .unsupportedOnDeviceLocale
         VoiceDiagnostics.logger.notice("On-device speech unavailable reason=\(temporarilyUnavailable ? "assets unavailable" : "unsupported locale or device", privacy: .public)")
+        preparationError = error
         throw error
     }
 
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
         if activeService == nil { try await prepareForListening() }
         guard let activeService else { throw VoiceInputError.recognizerUnavailable }
+        activeService.onSpeechEnd = onSpeechEnd
         return try await activeService.startListening(onPartialTranscript: onPartialTranscript)
     }
 
     func stopListening() {
         generation += 1
         activeService?.stopListening()
+    }
+
+    func resetSession() {
+        stopListening()
         activeService = nil
+        preparationError = nil
     }
 }

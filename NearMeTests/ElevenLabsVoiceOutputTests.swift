@@ -107,9 +107,45 @@ final class ElevenLabsVoiceOutputTests: XCTestCase {
         await speech.value
         await eventually { fixture.cache.audio(for: fixture.cacheKey("Late")) != nil }
         XCTAssertEqual(fixture.player.playCount, 0)
-        await output.speak("Late")
+        let cachedOutput = fixture.output()
+        await cachedOutput.speak("Late")
         XCTAssertEqual(fixture.session.requests.count, 1)
         XCTAssertEqual(fixture.player.playCount, 1)
+    }
+
+    func testSessionPreparationFailureKeepsValidCacheAndCacheHitHasNoDeadline() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        fixture.cache.store(fixture.session.data, for: fixture.cacheKey("Cached"))
+        fixture.player.preparationError = NSError(domain: "AudioSession", code: 1)
+        let failed = fixture.output()
+        await failed.speak("Cached")
+        XCTAssertEqual(failed.lastFallbackReason, "audio session unavailable")
+        XCTAssertNotNil(fixture.cache.audio(for: fixture.cacheKey("Cached")))
+        fixture.player.preparationError = nil
+        let cached = fixture.output(deadline: 0)
+        await cached.speak("Cached")
+        XCTAssertEqual(cached.lastVoice, "ElevenLabs")
+        XCTAssertTrue(fixture.session.requests.isEmpty)
+    }
+
+    func testGreetingUsesSystemWithoutStartingNetwork() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        await fixture.output().speakGreeting("Hello")
+        XCTAssertEqual(fixture.system.lines, ["Hello"])
+        XCTAssertTrue(fixture.session.requests.isEmpty)
+    }
+
+    func testPlaybackEventIsForwardedFromBothVoices() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        let output = fixture.output()
+        var starts = 0
+        output.onPlaybackStarted = { starts += 1 }
+        fixture.player.onPlaybackStarted?()
+        fixture.system.onPlaybackStarted?()
+        XCTAssertEqual(starts, 2)
     }
 
     func testStopDuringRequestPreventsLateSpeech() async throws {
@@ -295,11 +331,14 @@ private final class StubVoicePlayer: VoiceAudioPlaying {
     var prepared: [Data] = []
     var playCount = 0
     var rejectData = false
+    var preparationError: Error?
+    var onPlaybackStarted: (() -> Void)?
     var playSucceeds = true
     var suspend = false
     var pending: CheckedContinuation<Bool, Never>?
 
     func prepare(_ data: Data) throws {
+        if let preparationError { throw preparationError }
         if rejectData { throw VoicePlaybackError.decode }
         prepared.append(data)
     }
@@ -314,6 +353,7 @@ private final class StubVoicePlayer: VoiceAudioPlaying {
 
 @MainActor
 private final class StubSystemVoice: VoiceOutputService {
+    var onPlaybackStarted: (() -> Void)?
     var lines: [String] = []
     var slower = false
     func setSlower(_ slower: Bool) { self.slower = slower }

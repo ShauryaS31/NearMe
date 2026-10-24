@@ -38,12 +38,12 @@ final class KeywordFallbackBrainTests: XCTestCase {
         }
     }
 
-    func testConversationAnswersHaveKeywordSource() async throws {
+    func testConversationAnswersUseTemplates() async throws {
         let brain = KeywordFallbackBrain()
         let question = try await brain.clarifyingQuestion(for: .origin, currentIntent: .empty)
         let confirmation = try await brain.confirmationLine(for: .empty)
-        XCTAssertEqual(question.source, .keywordFallback)
-        XCTAssertEqual(confirmation.source, .keywordFallback)
+        XCTAssertEqual(question.source, .template)
+        XCTAssertEqual(confirmation.source, .template)
     }
 }
 

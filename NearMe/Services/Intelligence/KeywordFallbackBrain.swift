@@ -39,19 +39,6 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
         return BrainAnswer(value: stripTrailingFiller(place), source: .keywordFallback)
     }
 
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
-        switch missing {
-        case .origin:
-            return BrainAnswer(value: "Sure! Where are you leaving from?", source: .keywordFallback)
-        case .destination:
-            return BrainAnswer(value: "Got it — and where are you headed?", source: .keywordFallback)
-        }
-    }
-
-    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
-        BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
-    }
-
     /// Finds the LAST occurrence of `marker` (e.g. " to ") and returns
     /// whatever follows it, trimmed at the first of `stopMarkers` or the end
     /// of the sentence. Using the *last* occurrence matters because a

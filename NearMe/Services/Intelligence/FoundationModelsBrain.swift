@@ -24,13 +24,6 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
     Omit filler. Do not invent places or expand abbreviations.
     """
 
-    private let conversationInstructions = """
-    Help plan a public transport journey in a trip planner practice app. Give one short, friendly spoken sentence. \
-    Only ask for a missing place or confirm the stated journey. \
-    No filler, emoji or markdown. Never state times, platforms, routes, lines, \
-    frequencies or prices. You have no live transport data.
-    """
-
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         try await measuredCall("extractIntent") {
             let session = LanguageModelSession(instructions: self.extractionInstructions)
@@ -58,34 +51,6 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
             )
             let place = response.content.place?.trimmingCharacters(in: .whitespacesAndNewlines)
             return place?.isEmpty == false ? place : nil
-        }
-    }
-
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
-        let prompt: String
-        switch missing {
-        case .origin:
-            prompt = "The user wants to go to \(currentIntent.destination ?? "their destination") but hasn't said where they're leaving from. Ask them one short, natural question to find out."
-        case .destination:
-            prompt = "The user wants to leave from \(currentIntent.origin ?? "their origin") but hasn't said where they're going. Ask them one short, natural question to find out."
-        }
-        return try await measuredCall("clarifyingQuestion") {
-            let session = LanguageModelSession(instructions: self.conversationInstructions)
-            let response = try await session.respond(
-                to: prompt, options: GenerationOptions(sampling: .greedy, maximumResponseTokens: 60)
-            )
-            return response.content
-        }
-    }
-
-    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
-        let prompt = "The user wants to travel from \(intent.origin ?? "?") to \(intent.destination ?? "?"). Say one short, friendly line confirming you'll help them plan that journey now, right before opening a trip planner practice app."
-        return try await measuredCall("confirmationLine") {
-            let session = LanguageModelSession(instructions: self.conversationInstructions)
-            let response = try await session.respond(
-                to: prompt, options: GenerationOptions(sampling: .greedy, maximumResponseTokens: 60)
-            )
-            return response.content
         }
     }
 

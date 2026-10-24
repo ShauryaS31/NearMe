@@ -47,3 +47,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:02 AEDT | P04 | claude | dispatch r1 | owner: start now, retest of P02c/P02b/P03 runs in parallel (issues become P03a after P04); branch task/P04-elevenlabs-voice
 - 2026-10-24 16:13 AEDT | P04 | codex | dev-report r1 | ElevenLabs output with cache, prefetch, fallback; strictly on-device input; captions equal labels; practice screens Dynamic Type (committed by manager, sandbox blocked .git)
 - 2026-10-24 16:19 AEDT | P04 | claude | review r1 CHANGES | 6 fixes (silent first-launch greeting, no-speech forces typing, cache deleted on session error, Stop acts as Cancel, unsupported-locale silence, per-listen latency) plus owner additions 7-13 from real-phone test (streaming, vocabulary bias, templates, Got it, Did you mean, timings); dispatch r2
+- 2026-10-24 16:29 AEDT | P04 | codex | dev-report r2 | review fixes 1-6 and owner additions 7-13 (committed by manager, sandbox blocked .git)

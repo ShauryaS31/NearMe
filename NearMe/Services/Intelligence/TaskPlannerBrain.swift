@@ -7,12 +7,14 @@ enum BrainSource: String, Sendable {
     case onDeviceModel
     case onDeviceModelWithKeywordFill
     case keywordFallback
+    case template
 
     var label: String {
         switch self {
         case .onDeviceModel: return "On-device model"
         case .onDeviceModelWithKeywordFill: return "On-device model + keyword fill"
         case .keywordFallback: return "Keyword fallback"
+        case .template: return "Template"
         }
     }
 }
@@ -37,6 +39,16 @@ protocol TaskPlannerBrain: Sendable {
     func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String>
 }
 
+extension TaskPlannerBrain {
+    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
+        BrainAnswer(value: PlannerTemplates.question(for: missing), source: .template)
+    }
+
+    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
+        BrainAnswer(value: PlannerTemplates.confirmation(for: intent), source: .template)
+    }
+}
+
 enum PlannerDiagnostics {
     static let logger = Logger(subsystem: "au.nearme.ios", category: "planner")
 
@@ -46,6 +58,7 @@ enum PlannerDiagnostics {
     }
 
     static func modelCall(_ kind: String, outcome: String, milliseconds: Int) {
+        VoiceDiagnostics.logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public)")
         logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public)")
     }
 
@@ -130,23 +143,7 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
                            latencyMilliseconds: modelAnswer.latencyMilliseconds)
     }
 
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
-        do {
-            return try await primary.clarifyingQuestion(for: missing, currentIntent: currentIntent)
-        } catch {
-            PlannerDiagnostics.fallback(after: error, call: "clarifyingQuestion")
-            return try await fallback.clarifyingQuestion(for: missing, currentIntent: currentIntent)
-        }
-    }
 
-    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
-        do {
-            return try await primary.confirmationLine(for: intent)
-        } catch {
-            PlannerDiagnostics.fallback(after: error, call: "confirmationLine")
-            return try await fallback.confirmationLine(for: intent)
-        }
-    }
 }
 
 enum TaskPlannerBrainFactory {

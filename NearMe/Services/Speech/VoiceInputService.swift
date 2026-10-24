@@ -64,6 +64,13 @@ nonisolated enum VoiceInputError: Error, LocalizedError {
     case network(Error)
     case transcriptionFailed(String)
 
+    var requiresTyping: Bool {
+        switch self {
+        case .unsupportedOnDeviceLocale, .recognizerUnavailable: return true
+        default: return false
+        }
+    }
+
     var errorDescription: String? {
         switch self {
         case .microphonePermissionDenied: return "Microphone permission denied."
@@ -88,6 +95,9 @@ protocol VoiceInputService: AnyObject {
     /// True while actively recording/listening.
     var isListening: Bool { get }
     func prepareForListening() async throws
+    func resetSession()
+    var lastTurn: SpeechTurn { get }
+    var onSpeechEnd: ((String) -> Void)? { get set }
 
     /// Starts listening and returns the final transcript once the user
     /// stops talking (silence timeout) or `stopListening()` is called.
@@ -101,6 +111,12 @@ protocol VoiceInputService: AnyObject {
 
 extension VoiceInputService {
     func prepareForListening() async throws {}
+    func resetSession() { stopListening() }
+    var lastTurn: SpeechTurn { SpeechTurn() }
+    var onSpeechEnd: ((String) -> Void)? {
+        get { nil }
+        set {}
+    }
 }
 
 final class ResumeOnce<T>: @unchecked Sendable {

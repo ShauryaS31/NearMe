@@ -16,7 +16,7 @@ final class VoiceEngineIntegrationTests: XCTestCase {
             await eventually { output.lines.last == caption }
             XCTAssertEqual(practice.currentCaption, caption)
             if let next = step.next {
-                XCTAssertEqual(output.prefetched.last, next.caption(origin: "Central", destination: "Town Hall"))
+                await eventually { output.prefetched.last == next.caption(origin: "Central", destination: "Town Hall") }
                 practice.completeCurrentStep()
             }
         }

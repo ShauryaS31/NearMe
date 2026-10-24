@@ -31,7 +31,7 @@ struct SessionContainerView: View {
                     TripPlannerPracticeView(viewModel: simulation,
                                             onRepeat: { engine.repeatPracticeCaption() },
                                             onSlower: { engine.repeatPracticeCaption(slower: true) },
-                                            onStop: engine.cancelCurrentAction,
+                                            onStop: engine.stopPracticeSpeech,
                                             onTypeInstead: engine.useTypedInput, onEndSession: {
                         engine.endSession()
                         onSessionEnded()
@@ -50,14 +50,14 @@ struct SessionContainerView: View {
         .preferredColorScheme(isGuiding || engine.plannerState == .openingApp ? nil : .light)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            Text("\(brainBadge) · \(engine.latestVoice ?? "Voice pending")")
+            Text("\(brainBadge) | \(engine.latestVoice ?? "Voice pending")\n\(engine.timingBadge)")
                 .font(.caption)
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
                 .frame(maxWidth: .infinity)
                 .background(.background)
-                .accessibilityLabel("Brain source: \(brainBadge). Voice: \(engine.latestVoice ?? "pending")")
+                .accessibilityLabel("Brain source: \(brainBadge). Voice: \(engine.latestVoice ?? "pending"). \(engine.timingBadge)")
         }
         #endif
         .onAppear { engine.beginSession() }
@@ -65,12 +65,7 @@ struct SessionContainerView: View {
     }
 
     #if DEBUG
-    private var brainBadge: String {
-        if let ms = engine.latestBrainLatencyMilliseconds {
-            return "\(engine.latestBrainSource.label), \(ms) ms"
-        }
-        return engine.latestBrainSource.label
-    }
+    private var brainBadge: String { engine.latestBrainSource.label }
     #endif
 
     private var isGuiding: Bool {

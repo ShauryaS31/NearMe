@@ -4,15 +4,22 @@ import AVFoundation
 
 @MainActor
 protocol VoiceOutputService: AnyObject {
+    var onPlaybackStarted: (() -> Void)? { get set }
     var lastVoice: String? { get }
     var onVoiceChanged: ((String) -> Void)? { get set }
     func speak(_ text: String) async
+    func speakGreeting(_ text: String) async
     func prefetch(_ text: String)
     func setSlower(_ slower: Bool)
     func stop()
 }
 
 extension VoiceOutputService {
+    func speakGreeting(_ text: String) async { await speak(text) }
+    var onPlaybackStarted: (() -> Void)? {
+        get { nil }
+        set {}
+    }
     var lastVoice: String? { nil }
     var onVoiceChanged: ((String) -> Void)? {
         get { nil }
@@ -24,6 +31,7 @@ extension VoiceOutputService {
 
 @MainActor
 final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynthesizerDelegate {
+    var onPlaybackStarted: (() -> Void)?
     private let synthesizer = AVSpeechSynthesizer()
     private var continuation: CheckedContinuation<Void, Never>?
     private var activeUtterance: AVSpeechUtterance?
@@ -76,6 +84,13 @@ final class SystemVoiceOutputService: NSObject, VoiceOutputService, AVSpeechSynt
         activeUtterance = nil
         continuation?.resume()
         continuation = nil
+    }
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        Task { @MainActor in
+            guard activeUtterance === utterance else { return }
+            onPlaybackStarted?()
+        }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {

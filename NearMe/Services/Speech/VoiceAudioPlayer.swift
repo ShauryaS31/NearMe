@@ -4,9 +4,17 @@ import Foundation
 @MainActor
 protocol VoiceAudioPlaying: AnyObject {
     var rate: Float { get set }
+    var onPlaybackStarted: (() -> Void)? { get set }
     func prepare(_ data: Data) throws
     func play() async -> Bool
     func stop()
+}
+
+extension VoiceAudioPlaying {
+    var onPlaybackStarted: (() -> Void)? {
+        get { nil }
+        set {}
+    }
 }
 
 @MainActor
@@ -14,15 +22,19 @@ final class VoiceAudioPlayer: NSObject, VoiceAudioPlaying, AVAudioPlayerDelegate
     private var player: AVAudioPlayer?
     private var completion: CheckedContinuation<Bool, Never>?
     private var watchdog: Task<Void, Never>?
+    var onPlaybackStarted: (() -> Void)?
     var rate: Float = 1
 
     func prepare(_ data: Data) throws {
         stop()
         try NearMeAudioSession.configureIfNeeded()
-        let player = try AVAudioPlayer(data: data)
+        let player: AVAudioPlayer
+        do { player = try AVAudioPlayer(data: data, fileTypeHint: AVFileType.mp3.rawValue) }
+        catch { throw VoicePlaybackError.decode }
         player.enableRate = true
         player.rate = rate
-        guard player.prepareToPlay(), player.duration > 0 else { throw VoicePlaybackError.decode }
+        guard player.duration > 0 else { throw VoicePlaybackError.decode }
+        guard player.prepareToPlay() else { throw VoicePlaybackError.preparation }
         player.delegate = self
         self.player = player
     }
@@ -32,6 +44,7 @@ final class VoiceAudioPlayer: NSObject, VoiceAudioPlaying, AVAudioPlayerDelegate
         return await withCheckedContinuation { continuation in
             completion = continuation
             guard player.play() else { finish(false); return }
+            onPlaybackStarted?()
             watchdog = Task { [weak self] in
                 do { try await Task.sleep(for: .seconds(player.duration / Double(player.rate) + 1)) }
                 catch { return }
@@ -70,6 +83,7 @@ final class VoiceAudioPlayer: NSObject, VoiceAudioPlaying, AVAudioPlayerDelegate
 
 enum VoicePlaybackError: Error {
     case decode
+    case preparation
     case http(Int)
     case request
 }

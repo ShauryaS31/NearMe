@@ -7,6 +7,7 @@ struct VoiceSessionView: View {
     let onEndSession: () -> Void
     @State private var typedText = ""
     @FocusState private var textEntryFocused: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
@@ -19,6 +20,14 @@ struct VoiceSessionView: View {
                     .foregroundStyle(TTColor.accent)
                     .tracking(1.5)
                     .accessibilityHidden(true) // the orb already announces this via its own label
+
+                if engine.plannerState == .thinking {
+                    if reduceMotion {
+                        Label("Thinking...", systemImage: "hourglass").font(.body)
+                    } else {
+                        ProgressView("Thinking...").font(.body)
+                    }
+                }
 
                 VoiceOrbView(state: orbState)
                     .onTapGesture {
@@ -35,6 +44,28 @@ struct VoiceSessionView: View {
                     .frame(maxWidth: .infinity)
                     .accessibilityLabel(subtitleAccessibilityLabel)
 
+                if engine.isPreparingSpeech {
+                    Label("Getting speech ready...", systemImage: "arrow.down.circle")
+                        .font(.body)
+                }
+                if !engine.placeSuggestions.isEmpty {
+                    VStack(spacing: 12) {
+                        Text(engine.suggestionTranscript).font(.body)
+                        Text("Did you mean ...?").font(.title)
+                        ForEach(engine.placeSuggestions, id: \.self) { place in
+                            Button { engine.chooseSuggestedPlace(place) } label: {
+                                Label(place, systemImage: "mappin.circle")
+                                    .frame(minWidth: 44, minHeight: 44)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        Button(action: engine.retrySuggestedPlace) {
+                            Label("Neither, say it again", systemImage: "mic")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
                 if let error = engine.lastErrorMessage {
                     Text(error)
                         .font(TTFont.callout())
@@ -121,7 +152,8 @@ struct VoiceSessionView: View {
     private var orbState: VoiceOrbState {
         switch engine.plannerState {
         case .listening: return .listening
-        case .speaking, .thinking: return .speaking
+        case .speaking: return .speaking
+        case .thinking: return .idle
         default: return .idle
         }
     }
@@ -141,7 +173,7 @@ struct VoiceSessionView: View {
             if !engine.liveTranscript.isEmpty { return engine.liveTranscript }
             return engine.conversation.last?.text ?? "Listening..."
         case .thinking:
-            return engine.conversation.last?.text ?? "One moment..."
+            return engine.liveTranscript.isEmpty ? "One moment..." : "Got it: \(engine.liveTranscript)"
         case .idle:
             if engine.isTyping {
                 return engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "What would you like help with?"
