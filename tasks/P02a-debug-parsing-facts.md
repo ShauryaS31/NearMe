@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | done (Mac compile pending) |
 | Window | Sat 24 Oct, now |
 | Depends on | P02 |
 | Assignee | codex |
@@ -127,3 +127,8 @@ Fixes (address every one):
   6. Run `xcodebuild -scheme NearMe -configuration Release -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build`. Verify Release compiles with the DEBUG badge excluded. Repeat the fact search: `git grep -n -i -E '[0-9]{1,2}:[0-9]{2} ?(am|pm)|platform [0-9]|leaves shortly' -- NearMe/` (expect no matches, exit 1).
 - Not done / risks / questions: Mac compilation, XCTest, model availability, actual microphone retry timing and visual/accessibility validation remain the owner's gate. Keyword cleanup remains a phrase/filler heuristic and cannot validate whether a place exists. No merge, push, CI run or subsequent task was started.
 - Commit: pending current-branch commit attempt; if `.git` is blocked, the manager must commit the working tree.
+
+## Review (round 2)
+- Date: 2026-10-24 14:53 AEDT
+- Verdict: PASS (static). Merged to main; Mac compile and retest pending (owner).
+- Fixes 1 to 7 verified in the diff: keyword fill upgrades unknown to plan_journey; orb and a "Use voice" button return from typing (useTypedInput sets idle, so the button is enabled), cancel and end reset typing; model place answers are cleaned by the keyword extractor, with keyword fallback before re-asking; single-line field with Send; error cleared when listening restarts; SwiftUI .background(.background); tests added for fixes 1 and 3.
