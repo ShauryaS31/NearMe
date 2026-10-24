@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct |
 | Depends on | P07 |
 | Assignee | codex |
@@ -93,3 +93,23 @@ Mac/iPhone check: a screenshot of each practice step shows the dock, a visible h
   6. Request `send a photo to Mum on WhatsApp`; check bold target in the coach dock, Repeat, Slower, Type instead/Return, Done/Next and I'm stuck. During speech tap Stop: sound ends immediately and the step remains. End session returns home. For a trip restart, enter `to Holsworthy`, then `um`, `uh`, then only `Town Hall`; it must ask the origin, not open general coaching. Confirm template replies retain the understanding source in the badge.
   7. Run `bash scripts/mac-run.sh device --current`. Repeat the dock, tab, highlight, Stop, voice tap/finish and coach checks on the connected iPhone, including Accessibility XXXL and both available voice providers. Do not commit `NearMe.xcodeproj`.
 - Not done / risks / questions: all Mac/iPhone validation and screenshots above remain unverified. Real-device speech/model behavior and Swift 6.4 compilation cannot be established on this machine. The fixed practice tabs remain simulated (tap feedback rather than extra app navigation); at accessibility sizes all five labels are reachable through horizontal scrolling. Concurrent P09/P10 planning files and the existing LOG entry were left untouched; only the P07b handoff log entry will be appended. The existing Python guide-content validator still applies its original editorial review-date policy; this task changes the app's launch loader date policy only.
+
+## Review (round 1)
+- Date: 2026-10-24 17:49 AEDT
+- Verdict: CHANGES (round 2 = review fixes plus the owner's three additions). Static review: no definite compile errors; item 0 fully met (HelpGuide rename with plain @Guide, practice restart stays in trip flow with a real-router test, practice card direct and in voice mode, HelpRouter split, typed test dictionary, nits); even-odd cut-out and anchor resolution correct; ring 4/6/8 pt; two-line badge with separate understanding and reply sources.
+
+### Review fixes
+1. Swift 6.4 type checker: move the step content of `CoachView.swift:63-100` (5-branch ladder inside GeometryReader, VStack, ScrollView, if let) into a `CoachStepContent` subview; move the practice highlight overlay of `TripPlannerPracticeView.swift:10-45` into a `PracticeHighlightLayer` subview. If `.accessibilityHint(active ? ... : "")` (PracticeHighlight.swift:22) is ambiguous, use `Text(...)`.
+2. SessionDock.swift:108-114: show the mic state as visible text beside the mic (`.callout`): "Tap to talk", "Listening... tap when you're done", "Getting ready to listen...", "Finishing..."; while listening in practice, show the live transcript in the dock's instruction area.
+3. PracticeHighlight.swift:48: draw the ring outside the target (outset by the ring width, corner radius plus inset) so it never covers the target's edge; widen the cut-out to match.
+4. TripPlannerPracticeView.swift:35-41: dim the tab bar only when the current target anchor exists (no uneven dim during step changes).
+5. SessionContainerView.swift:51: the badge must not clip: each line `.lineLimit(1)` with `.minimumScaleFactor(0.8)`, height grows with content.
+6. TripPlannerChrome.swift:109: tab labels `.footnote`; from `.xLarge` upward use a horizontal scroll so "Settings" never breaks mid-word.
+7. TaskPlannerEngine.swift:696 (startPractice): reset the understanding source so the badge does not show the previous session (show "Understood: practice card").
+8. Nits: remove the "Adapted from a prior prototype" header from new files that adapt nothing (SessionDock.swift and any other new file); VoiceOver label of Stop is "Stop" (same as visible); keep the For You view's own hint when not the target; `useTypedInput` during practice keeps `.guiding(step)`; do not rebuild the dock TextField on every caption change (keyboard stays open); `scripts/validate-guides.py` accepts any valid YYYY-MM-DD `last_checked` (same rule as the app).
+
+### Owner additions (round 2)
+9. Hidden debug badge: off by default, also in Debug builds. Debug builds only: a "Show debug info" toggle in the dock's More menu (and on the plain voice screen's menu or settings) turns it on for the session; Release builds never show it or the toggle.
+10. Calm step card (coach): one step at a time on a plain card (`secondarySystemBackground`, corner radius 20, generous padding): "Step 2 of 5" small (`.footnote`, secondary) at the top, the instruction in large text (`.title2`) with the target label in bold, one primary "Done" button (`.borderedProminent`), "Repeat" and "I'm stuck" as quieter secondary buttons (`.bordered`), nothing else (no extra badges or decoration). Step change: a short fade (0.2 s); with Reduce Motion, no animation.
+11. Auto-open WhatsApp: when a coach guide's first step is opening an app that has a documented `app_url_scheme` and `canOpenURL` is true (today the WhatsApp guides), NearMe says "I'll open WhatsApp for you now.", opens the app after that line finishes, marks step 1 done and continues at step 2 (the coach state and resume path make step 2 the current step when the user returns). If the app is not installed or the URL cannot open, step 1 stays a normal instruction. Never auto-open for Settings, Photos or other apps without a documented scheme. Test with a fake URL opener: opened once, step advances; not installed keeps step 1.
+12. Tests for 9 to 11 (fakes): badge hidden by default and toggled; card shows step count, bold target and Done; auto-open advances once and never for guides without a scheme.
