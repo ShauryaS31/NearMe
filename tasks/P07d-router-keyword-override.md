@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (combined iPhone check after P11) |
 | Window | Sat 24 Oct |
 | Depends on | P07b |
 | Assignee | codex (worktree ../NearMe-p07d, parallel to P11 and the P09 lane) |
@@ -85,3 +85,8 @@ iPhone check: "can you help me send an image to my mom": "Sure, let me help you 
   - Swift 6.4 compilation, real model behaviour, physical app launching, audible timing and symbol existence on the target iOS runtime remain unverified until the Mac gate. Existing guide verify flags remain for owner device review.
   - No SwiftUI body/display changes, build-setting changes, new force unwraps, default-argument type constructions, secrets or generated Xcode project. SPEC.md, PLAN.md, CLAUDE.md and AGENTS.md are untouched. Other task worktrees were not modified.
   - Commit intended: `P07d: Override general routing and fix coach handoff feedback`. Post-commit LOG entry is appended only if Git succeeds, following the requested order.
+
+## Review (round 1)
+- Date: 2026-10-24 18:51 AEDT
+- Verdict: PASS (static). Merged to main first (owner merge order); combined iPhone check after P11.
+- Override only for on-device answers that pick general or an off-shortlist guide while the top candidate meets the threshold; logged "general overridden by guide match" with candidate and score. Person from the request wins over the model's; Chats steps say "In your \"Chats\" list, tap Mum's name."; other nearby steps "By \"<label>\", ..."; validator rejects "look near" and "tap <nearby label>". Auto-open logs every decision and says "<app> isn't on this phone." when not installed. Instant acknowledgement only for new requests (not commands, follow-ups, coach or practice), first step waits for it, cached. General rejection reasons logged by rule name only. 29 distinct step icons, all real SF Symbols; validator 0 problems. New protocol method has a default; default-argument scan clean (the one hit reads a nonisolated constant).
