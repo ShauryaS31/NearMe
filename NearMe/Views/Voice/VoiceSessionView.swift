@@ -51,7 +51,7 @@ struct VoiceSessionView: View {
                 if !engine.placeSuggestions.isEmpty {
                     VStack(spacing: 12) {
                         Text(engine.suggestionTranscript).font(.body)
-                        Text("Did you mean ...?").font(.title)
+                        Text(engine.suggestionQuestion).font(.title)
                         ForEach(engine.placeSuggestions, id: \.self) { place in
                             Button { engine.chooseSuggestedPlace(place) } label: {
                                 Label(place, systemImage: "mappin.circle")

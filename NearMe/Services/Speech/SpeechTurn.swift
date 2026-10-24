@@ -63,6 +63,12 @@ nonisolated enum PracticeVocabulary {
 nonisolated struct SpeechTurn {
     var endedAt: TimeInterval?
     var confidence: Double?
+
+    /// A decoder deadline must preserve words already recognized, including partials.
+    static func transcriptResult(_ latestTranscript: String) -> Result<String, Error> {
+        let text = latestTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        return text.isEmpty ? .failure(VoiceInputError.noSpeechDetected) : .success(text)
+    }
 }
 
 /// Shared acoustic silence policy. Tests inject a monotonic clock without sleeping.
@@ -82,6 +88,10 @@ nonisolated struct SpeechSilenceRule {
     var hasEnded: Bool {
         guard let lastActivity else { return false }
         return now() - lastActivity >= Self.interval
+    }
+
+    func shouldEnd(transcript: String) -> Bool {
+        hasEnded && !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     /// A small RMS gate avoids treating decoder callback latency as speech activity.

@@ -25,9 +25,15 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var firstAudioMilliseconds: Int?
     private var speechEndedAt: TimeInterval?
     private var suggestionSlot: MissingSlot?
-    private var remainingSuggestions: [(MissingSlot, String)] = []
     private var spokenInput = false
+    private var consecutiveInputFailures = 0
+    private static let inputFailureLimit = 2
+    private static let retryLine = "Sorry, I didn't catch that. Could you say it again?"
     private let permissionCheck: (() async -> Bool)?
+
+    var suggestionQuestion: String {
+        "Did you mean \(placeSuggestions.joined(separator: " or "))?"
+    }
 
     var timingBadge: String {
         let stt = sttMilliseconds.map { "STT \($0) ms" } ?? "STT pending"
@@ -67,6 +73,7 @@ final class TaskPlannerEngine: ObservableObject {
     // MARK: - Entry points
 
     func beginSession() {
+        consecutiveInputFailures = 0
         sessionGeneration += 1
         voiceInput.stopListening()
         voiceOutput.stop()
@@ -78,6 +85,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// User tapped the orb from an idle state to speak again.
     func userTappedToTalk() {
+        consecutiveInputFailures = 0
         sessionGeneration += 1
         voiceInput.stopListening()
         voiceOutput.stop()
@@ -255,6 +263,7 @@ final class TaskPlannerEngine: ObservableObject {
                 self.liveTranscript = partial
             }
             guard isCurrent(generation) else { return }
+            consecutiveInputFailures = 0
             if speechEndedAt == nil { clearTurn() }
             liveTranscript = transcript
             speechEndedAt = voiceInput.lastTurn.endedAt ?? ProcessInfo.processInfo.systemUptime
@@ -268,8 +277,9 @@ final class TaskPlannerEngine: ObservableObject {
         } catch VoiceInputError.noSpeechDetected {
             VoiceDiagnostics.log(VoiceInputError.noSpeechDetected)
             guard isCurrent(generation) else { return }
+            consecutiveInputFailures = 0
             lastErrorMessage = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
-            await speak("Sorry, I didn't catch that — what do you need help with?", generation: generation)
+            await speak(Self.retryLine, generation: generation)
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         } catch {
@@ -280,7 +290,14 @@ final class TaskPlannerEngine: ObservableObject {
                 useTypedInput()
                 lastErrorMessage = VoiceDiagnostics.message(for: error)
             } else if !(error is CancellationError) {
-                await speak("Sorry, I didn't catch that. Could you say it again?", generation: generation)
+                consecutiveInputFailures += 1
+                if consecutiveInputFailures >= Self.inputFailureLimit {
+                    voiceInput.stopListening()
+                    plannerState = .idle
+                    lastErrorMessage = VoiceDiagnostics.message(for: error)
+                    return
+                }
+                await speak(Self.retryLine, generation: generation)
                 guard isCurrent(generation) else { return }
                 await listenAndHandle(generation: generation)
             }
@@ -346,23 +363,6 @@ final class TaskPlannerEngine: ObservableObject {
             }
 
             currentIntent = extracted
-            if spokenInput {
-                let lowConfidence = (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold
-                remainingSuggestions = [(MissingSlot.origin, extracted.origin), (.destination, extracted.destination)]
-                    .compactMap { slot, place in
-                        guard let place, lowConfidence || !PracticeVocabulary.containsPlace(place) else { return nil }
-                        return (slot, place)
-                    }
-                if let next = remainingSuggestions.first {
-                    remainingSuggestions.removeFirst()
-                    await suggest(next.1, for: next.0, generation: generation, transcript: transcript)
-                    return
-                }
-                if !PracticeVocabulary.containsPlace(transcript), let missing = extracted.firstMissingSlot {
-                    await suggest(transcript, for: missing, generation: generation)
-                    return
-                }
-            }
             await proceedAfterIntentUpdate(generation: generation)
         } catch {
             guard isCurrent(generation) else { return }
@@ -378,7 +378,9 @@ final class TaskPlannerEngine: ObservableObject {
     private func proceedAfterIntentUpdate(generation: Int) async {
         guard isCurrent(generation) else { return }
 
-        if let missing = currentIntent.firstMissingSlot {
+        // With neither place supplied, ask where the person wants to go first.
+        if let missing = (currentIntent.origin == nil && currentIntent.destination == nil
+                          ? MissingSlot.destination : currentIntent.firstMissingSlot) {
             pendingClarification = missing
             clarificationFailures = 0
             latestBrainSource = .template
@@ -444,12 +446,12 @@ final class TaskPlannerEngine: ObservableObject {
         (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold || !PracticeVocabulary.containsPlace(text)
     }
 
-    private func suggest(_ place: String, for slot: MissingSlot, generation: Int, transcript: String? = nil) async {
+    private func suggest(_ place: String, for slot: MissingSlot, generation: Int) async {
         suggestionSlot = slot
-        suggestionTranscript = transcript ?? place
+        suggestionTranscript = place
         placeSuggestions = PracticeVocabulary.closestPlaces(to: place)
         latestBrainSource = .template
-        await speak("Did you mean \(placeSuggestions.joined(separator: " or "))?", generation: generation)
+        await speak(suggestionQuestion, generation: generation)
         guard isCurrent(generation), suggestionSlot != nil else { return }
         plannerState = .idle
     }
@@ -466,12 +468,7 @@ final class TaskPlannerEngine: ObservableObject {
         suggestionSlot = nil
         let generation = sessionGeneration
         Task {
-            if let next = remainingSuggestions.first {
-                remainingSuggestions.removeFirst()
-                await suggest(next.1, for: next.0, generation: generation, transcript: suggestionTranscript)
-            } else {
-                await proceedAfterIntentUpdate(generation: generation)
-            }
+            await proceedAfterIntentUpdate(generation: generation)
         }
     }
 
@@ -486,7 +483,6 @@ final class TaskPlannerEngine: ObservableObject {
     private func clearSuggestions() {
         placeSuggestions = []
         suggestionSlot = nil
-        remainingSuggestions = []
         suggestionTranscript = ""
     }
 

@@ -23,6 +23,45 @@ final class VoiceReviewTests: XCTestCase {
         XCTAssertEqual(SpeechSilenceRule.interval, 0.8)
     }
 
+    func testNoiseCannotEndTurnWithoutWordsAndLatePartialCanEndAfterSilence() {
+        let clock = SpeechTestClock()
+        var rule = SpeechSilenceRule(now: { clock.now })
+        rule.observe(isSpeech: true) // A cough crosses the acoustic threshold.
+        clock.now = 1
+        XCTAssertTrue(rule.hasEnded)
+        XCTAssertFalse(rule.shouldEnd(transcript: ""))
+        XCTAssertFalse(rule.shouldEnd(transcript: " \n\t "))
+        XCTAssertTrue(rule.shouldEnd(transcript: " Central "))
+        rule.observe(isSpeech: true)
+        XCTAssertFalse(rule.shouldEnd(transcript: "Central"), "Words alone cannot end active speech")
+    }
+
+    func testDeadlineCompletionPreservesLatestPartialAndRejectsOnlyEmptyText() throws {
+        // Both recognizers use this completion policy at their capture and finalization deadlines.
+        XCTAssertEqual(try SpeechTurn.transcriptResult("  Town Hall\n").get(), "Town Hall")
+        XCTAssertEqual(try SpeechTurn.transcriptResult("Central").get(), "Central")
+        for text in ["", " \n\t "] {
+            XCTAssertThrowsError(try SpeechTurn.transcriptResult(text).get()) { error in
+                guard case VoiceInputError.noSpeechDetected = error else {
+                    return XCTFail("Expected noSpeechDetected, got \(error)")
+                }
+            }
+        }
+    }
+
+    func testDeadlinePartialReachesPlannerWithoutAskingUserToRepeat() async {
+        let input = ReviewInput()
+        input.outcomes = [SpeechTurn.transcriptResult("  to Town Hall\n")]
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.beginSession()
+        await eventually { input.starts == 2 }
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        XCTAssertEqual(engine.conversation.last(where: { $0.speaker == .user })?.text, "to Town Hall")
+        XCTAssertEqual(output.lines, ["Hi, what can we help you with?", "Where are you starting from?"])
+        engine.endSession()
+    }
+
     func testBothRecognizerPathsReceiveSameVocabulary() {
         XCTAssertEqual(PracticeVocabulary.places, ["Central", "Town Hall", "Parramatta", "Holsworthy",
                                                   "Circular Quay", "Bondi Junction", "Strathfield", "Chatswood"])
@@ -31,9 +70,54 @@ final class VoiceReviewTests: XCTestCase {
         XCTAssertEqual(request.contextualStrings, PracticeVocabulary.phrases)
         XCTAssertTrue(request.requiresOnDeviceRecognition)
         XCTAssertTrue(request.shouldReportPartialResults)
-        if #available(iOS 26.0, *) {
-            XCTAssertEqual(PracticeVocabulary.analysisContext().contextualStrings[.general], PracticeVocabulary.phrases)
+    }
+
+    @available(iOS 26.0, *)
+    func testAnalyzerInstallsVocabularyBeforeStartAndCreatesFreshModules() async throws {
+        var analyzers: [ReviewAnalyzer] = []
+        var modules: [SpeechTranscriber] = []
+        let service = AnalyzerVoiceInputService(locale: Locale(identifier: "en-AU")) { transcriber in
+            let analyzer = ReviewAnalyzer()
+            analyzers.append(analyzer)
+            modules.append(transcriber)
+            return analyzer
         }
+        let first = service.makeSession()
+        let firstInput = AsyncStream<AnalyzerInput>.makeStream()
+        firstInput.continuation.finish()
+        try await first.start(inputSequence: firstInput.stream)
+        try await first.finalizeAndFinishThroughEndOfInput()
+        let second = service.makeSession()
+        let secondInput = AsyncStream<AnalyzerInput>.makeStream()
+        secondInput.continuation.finish()
+        try await second.start(inputSequence: secondInput.stream)
+        XCTAssertEqual(modules.count, 2)
+        XCTAssertFalse(first.transcriber === second.transcriber, "Never reuse a finished module")
+        guard analyzers.count == 2 else { return XCTFail("Expected a new analyzer for each session") }
+        XCTAssertEqual(analyzers[0].events, ["context", "start", "finalize"])
+        XCTAssertEqual(analyzers[1].events, ["context", "start"])
+        for analyzer in analyzers {
+            XCTAssertEqual(analyzer.contexts, [PracticeVocabulary.phrases])
+        }
+        await first.cancelAndFinishNow()
+        await second.cancelAndFinishNow()
+    }
+
+    @available(iOS 26.0, *)
+    func testAnalyzerDoesNotStartIfListenWasInvalidatedDuringContextSetup() async {
+        let analyzer = ReviewAnalyzer()
+        let service = AnalyzerVoiceInputService(locale: Locale(identifier: "en-AU")) { _ in analyzer }
+        let session = service.makeSession()
+        let input = AsyncStream<AnalyzerInput>.makeStream()
+        input.continuation.finish()
+        do {
+            try await session.start(inputSequence: input.stream, isCurrent: { false })
+            XCTFail("Expected cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError)
+        }
+        XCTAssertEqual(analyzer.events, ["context"])
+        await session.cancelAndFinishNow()
     }
 
     func testPlaceRankingIsCaseInsensitiveAndHandlesSentencesAndPrefixes() {
@@ -109,6 +193,83 @@ final class VoiceReviewTests: XCTestCase {
         engine.endSession()
     }
 
+    func testTwoConsecutiveInputFailuresStopAtIdleWithTypingAvailable() async {
+        let failures: [VoiceInputError] = [.microphoneUnavailable,
+                                         .audioEngineFailed(NSError(domain: "TestAudio", code: 1))]
+        for failure in failures {
+            let input = ReviewInput()
+            input.outcomes = [.failure(failure), .failure(failure)]
+            let output = ReviewOutput()
+            let engine = makeEngine(input: input, output: output)
+            engine.beginSession()
+            await eventually { input.starts == 2 && engine.plannerState == .idle }
+            XCTAssertFalse(input.isListening)
+            XCTAssertFalse(engine.isTyping, "Idle retains the visible Type instead action")
+            XCTAssertEqual(engine.lastErrorMessage, VoiceDiagnostics.message(for: failure))
+            XCTAssertEqual(output.lines.filter { $0 == "Sorry, I didn't catch that. Could you say it again?" }.count, 1)
+            engine.userTappedToTalk()
+            await eventually { input.starts == 3 }
+            XCTAssertEqual(engine.plannerState, .listening, "An explicit retry starts a fresh failure streak")
+            engine.useTypedInput()
+            XCTAssertTrue(engine.isTyping)
+            engine.endSession()
+        }
+    }
+
+    func testNoSpeechBreaksFailureStreakAndKeepsRetrying() async {
+        let input = ReviewInput()
+        input.outcomes = [.failure(VoiceInputError.microphoneUnavailable),
+                          .failure(VoiceInputError.noSpeechDetected),
+                          .failure(VoiceInputError.noSpeechDetected),
+                          .failure(VoiceInputError.microphoneUnavailable)]
+        let engine = makeEngine(input: input)
+        engine.beginSession()
+        await eventually { input.starts == 5 }
+        XCTAssertEqual(engine.plannerState, .listening)
+        XCTAssertFalse(engine.isTyping)
+        engine.endSession()
+    }
+
+    func testSuccessfulInputBreaksFailureStreak() async {
+        let input = ReviewInput()
+        input.outcomes = [.failure(VoiceInputError.microphoneUnavailable), .success("to Town Hall"),
+                          .failure(VoiceInputError.microphoneUnavailable)]
+        let engine = makeEngine(input: input)
+        engine.beginSession()
+        await eventually { input.starts == 4 }
+        XCTAssertEqual(engine.plannerState, .listening)
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        engine.endSession()
+    }
+
+    func testFirstTurnWithoutPlacesAsksDestinationInsteadOfSuggesting() async {
+        let input = ReviewInput()
+        input.confidence = 0.1
+        input.outcomes = [.success("I need help planning a trip")]
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output, brain: KeywordFallbackBrain())
+        engine.beginSession()
+        await eventually { input.starts == 2 }
+        XCTAssertTrue(engine.placeSuggestions.isEmpty)
+        XCTAssertEqual(output.lines.last, "Where would you like to go?")
+        XCTAssertEqual(engine.latestBrainSource, .template)
+        engine.endSession()
+    }
+
+    func testLowConfidenceFirstTurnWithPlaceStillAsksMissingPlace() async {
+        let input = ReviewInput()
+        input.confidence = 0.1
+        input.outcomes = [.success("to Town Hall")]
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output, brain: KeywordFallbackBrain())
+        engine.beginSession()
+        await eventually { input.starts == 2 }
+        XCTAssertTrue(engine.placeSuggestions.isEmpty)
+        XCTAssertEqual(output.lines.last, "Where are you starting from?")
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        engine.endSession()
+    }
+
     func testQuestionsAndConfirmationNeverCallBrainForWording() async {
         let brain = ReviewBrain()
         let output = ReviewOutput()
@@ -132,11 +293,14 @@ final class VoiceReviewTests: XCTestCase {
         let input = ReviewInput()
         input.outcomes = [.success("to Town Hall"), .success("Holsworth")]
         let brain = ReviewBrain()
-        let engine = makeEngine(input: input, brain: brain)
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output, brain: brain)
         engine.beginSession()
         await eventually { !engine.placeSuggestions.isEmpty }
         XCTAssertEqual(engine.suggestionTranscript, "Holsworth")
         XCTAssertEqual(engine.placeSuggestions.first, "Holsworthy")
+        XCTAssertEqual(engine.suggestionQuestion, "Did you mean \(engine.placeSuggestions.joined(separator: " or "))?")
+        XCTAssertEqual(output.lines.last, engine.suggestionQuestion)
         engine.chooseSuggestedPlace("Holsworthy")
         await eventually { engine.tripPlannerPracticeViewModel != nil }
         XCTAssertEqual(engine.currentIntent.origin, "Holsworthy")
@@ -148,13 +312,13 @@ final class VoiceReviewTests: XCTestCase {
     func testLowConfidenceOffersSuggestionsEvenForAKnownPlaceAndNeitherRetries() async {
         let input = ReviewInput()
         input.confidence = 0.49
-        input.outcomes = [.success("to Town Hall")]
+        input.outcomes = [.success("I need help planning a trip"), .success("Town Hall")]
         let engine = makeEngine(input: input)
         engine.beginSession()
         await eventually { !engine.placeSuggestions.isEmpty }
         XCTAssertEqual(engine.placeSuggestions.first, "Town Hall")
         engine.retrySuggestedPlace()
-        await eventually { input.starts == 2 }
+        await eventually { input.starts == 3 }
         XCTAssertTrue(engine.placeSuggestions.isEmpty)
         XCTAssertNil(engine.currentIntent.destination)
         XCTAssertFalse(engine.isTyping)
@@ -214,7 +378,7 @@ final class VoiceReviewTests: XCTestCase {
     }
 
     private func makeEngine(input: ReviewInput = ReviewInput(), output: ReviewOutput = ReviewOutput(),
-                            brain: ReviewBrain = ReviewBrain()) -> TaskPlannerEngine {
+                            brain: TaskPlannerBrain = ReviewBrain()) -> TaskPlannerEngine {
         TaskPlannerEngine(brain: brain, voiceInput: input, voiceOutput: output,
                           permissions: PermissionsManager(), userName: "", permissionCheck: { true })
     }
@@ -300,7 +464,8 @@ private final class ReviewBrain: TaskPlannerBrain, @unchecked Sendable {
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         intentCalls += 1
         onExtract?()
-        return BrainAnswer(value: JourneyIntent(intent: .planJourney, destination: "Town Hall",
+        return BrainAnswer(value: JourneyIntent(intent: .planJourney,
+                                               destination: utterance.contains("Town Hall") ? "Town Hall" : nil,
                                                origin: utterance.contains("from Central") ? "Central" : nil, mode: nil),
                            source: .keywordFallback, latencyMilliseconds: 123)
     }
@@ -318,4 +483,18 @@ private final class ReviewBrain: TaskPlannerBrain, @unchecked Sendable {
         XCTFail("Confirmation must use a template")
         return BrainAnswer(value: "Unexpected model confirmation", source: .keywordFallback)
     }
+}
+
+@available(iOS 26.0, *)
+@MainActor
+private final class ReviewAnalyzer: SpeechAnalysisControlling {
+    var events: [String] = []
+    var contexts: [[String]] = []
+    func setContext(_ context: AnalysisContext) async throws {
+        events.append("context")
+        contexts.append(context.contextualStrings[.general] ?? [])
+    }
+    func start(inputSequence: AsyncStream<AnalyzerInput>) async throws { events.append("start") }
+    func finalizeAndFinishThroughEndOfInput() async throws { events.append("finalize") }
+    func cancelAndFinishNow() async { events.append("cancel") }
 }

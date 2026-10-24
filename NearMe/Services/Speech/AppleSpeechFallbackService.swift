@@ -129,7 +129,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
                     guard let self, self.activeResume === resume else { return }
-                    if self.silenceRule.hasEnded {
+                    if self.silenceRule.shouldEnd(transcript: self.latestTranscript) {
                         self.endSpeech(resume)
                         return
                     }
@@ -138,9 +138,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             Task { [weak self] in
                 try? await Task.sleep(nanoseconds: UInt64(self?.hardTimeout ?? 25) * 1_000_000_000)
                 guard let self, self.activeResume === resume else { return }
-                self.activeResume = nil
-                self.finish()
-                resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
+                self.complete(resume)
             }
         }
     }
@@ -166,18 +164,18 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         finalizationTask = Task { [weak self] in
             do { try await Task.sleep(for: .seconds(2)) } catch { return }
             guard let self, self.activeResume === resume else { return }
-            self.activeResume = nil
-            self.finish()
-            resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
+            self.complete(resume)
         }
     }
 
     private func complete(_ resume: ResumeOnce<String>) {
         activeResume = nil
-        let transcript = latestTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let result = SpeechTurn.transcriptResult(latestTranscript)
         finish()
-        if transcript.isEmpty { resume.fulfill(throwing: VoiceInputError.noSpeechDetected) }
-        else { resume.fulfill(returning: transcript) }
+        switch result {
+        case .success(let transcript): resume.fulfill(returning: transcript)
+        case .failure(let error): resume.fulfill(throwing: error)
+        }
     }
 
     static func makeRecognitionRequest() -> SFSpeechAudioBufferRecognitionRequest {

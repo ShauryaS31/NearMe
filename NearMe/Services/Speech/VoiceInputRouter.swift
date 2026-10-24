@@ -24,7 +24,7 @@ struct OnDeviceSpeechCapabilities: OnDeviceSpeechCapabilityChecking {
                 }
                 let installed = await SpeechTranscriber.installedLocales
                 if installed.contains(where: { $0.identifier(.bcp47) == supported.identifier(.bcp47) }) {
-                    return AnalyzerVoiceInputService(transcriber: transcriber)
+                    return AnalyzerVoiceInputService(locale: supported)
                 }
                 assetFailure = true
             } catch {

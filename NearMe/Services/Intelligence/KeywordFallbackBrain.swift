@@ -8,8 +8,9 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
 
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         let lowered = " \(utterance.lowercased()) " // pad so " to "/" from " matches at the edges too
+        let mentionsTrip = utterance.lowercased().split(whereSeparator: { !$0.isLetter }).contains("trip")
 
-        guard lowered.contains("catch") || lowered.contains("train") || lowered.contains("tram")
+        guard mentionsTrip || lowered.contains("catch") || lowered.contains("train") || lowered.contains("tram")
                 || lowered.contains("bus") || lowered.contains(" to ") || lowered.contains("get to")
                 || lowered.contains("travel") || lowered.contains("go to") else {
             return BrainAnswer(value: .empty, source: .keywordFallback)
@@ -20,7 +21,8 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
         let origin = firstPhrase(after: " from ", in: utterance, stoppingAt: [" to "])
 
         guard destination != nil || origin != nil else {
-            return BrainAnswer(value: JourneyIntent(intent: .unknown, destination: nil, origin: nil, mode: mode), source: .keywordFallback)
+            return BrainAnswer(value: JourneyIntent(intent: mentionsTrip ? .planJourney : .unknown,
+                                                   destination: nil, origin: nil, mode: mode), source: .keywordFallback)
         }
 
         return BrainAnswer(value: JourneyIntent(intent: .planJourney, destination: destination, origin: origin, mode: mode), source: .keywordFallback)
