@@ -2,13 +2,13 @@
 
 import SwiftUI
 
-struct PTVDestinationSearchView: View {
-    @ObservedObject var viewModel: PTVSimulationViewModel
+struct TripPlannerDestinationSearchView: View {
+    @ObservedObject var viewModel: TripPlannerPracticeViewModel
     let onBack: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            PTVTopBar(title: "Journey planner", onBack: onBack)
+            TripPlannerTopBar(title: "Journey planner", onBack: onBack)
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 Button {
@@ -18,22 +18,22 @@ struct PTVDestinationSearchView: View {
                 } label: {
                     HStack(spacing: TTSpacing.sm) {
                         Image(systemName: "magnifyingglass")
-                            .foregroundStyle(PTVBrand.textSecondary)
+                            .foregroundStyle(Color.secondary)
                         Text(viewModel.destinationSearchQuery.isEmpty ? "Search for a destination" : viewModel.destinationSearchQuery)
                             .font(TTFont.body())
-                            .foregroundStyle(viewModel.destinationSearchQuery.isEmpty ? PTVBrand.textSecondary : PTVBrand.textPrimary)
+                            .foregroundStyle(viewModel.destinationSearchQuery.isEmpty ? Color.secondary : Color.primary)
                         Spacer()
                         if !viewModel.destinationSearchQuery.isEmpty {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(PTVBrand.textSecondary)
+                                .foregroundStyle(Color.secondary)
                         }
                     }
                     .padding(TTSpacing.md)
-                    .background(PTVBrand.card)
+                    .background(Color(.secondarySystemBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(viewModel.step == .tapToAndTypeDestination ? PTVBrand.accent : PTVBrand.hairline, lineWidth: viewModel.step == .tapToAndTypeDestination ? 2 : 1)
+                            .strokeBorder(viewModel.step == .tapToAndTypeDestination ? Color.accentColor : Color(.separator), lineWidth: viewModel.step == .tapToAndTypeDestination ? 2 : 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -42,7 +42,7 @@ struct PTVDestinationSearchView: View {
                 if viewModel.step == .selectingDestination {
                     Text("Train")
                         .font(TTFont.caption())
-                        .foregroundStyle(PTVBrand.textSecondary)
+                        .foregroundStyle(Color.secondary)
                         .padding(.top, TTSpacing.sm)
 
                     Button {
@@ -50,24 +50,24 @@ struct PTVDestinationSearchView: View {
                     } label: {
                         HStack(spacing: TTSpacing.md) {
                             Image(systemName: "tram.fill")
-                                .foregroundStyle(PTVBrand.accent)
+                                .foregroundStyle(Color.accentColor)
                                 .frame(width: 28)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(viewModel.destinationDisplayName) Station")
                                     .font(TTFont.headline())
-                                    .foregroundStyle(PTVBrand.textPrimary)
-                                Text("in Melbourne City")
+                                    .foregroundStyle(Color.primary)
+                                Text("Practice destination")
                                     .font(TTFont.caption())
-                                    .foregroundStyle(PTVBrand.textSecondary)
+                                    .foregroundStyle(Color.secondary)
                             }
                             Spacer()
                         }
                         .padding(TTSpacing.md)
-                        .background(PTVBrand.accent.opacity(0.08))
+                        .background(Color.accentColor.opacity(0.08))
                         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                         .overlay(
                             RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(PTVBrand.accent, lineWidth: 2)
+                                .strokeBorder(Color.accentColor, lineWidth: 2)
                         )
                     }
                     .buttonStyle(.plain)
@@ -79,6 +79,6 @@ struct PTVDestinationSearchView: View {
 
             Spacer()
         }
-        .background(PTVBrand.background.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
     }
 }

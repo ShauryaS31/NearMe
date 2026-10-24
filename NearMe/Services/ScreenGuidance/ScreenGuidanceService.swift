@@ -19,7 +19,7 @@ protocol ScreenGuidanceService: AnyObject {
     func stopWatching()
 
     /// Tell the service what on-screen text/labels currently matter (e.g.
-    /// ["Journey Planner"] right after opening PTV). It will call
+    /// ["Journey Planner"] right after opening trip planner). It will call
     /// `onElementDetected` once a frame's OCR result contains a close match.
     func lookFor(labels: [String])
 

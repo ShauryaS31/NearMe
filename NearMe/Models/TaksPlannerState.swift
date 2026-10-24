@@ -11,10 +11,10 @@ enum TaskPlannerState: Equatable {
     case listening
     /// Foundation Models is extracting intent / deciding next step.
     case thinking
-    /// Transition shown as the PTV practice opens.
+    /// Transition shown as the trip planner practice opens.
     case openingApp
-    /// Inside the (simulated) PTV walkthrough, at a specific step.
-    case guiding(PTVSimStep)
+    /// Inside the (simulated) trip planner walkthrough, at a specific step.
+    case guiding(PracticeStep)
 
     static func == (lhs: TaskPlannerState, rhs: TaskPlannerState) -> Bool {
         switch (lhs, rhs) {

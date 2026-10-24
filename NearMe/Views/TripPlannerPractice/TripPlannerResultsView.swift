@@ -2,18 +2,18 @@
 
 import SwiftUI
 
-struct PTVResultsView: View {
+struct TripPlannerResultsView: View {
     let origin: String
     let destination: String
 
     var body: some View {
         VStack(spacing: 0) {
-            PTVTopBar(title: "Journey planner")
+            TripPlannerTopBar(title: "Journey planner")
 
             VStack(alignment: .leading, spacing: TTSpacing.xs) {
                 Text("\(origin) \u{2192} \(destination)")
                     .font(TTFont.headline())
-                    .foregroundStyle(PTVBrand.textPrimary)
+                    .foregroundStyle(Color.primary)
                     .padding(.horizontal, TTSpacing.lg)
                     .padding(.top, TTSpacing.md)
 
@@ -22,26 +22,26 @@ struct PTVResultsView: View {
                         ForEach(1...3, id: \.self) { number in
                             HStack(alignment: .top, spacing: TTSpacing.md) {
                                 Image(systemName: "tram.fill")
-                                    .foregroundStyle(PTVBrand.accent)
+                                    .foregroundStyle(Color.accentColor)
                                     .padding(.top, 2)
 
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Trip option \(number) (example)")
                                         .font(TTFont.headline())
-                                        .foregroundStyle(PTVBrand.textPrimary)
+                                        .foregroundStyle(Color.primary)
                                     Text("Times show here in the real app")
                                         .font(.body)
-                                        .foregroundStyle(PTVBrand.textSecondary)
+                                        .foregroundStyle(Color.secondary)
                                 }
 
                                 Spacer()
                             }
                             .padding(TTSpacing.md)
-                            .background(PTVBrand.card)
+                            .background(Color(.secondarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(PTVBrand.hairline, lineWidth: 1)
+                                    .strokeBorder(Color(.separator), lineWidth: 1)
                             )
                         }
                     }
@@ -49,6 +49,6 @@ struct PTVResultsView: View {
                 }
             }
         }
-        .background(PTVBrand.background.ignoresSafeArea())
+        .background(Color(.systemBackground).ignoresSafeArea())
     }
 }

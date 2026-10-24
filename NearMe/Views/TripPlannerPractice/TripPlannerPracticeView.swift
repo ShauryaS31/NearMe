@@ -2,8 +2,8 @@
 
 import SwiftUI
 
-struct PTVSimulationView: View {
-    @ObservedObject var viewModel: PTVSimulationViewModel
+struct TripPlannerPracticeView: View {
+    @ObservedObject var viewModel: TripPlannerPracticeViewModel
     var onDismissCaption: () -> Void = {}
 
     var body: some View {
@@ -11,13 +11,13 @@ struct PTVSimulationView: View {
             Group {
                 switch viewModel.step.screen {
                 case .forYou:
-                    PTVForYouView(onTapJourneyPlanner: { viewModel.completeCurrentStep() })
+                    TripPlannerForYouView(onTapJourneyPlanner: { viewModel.completeCurrentStep() })
                 case .journeyPlanner:
-                    PTVJourneyPlannerView(viewModel: viewModel, onTapDestinationField: { viewModel.completeCurrentStep() })
+                    TripPlannerJourneyPlannerView(viewModel: viewModel, onTapDestinationField: { viewModel.completeCurrentStep() })
                 case .destinationSearch:
-                    PTVDestinationSearchView(viewModel: viewModel, onBack: { /* simulation only moves forward */ })
+                    TripPlannerDestinationSearchView(viewModel: viewModel, onBack: { /* simulation only moves forward */ })
                 case .results:
-                    PTVResultsView(origin: viewModel.originDisplayName, destination: viewModel.destinationDisplayName)
+                    TripPlannerResultsView(origin: viewModel.originDisplayName, destination: viewModel.destinationDisplayName)
                 }
             }
             .transition(.opacity)

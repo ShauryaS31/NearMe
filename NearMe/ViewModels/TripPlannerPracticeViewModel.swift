@@ -4,14 +4,14 @@ import Foundation
 import Combine
 
 @MainActor
-final class PTVSimulationViewModel: ObservableObject {
-    @Published private(set) var step: PTVSimStep = .forYouOpened
+final class TripPlannerPracticeViewModel: ObservableObject {
+    @Published private(set) var step: PracticeStep = .forYouOpened
     @Published var fromFieldText: String = ""
     @Published var toFieldText: String = ""
     @Published var destinationSearchQuery: String = ""
 
     let intent: JourneyIntent
-    var onStepAdvanced: ((PTVSimStep) -> Void)?
+    var onStepAdvanced: ((PracticeStep) -> Void)?
 
     init(intent: JourneyIntent) {
         self.intent = intent
@@ -24,7 +24,7 @@ final class PTVSimulationViewModel: ObservableObject {
         step.caption(origin: originDisplayName, destination: destinationDisplayName)
     }
 
-    /// Called by whichever simulated PTV control the current step tells the
+    /// Called by whichever simulated trip planner control the current step tells the
     /// user to tap. Advances to the next step and updates any field text
     /// that step is responsible for filling in.
     func completeCurrentStep() {

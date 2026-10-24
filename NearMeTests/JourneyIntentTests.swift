@@ -5,24 +5,24 @@ import XCTest
 
 final class JourneyIntentTests: XCTestCase {
     func testFirstMissingSlotReturnsOriginWhenEmpty() {
-        let intent = JourneyIntent(intent: .planJourney, destination: "Melbourne Central", origin: nil, mode: nil)
+        let intent = JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: nil, mode: nil)
         XCTAssertEqual(intent.firstMissingSlot, .origin)
     }
 
     func testFirstMissingSlotReturnsDestinationWhenOriginKnown() {
-        let intent = JourneyIntent(intent: .planJourney, destination: nil, origin: "Box Hill", mode: nil)
+        let intent = JourneyIntent(intent: .planJourney, destination: nil, origin: "Central", mode: nil)
         XCTAssertEqual(intent.firstMissingSlot, .destination)
     }
 
     func testFirstMissingSlotIsNilWhenFullySpecified() {
-        let intent = JourneyIntent(intent: .planJourney, destination: "Melbourne Central", origin: "Box Hill", mode: "train")
+        let intent = JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: "Central", mode: "train")
         XCTAssertNil(intent.firstMissingSlot)
     }
 
     func testFillingSlotSetsCorrectField() {
-        let intent = JourneyIntent(intent: .planJourney, destination: "Melbourne Central", origin: nil, mode: nil)
-        let filled = intent.filling(.origin, with: "Box Hill")
-        XCTAssertEqual(filled.origin, "Box Hill")
-        XCTAssertEqual(filled.destination, "Melbourne Central")
+        let intent = JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: nil, mode: nil)
+        let filled = intent.filling(.origin, with: "Central")
+        XCTAssertEqual(filled.origin, "Central")
+        XCTAssertEqual(filled.destination, "Town Hall")
     }
 }

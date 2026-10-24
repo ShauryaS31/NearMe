@@ -21,12 +21,9 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: coordinator.route)
-        // A fixed light appearance keeps the brand's lavender palette
-        // consistent regardless of the system Dark Mode setting. Dynamic
-        // Type and screen-size adaptivity (the two things actually asked
-        // for) are unaffected by this — see README for how to add a dark
-        // variant later if desired.
-        .preferredColorScheme(.light)
+        // The practice session follows system appearance. Preserve the
+        // existing onboarding appearance until its palette is updated.
+        .preferredColorScheme(coordinator.route == .session ? nil : .light)
     }
 }
 

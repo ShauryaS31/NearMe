@@ -27,11 +27,11 @@ struct SessionContainerView: View {
         Group {
             switch engine.plannerState {
             case .guiding:
-                if let simulation = engine.ptvSimulationViewModel {
-                    PTVSimulationView(viewModel: simulation)
+                if let simulation = engine.tripPlannerPracticeViewModel {
+                    TripPlannerPracticeView(viewModel: simulation)
                 }
             case .openingApp:
-                OpeningPTVView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
+                OpeningPracticeView(confirmationText: engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "Great! I'll help you plan that journey.")
             default:
                 VoiceSessionView(engine: engine, onEndSession: {
                     engine.endSession()
@@ -39,6 +39,8 @@ struct SessionContainerView: View {
                 })
             }
         }
+        // Only the practice screens have moved to adaptive system colours.
+        .preferredColorScheme(isGuiding || engine.plannerState == .openingApp ? nil : .light)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
             Text(brainBadge)
