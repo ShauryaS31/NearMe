@@ -21,7 +21,7 @@ struct ScreenBroadcastButton: View {
     }
 }
 
-private struct ScreenBroadcastPickerSheet: View {
+struct ScreenBroadcastPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("screenSharingExplanationSeen") private var explanationSeen = false
 
@@ -49,6 +49,7 @@ private struct ScreenBroadcastPickerSheet: View {
                 }
             }
         }
+        .tint(TTColor.accent)
         .onAppear { ScreenBroadcastPresentation.logOpened() }
     }
 
@@ -98,10 +99,13 @@ private struct SystemScreenBroadcastPicker: UIViewRepresentable {
         let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 60, height: 60))
         picker.preferredExtension = "au.nearme.ios.broadcast"
         picker.showsMicrophoneButton = false
+        picker.tintColor = UIColor(TTColor.accent)
         return picker
     }
 
-    func updateUIView(_ uiView: RPSystemBroadcastPickerView, context: Context) {}
+    func updateUIView(_ uiView: RPSystemBroadcastPickerView, context: Context) {
+        uiView.tintColor = UIColor(TTColor.accent)
+    }
 }
 
 #if DEBUG

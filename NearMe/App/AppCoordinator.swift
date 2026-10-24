@@ -11,8 +11,9 @@ nonisolated struct CoachURLRequest: Equatable {
 
 @MainActor
 final class AppCoordinator: ObservableObject {
+    static let placeholderName = "Friend"
     @Published var route: AppRoute = .welcome
-    @Published var userName: String = "Friend"
+    @Published var userName: String = AppCoordinator.placeholderName
     @Published var pendingCoachURL: CoachURLRequest?
 
     init(progressStore: (any CoachProgressStoring)? = nil, guides: [CoachActivityGuide]? = nil) {
@@ -31,10 +32,6 @@ final class AppCoordinator: ObservableObject {
     }
 
     func advanceFromWelcome() {
-        route = .goodMorning
-    }
-
-    func advanceFromGoodMorning() {
         route = .howItWorks
     }
 

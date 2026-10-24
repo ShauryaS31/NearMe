@@ -2,219 +2,288 @@
 
 import SwiftUI
 
+/// Read-only Home copy and action visibility, shared with presentation tests.
+struct VoiceHomePresentation {
+    static let idleInstruction = "Tap and tell me what you need help with"
+    static let hint = "Try: 'Help me play a song on YouTube'"
+
+    let activity: VoiceActivity
+    let isHome: Bool
+    let reply: String?
+    let hasCompletedJourney: Bool
+
+    var showsCancel: Bool { activity == .listening }
+    var statusText: String {
+        if activity == .ready { return Self.idleInstruction }
+        return activity.title
+    }
+    var hintText: String? { activity == .ready ? Self.hint : nil }
+
+    var showsStop: Bool { activity == .speaking }
+    var showsEndSession: Bool { hasCompletedJourney && !isHome }
+}
+
 struct VoiceSessionView: View {
     @ObservedObject var engine: TaskPlannerEngine
-    let onEndSession: () -> Void
     @State private var typedText = ""
+    @State private var sheet: VoiceSessionSheet?
+    @State private var isPaused = false
+    @State private var isEditingReply = false
     @FocusState private var textEntryFocused: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var state: SessionDockState {
+        SessionDockState(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
+                         isStartingListening: engine.isStartingListening)
+    }
+
+    private var activity: VoiceActivity {
+        VoiceActivity.resolve(plannerState: engine.plannerState, isSpeaking: engine.isVoiceOutputActive,
+                              isPreparing: engine.isPreparingSpeech, isStartingListening: engine.isStartingListening,
+                              isPaused: isPaused)
+    }
+
+    private var reply: String? {
+        if engine.isHome { return nil }
+        return CoachPresentation.reply(session: engine.coach, error: engine.lastErrorMessage)
+    }
+
+    private var showsTypedEntry: Bool { engine.isTyping && (reply == nil || isEditingReply) }
+
+    private var presentation: VoiceHomePresentation {
+        VoiceHomePresentation(activity: activity, isHome: engine.isHome, reply: reply,
+                             hasCompletedJourney: engine.hasCompletedAtLeastOneJourney)
+    }
+
+    private var sendEmphasis: ButtonEmphasis {
+        if reply == nil { return .primary }
+        return .secondary
+    }
+
+    private var transcript: ConversationPresentation {
+        let liveText: String
+        switch engine.plannerState {
+        case .listening, .finishing, .thinking: liveText = engine.liveTranscript
+        default: liveText = ""
+        }
+        let turns: [ConversationTurn] = engine.isHome ? [] : engine.conversation
+        let presentation = ConversationPresentation(turns: turns, liveTranscript: liveText)
+        if let reply { return presentation.withReply(reply) }
+        return presentation
+    }
 
     var body: some View {
-        ScreenScaffold {
-            VStack(spacing: TTSpacing.xl) {
-                #if DEBUG
-                SessionDebugMenu(engine: engine)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                #endif
-                Spacer(minLength: TTSpacing.xxl)
-
-                Text(statusLabel)
-                    .font(TTFont.statusLabel())
-                    .foregroundStyle(TTColor.accent)
-                    .tracking(1.5)
-                    .accessibilityHidden(true) // the orb already announces this via its own label
-
-                if engine.plannerState == .thinking {
-                    if reduceMotion {
-                        Label("Thinking...", systemImage: "hourglass").font(.body)
-                    } else {
-                        ProgressView("Thinking...").font(.body)
-                    }
-                }
-
-                VoiceOrbButton(state: orbState, instruction: orbInstruction, action: useVoiceInput)
-                    .disabled(engine.plannerState == .finishing || engine.plannerState == .thinking || engine.isStartingListening)
-
-                Text(subtitleText)
-                    .font(TTFont.title())
-                    .foregroundStyle(TTColor.ink)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity)
-                    .accessibilityLabel(subtitleAccessibilityLabel)
-
-                if engine.isPreparingSpeech {
-                    Label("Getting speech ready...", systemImage: "arrow.down.circle")
-                        .font(.body)
-                }
-                if engine.isShowingPlaceSuggestions {
-                    VStack(spacing: 12) {
-                        Text("I heard: \(engine.suggestionTranscript)").font(.body)
-                        Text(engine.suggestionQuestion).font(.title)
-                        ForEach(engine.placeSuggestions, id: \.self) { place in
-                            Button { engine.chooseSuggestedPlace(place) } label: {
-                                Label(place, systemImage: "mappin.circle")
-                                    .frame(minWidth: 44, minHeight: 44)
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        Button(action: engine.keepSuggestedPlace) {
-                            Label("Keep what I said", systemImage: "checkmark")
-                                .frame(minWidth: 44, minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                        Button(action: engine.retrySuggestedPlace) {
-                            Label("Say it again", systemImage: "mic")
-                                .frame(minWidth: 44, minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-                if let error = engine.lastErrorMessage {
-                    Text(error)
-                        .font(TTFont.callout())
-                        .foregroundStyle(.red)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if engine.isTyping {
-                    typedInputLayout {
-                        TextField("Type your answer", text: $typedText)
-                            .font(.body)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($textEntryFocused)
-                            .accessibilityLabel("Your answer")
-                            .submitLabel(.send)
-                            .onSubmit(sendTypedAnswer)
-                        Button(action: useVoiceInput) {
-                            Label("Use voice", systemImage: "mic")
-                                .frame(minWidth: 44, minHeight: 44)
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(engine.plannerState != .idle)
-                    }
-                    Button(action: sendTypedAnswer) {
-                        Label("Send", systemImage: "paperplane.fill")
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSend)
-                } else {
-                    Button {
-                        engine.useTypedInput()
-                        textEntryFocused = true
-                    } label: {
-                        Label("Type instead", systemImage: "keyboard")
-                            .frame(minWidth: 44, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                Spacer()
-                PrimaryButton(title: buttonTitle) {
-                    if engine.hasCompletedAtLeastOneJourney {
-                        onEndSession()
-                    } else {
-                        engine.cancelCurrentAction()
+        NavigationStack {
+            VoiceHomeContent(state: state, presentation: presentation, transcript: transcript,
+                             onTalk: talk, onCancel: cancel, onType: type) {
+                if showsTypedEntry { typedEntry }
+                if engine.isShowingPlaceSuggestions { PlaceSuggestionsView(engine: engine) }
+                if presentation.showsStop {
+                    PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary) {
+                        engine.stopSessionSpeech()
+                        isPaused = true
                     }
                 }
             }
-            .frame(minHeight: 520)
+            .navigationTitle("NearMe")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(TTColor.paleLavender, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    VoiceSessionMenu(showsEndSession: presentation.showsEndSession, onSelect: select)
+                }
+            }
         }
-        .onChange(of: engine.isTyping) { _, isTyping in
-            textEntryFocused = isTyping
+        .tint(TTColor.accent)
+        .sheet(item: $sheet) { destination in
+            switch destination {
+            case .screen: ScreenBroadcastPickerSheet()
+            case .settings: VoiceSettingsSheet()
+            }
+        }
+        .onChange(of: engine.isTyping) { _, typing in textEntryFocused = typing }
+        .onChange(of: engine.plannerState) { _, newState in
+            if newState != .idle { isPaused = false }
         }
         .onAppear { textEntryFocused = engine.isTyping }
     }
 
+    private var typedEntry: some View {
+        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+            TextField("Type your answer", text: $typedText)
+                .font(TTFont.body())
+                .textFieldStyle(.roundedBorder)
+                .focused($textEntryFocused)
+                .accessibilityLabel("Your answer")
+                .submitLabel(.send)
+                .onSubmit(send)
+            PrimaryButton(title: "Send", systemImage: "paperplane.fill",
+                          emphasis: sendEmphasis, action: send)
+                .disabled(!canSend)
+        }
+    }
+
     private var canSend: Bool {
-        guard case .idle = engine.plannerState else { return false }
-        return engine.isAwaitingSong || !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        TypedAnswerPresentation.canSend(typedText, canSubmit: engine.canSubmitTypedInput,
+                                       isAwaitingSong: engine.isAwaitingSong)
     }
 
-    private var typedInputLayout: AnyLayout {
-        dynamicTypeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 12))
-            : AnyLayout(HStackLayout(spacing: 12))
+    private func select(_ action: VoiceMenuAction) {
+        switch action {
+        case .screen:
+            textEntryFocused = false
+            sheet = .screen
+        case .practice: engine.startPractice()
+        case .type: type()
+        case .settings:
+            textEntryFocused = false
+            sheet = .settings
+        case .endSession: engine.endSession()
+        #if DEBUG
+        case .debug: engine.showsDebugInfo.toggle()
+        #endif
+        }
     }
 
-    private func sendTypedAnswer() {
+    private func send() {
         guard canSend else { return }
+        isPaused = false
+        isEditingReply = false
         engine.submitTypedInput(typedText)
         typedText = ""
         textEntryFocused = false
     }
 
-    private func useVoiceInput() {
+    private func talk() {
+        // A non-step session must be cleared so a new request is not parsed as a coach command.
+        if let coach = engine.coach, CoachPresentation.kind(for: coach) == .homeReply {
+            engine.cancelCurrentAction()
+        }
+        isPaused = false
         textEntryFocused = false
         engine.userTappedToTalk()
     }
 
-    private var buttonTitle: String {
-        engine.hasCompletedAtLeastOneJourney ? "end session" : "cancel"
-    }
-
-    private var orbState: VoiceOrbState {
-        switch engine.plannerState {
-        case .listening: return .listening
-        case .speaking: return .speaking
-        case .thinking: return .idle
-        default: return .idle
+    private func type() {
+        if let coach = engine.coach, CoachPresentation.kind(for: coach) == .homeReply {
+            engine.cancelCurrentAction()
         }
+        isPaused = false
+        isEditingReply = true
+        engine.useTypedInput()
+        textEntryFocused = true
     }
 
-    private var orbInstruction: String {
-        if engine.isStartingListening { return "Getting ready to listen..." }
-        if engine.plannerState == .finishing { return "Finishing..." }
-        return orbState.instruction
-    }
-
-    private var statusLabel: String {
-        switch engine.plannerState {
-        case .listening: return "LISTENING...."
-        default: return "NearMe"
-        }
-    }
-
-    private var subtitleText: String {
-        switch engine.plannerState {
-        case .speaking(let text):
-            return text
-        case .listening:
-            if !engine.liveTranscript.isEmpty { return engine.liveTranscript }
-            return engine.conversation.last?.text ?? "Listening..."
-        case .thinking:
-            return engine.liveTranscript.isEmpty ? "One moment..." : "Got it: \(engine.liveTranscript)"
-        case .finishing:
-            return engine.liveTranscript
-        case .idle:
-            if engine.isTyping {
-                return engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "What would you like help with?"
-            }
-            return engine.lastErrorMessage == nil ? "Tap the mic to talk to NearMe." : "Tap the mic to try again."
-        default:
-            return ""
-        }
-    }
-
-    private var subtitleAccessibilityLabel: String {
-        switch engine.plannerState {
-        case .listening: return "NearMe is listening. \(subtitleText)"
-        default: return subtitleText
-        }
+    private func cancel() {
+        engine.cancelCurrentAction()
+        typedText = ""
+        isEditingReply = false
+        isPaused = false
+        textEntryFocused = false
     }
 }
 
-#if DEBUG
-struct SessionDebugMenu: View {
+struct PlaceSuggestionsView: View {
     @ObservedObject var engine: TaskPlannerEngine
 
     var body: some View {
-        Menu {
-            Toggle("Show debug info", isOn: $engine.showsDebugInfo)
-        } label: {
-            Label("More", systemImage: "ellipsis.circle").minimumTapTarget()
+        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+            Text("I heard: \(engine.suggestionTranscript)").font(TTFont.body())
+            Text(engine.suggestionQuestion).font(TTFont.title())
+            ForEach(engine.placeSuggestions, id: \.self) { place in
+                PrimaryButton(title: place, systemImage: "mappin.circle", emphasis: .secondary) {
+                    engine.chooseSuggestedPlace(place)
+                }
+            }
+            PrimaryButton(title: "Keep what I said", systemImage: "checkmark", emphasis: .secondary,
+                          action: engine.keepSuggestedPlace)
+            PrimaryButton(title: "Say it again", systemImage: "mic.fill", emphasis: .secondary,
+                          action: engine.retrySuggestedPlace)
         }
     }
+
 }
-#endif
+
+/// Read-only grouping; it never changes the engine's conversation or speech state.
+struct ConversationPresentation {
+    let userText: String?
+    private(set) var replyText: String?
+    private(set) var earlier: [ConversationTurn]
+    private let currentReply: ConversationTurn?
+
+    var hasContent: Bool { userText != nil || replyText != nil || !earlier.isEmpty }
+
+    init(turns: [ConversationTurn], liveTranscript: String) {
+        let lastUserIndex: Int? = turns.lastIndex { $0.speaker == .user }
+        let startIndex: Int = lastUserIndex ?? max(0, turns.count - 1)
+        let current: [ConversationTurn] = Array(turns.dropFirst(startIndex))
+        let lastReply: ConversationTurn? = current.last { $0.speaker == .nearme }
+        let lastUser: ConversationTurn? = current.last { $0.speaker == .user }
+        currentReply = liveTranscript.isEmpty ? lastReply : nil
+        if liveTranscript.isEmpty {
+            userText = lastUser?.text
+            replyText = lastReply?.text
+            // Keep every older reply, even when several prompts follow one user turn.
+            let currentIDs = Set([lastUser?.id, lastReply?.id].compactMap { $0 })
+            earlier = turns.filter { !currentIDs.contains($0.id) }
+        } else {
+            userText = liveTranscript
+            replyText = nil
+            // Recognised final text can already have been appended while thinking.
+            if lastUser?.text == liveTranscript, let lastUser {
+                earlier = turns.filter { $0.id != lastUser.id }
+            } else {
+                earlier = turns
+            }
+        }
+    }
+
+    func withReply(_ text: String) -> Self {
+        var presentation = self
+        if let currentReply, currentReply.text != text {
+            presentation.earlier.append(currentReply)
+        }
+        presentation.replyText = text
+        return presentation
+    }
+}
+
+struct ConversationTranscript: View {
+    let presentation: ConversationPresentation
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+            if let userText = presentation.userText {
+                turn(label: "You said", text: userText, isCurrentReply: false)
+            }
+            if let replyText = presentation.replyText {
+                turn(label: "NearMe", text: replyText, isCurrentReply: true)
+            }
+            if !presentation.earlier.isEmpty {
+                DisclosureGroup("Earlier conversation") {
+                    VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
+                        ForEach(presentation.earlier) { entry in
+                            turn(label: entry.speaker == .user ? "You said" : "NearMe",
+                                 text: entry.text, isCurrentReply: false)
+                        }
+                    }
+                    .padding(.top, TTSpacing.relatedGap)
+                }
+                .font(TTFont.body())
+            }
+        }
+        .padding(TTSpacing.cardPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(TTColor.readingSurface,
+                    in: RoundedRectangle(cornerRadius: TTRadius.card, style: .continuous))
+    }
+
+    private func turn(label: String, text: String, isCurrentReply: Bool) -> some View {
+        VStack(alignment: .leading, spacing: TTSpacing.relatedGap) {
+            Text(label).font(TTFont.body()).foregroundStyle(TTColor.textSecondary)
+            Text(text)
+                .font(isCurrentReply ? TTFont.title() : TTFont.body())
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}

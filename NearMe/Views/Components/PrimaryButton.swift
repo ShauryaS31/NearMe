@@ -2,37 +2,51 @@
 
 import SwiftUI
 
+nonisolated enum ButtonEmphasis: Sendable { case primary, secondary }
+
 struct PrimaryButton: View {
     let title: String
+    let systemImage: String
+    var emphasis: ButtonEmphasis = .primary
     let action: () -> Void
 
-    @Environment(\.isEnabled) private var isEnabled
-
     var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(TTFont.headline())
-                .lineLimit(nil)
-                .fixedSize(horizontal: false, vertical: true)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, TTSpacing.md)
-                .padding(.horizontal, TTSpacing.lg)
+        Group {
+            switch emphasis {
+            case .primary: button.buttonStyle(.borderedProminent).foregroundStyle(TTColor.onAccent)
+            case .secondary: button.buttonStyle(.bordered)
+            }
         }
-        .background(TTColor.ink)
-        .foregroundStyle(TTColor.buttonLabel)
-        .clipShape(RoundedRectangle(cornerRadius: TTRadius.control, style: .continuous))
-        .opacity(isEnabled ? 1 : 0.5)
-        .minimumTapTarget(48)
+        .tint(TTColor.accent)
+    }
+
+    private var button: some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(TTFont.headline())
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, minHeight: TTControl.minimumHeight)
+        }
     }
 }
 
-#Preview {
-    VStack(spacing: 16) {
-        PrimaryButton(title: "continue", action: {})
-        PrimaryButton(title: "cancel", action: {})
-        PrimaryButton(title: "end session", action: {})
+/// Shared by groups of PrimaryButtons and tested without a snapshot library.
+enum PrimaryButtonLayout {
+    static func stacksVertically(at size: DynamicTypeSize) -> Bool {
+        size.isAccessibilitySize
     }
-    .padding()
-    .background(TTColor.background)
+}
+
+struct AdaptiveButtonRow<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ViewBuilder var content: () -> Content
+
+    private var layout: AnyLayout {
+        if PrimaryButtonLayout.stacksVertically(at: dynamicTypeSize) {
+            return AnyLayout(VStackLayout(spacing: TTSpacing.relatedGap))
+        }
+        return AnyLayout(HStackLayout(spacing: TTSpacing.relatedGap))
+    }
+
+    var body: some View { layout { content() } }
 }

@@ -51,6 +51,7 @@ struct SessionDock: View {
     @State private var contentHeight: CGFloat = 72
     @State private var controlsHeight: CGFloat = 44
     @State private var typedText = ""
+    @State private var showsScreenPicker = false
     @FocusState private var entryFocused: Bool
 
     private var state: SessionDockState {
@@ -73,9 +74,13 @@ struct SessionDock: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground))
+        .background(TTColor.background)
+        .tint(TTColor.accent)
         .overlay(alignment: .top) { Divider() }
         .onChange(of: engine.isTyping) { _, typing in entryFocused = typing }
+        .sheet(isPresented: $showsScreenPicker) {
+            ScreenBroadcastPickerSheet()
+        }
     }
 
     private var instructionArea: some View {
@@ -103,6 +108,7 @@ struct SessionDock: View {
         .scrollBounceBehavior(.basedOnSize)
         .defaultScrollAnchor(engine.isTyping ? .bottom : .top)
         .frame(height: min(contentHeight, max(44, availableHeight * 0.4 - controlsHeight - 32)))
+        .background(TTColor.readingSurface)
     }
 
     private var typedEntry: some View {
@@ -124,7 +130,7 @@ struct SessionDock: View {
         HStack(spacing: 12) {
             microphone
             Text(state.instruction)
-                .font(.callout)
+                .font(TTFont.body())
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
             if state.showsStop { stopButton }
@@ -160,6 +166,9 @@ struct SessionDock: View {
 
     private var moreMenu: some View {
         Menu {
+            Button { showsScreenPicker = true } label: {
+                Label(VoiceMenuAction.screen.title, systemImage: VoiceMenuAction.screen.symbol)
+            }
             ForEach(SessionDockAction.allCases) { action in
                 Button { engine.performDockAction(action) } label: {
                     Label(action.title, systemImage: action.symbol)
@@ -178,7 +187,8 @@ struct SessionDock: View {
     }
 
     private var canSend: Bool {
-        engine.canSubmitTypedInput && (engine.isAwaitingSong || !typedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        TypedAnswerPresentation.canSend(typedText, canSubmit: engine.canSubmitTypedInput,
+                                       isAwaitingSong: engine.isAwaitingSong)
     }
     private func send() {
         guard canSend else { return }
