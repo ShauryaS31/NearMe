@@ -19,7 +19,7 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 ## Task board
 | Task | Title | Window | Depends on | Assignee | Status |
 |---|---|---|---|---|---|
-| [N00](../tasks/N00-scaffold.md) | Scaffold NearMe repo: XcodeGen, NearMeCore, CI, Mac run script | Sat 24 Oct 12:15 to 13:00 | - | codex | todo |
+| [N00](../tasks/N00-scaffold.md) | Scaffold NearMe repo: XcodeGen, NearMeCore, CI, Mac run script | Sat 24 Oct 12:15 to 13:00 | - | codex | in_progress |
 | [N01](../tasks/N01-spike.md) | Spike: read buttons, model picks one, draw ring (kill-rule test) | Sat 24 Oct 13:00 to 14:00 | N00 | codex, then owner on Mac | todo |
 | [N02](../tasks/N02-loop.md) | Observe and re-plan loop with completion | Sat 24 Oct 13:30 to 15:00 | N01 | codex | todo |
 | [N03](../tasks/N03-privacy.md) | Privacy filter and blocked contexts | Sat 24 Oct 14:00 to 15:00 | N01 | codex | todo |
