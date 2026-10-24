@@ -45,7 +45,9 @@ nonisolated enum GuideLibrary {
         return formatter.string(from: date) == value
     }
 
-    static func bundled() -> [HelpGuide] {
+    static func bundled() -> [HelpGuide] { bundledGuides }
+
+    private static let bundledGuides: [HelpGuide] = {
         do { return try load() }
         catch {
             #if DEBUG
@@ -53,7 +55,7 @@ nonisolated enum GuideLibrary {
             #endif
             return []
         }
-    }
+    }()
 
     /// Mirrors scripts/validate-guides.py, including editorial heuristics and file format.
     static func decode(_ data: Data, filename: String) throws -> HelpGuide {
