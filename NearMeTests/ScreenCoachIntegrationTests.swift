@@ -4,6 +4,143 @@ import XCTest
 
 @MainActor
 final class ScreenCoachIntegrationTests: XCTestCase {
+    func testHandsFreeStartsBeforeHandoffAndNextHelpRepeatStuckUseObservedPage() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        var capturingAtOpen = false
+        let engine = fixture.engine
+        let input = fixture.commands
+        fixture.opener.onOpen = {
+            capturingAtOpen = input.capturing
+            engine.appEnteredBackground()
+        }
+        fixture.start()
+        await eventually { engine.coach?.stepIndex == 1 && engine.plannerState == .idle }
+        XCTAssertTrue(capturingAtOpen)
+        let instruction = try XCTUnwrap(engine.coach?.text)
+        for phrase in ["what's next", "next", "help"] {
+            fixture.readyCommands()
+            let before = fixture.output.lines.count
+            let waits = fixture.waiter.count
+            input.emit(phrase, final: true)
+            await eventually { fixture.output.lines.count > before && engine.plannerState == .idle }
+            XCTAssertGreaterThan(fixture.waiter.count, waits)
+            XCTAssertEqual(fixture.output.lines.last, instruction)
+            XCTAssertEqual(engine.coach?.stepIndex, 1, "An unchanged screen must not advance")
+            XCTAssertEqual(fixture.activity.instructions.last, instruction)
+        }
+        fixture.readyCommands()
+        let waits = fixture.waiter.count
+        let beforeRepeat = fixture.output.lines.count
+        input.emit("repeat", final: true)
+        await eventually { fixture.output.lines.count > beforeRepeat && engine.plannerState == .idle }
+        XCTAssertEqual(fixture.output.lines.last, instruction)
+        XCTAssertEqual(fixture.waiter.count, waits, "Repeat preserves the current instruction")
+        fixture.readyCommands()
+        input.emit("I'm stuck", final: true)
+        await eventually { engine.coach?.text.hasPrefix("Take your time.") == true && engine.plannerState == .idle }
+        XCTAssertTrue(fixture.output.lines.last?.contains("Look for \"Search\"") == true)
+        XCTAssertEqual(engine.coach?.stepIndex, 1)
+        fixture.readyCommands()
+        input.emit("stop", final: true)
+        await eventually { engine.coach == nil }
+        XCTAssertFalse(input.capturing)
+        XCTAssertEqual(engine.voiceCommandStatus, .off)
+    }
+
+    func testVoiceRecheckWaitsForNewPageAndStopDuringWaitCannotSpeak() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.readyCommands()
+        fixture.waiter.onWait = { fixture.show(["Home", "Shorts", "Sign in", "Not now"]) }
+        fixture.commands.emit("what now", final: true)
+        await eventually { fixture.engine.coach?.text.contains("\"Not now\"") == true && fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.output.lines.last, "A sign-in box has opened. Tap \"Not now\" to close it.")
+        XCTAssertEqual(fixture.activity.instructions.last, fixture.output.lines.last)
+        fixture.readyCommands()
+        fixture.waiter.onWait = { fixture.show(["WhatsApp", "Chats", "Calls"]) }
+        fixture.commands.emit("help", final: true)
+        await eventually { fixture.output.lines.last == "It looks like you've left YouTube. I'll check again in a moment." }
+        XCTAssertEqual(fixture.engine.coach?.stepIndex, 1)
+        fixture.readyCommands()
+        fixture.waiter.onWait = { fixture.engine.endSession() }
+        let before = fixture.output.lines.count
+        fixture.commands.emit("next", final: true)
+        await eventually { fixture.engine.coach == nil }
+        await Task.yield()
+        XCTAssertEqual(fixture.output.lines.count, before)
+        XCTAssertFalse(fixture.commands.capturing)
+        fixture.waiter.onWait = nil
+    }
+
+    func testCommandListenerStopsForStopEndCompletionAndSharingLoss() async throws {
+        for action in ["stop", "end", "complete", "sharing"] {
+            let fixture = try ScreenCoachFixture()
+            defer { fixture.cleanUp() }
+            fixture.show(["Home", "Shorts", "Search"])
+            fixture.start()
+            await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+            XCTAssertTrue(fixture.commands.capturing)
+            switch action {
+            case "stop": fixture.engine.stopSessionSpeech()
+            case "end": fixture.engine.endSession()
+            case "complete":
+                fixture.show(["Subscribe", "Share", "Comments", "Up next"])
+                fixture.engine.pollScreen()
+                await eventually { fixture.engine.coach?.stepIndex == 5 && fixture.engine.plannerState == .idle }
+                fixture.engine.appBecameActive()
+                fixture.engine.useTypedInput()
+                fixture.engine.submitTypedInput("yes")
+                await eventually { fixture.engine.coach == nil }
+            default:
+                fixture.now += 4
+                fixture.engine.pollScreen()
+                XCTAssertTrue(fixture.commands.capturing)
+                fixture.now += 9.9
+                fixture.engine.pollScreen()
+                XCTAssertTrue(fixture.commands.capturing)
+                fixture.now += 0.2
+                fixture.engine.pollScreen()
+            }
+            XCTAssertFalse(fixture.commands.capturing, action)
+            XCTAssertEqual(fixture.engine.voiceCommandStatus, .off, action)
+        }
+    }
+
+    func testCommandRecognitionAndDuckingFollowActualSpeechAndOtherAudio() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.readyCommands()
+        let instruction = try XCTUnwrap(fixture.engine.coach?.text)
+        fixture.output.suspendOn = instruction
+        fixture.commands.emit("repeat", final: true)
+        await eventually { fixture.output.pending != nil }
+        XCTAssertFalse(fixture.commands.recognizing)
+        XCTAssertEqual(fixture.audio.speaking.last, true)
+        fixture.commands.emit("stop", final: true)
+        XCTAssertNotNil(fixture.engine.coach)
+        fixture.output.finish()
+        await eventually { fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.audio.speaking.last, false)
+        XCTAssertFalse(fixture.commands.recognizing)
+        fixture.readyCommands()
+        XCTAssertTrue(fixture.commands.recognizing)
+        fixture.commands.otherAudio = true
+        fixture.commands.emit("stop", final: true)
+        await Task.yield()
+        XCTAssertNotNil(fixture.engine.coach)
+        XCTAssertFalse(fixture.commands.recognizing)
+        fixture.commands.otherAudio = false
+        XCTAssertTrue(fixture.commands.recognizing)
+    }
+
     func testSharingStartingDuringAnnouncementDoesNotSkipOpeningStep() async throws {
         let fixture = try ScreenCoachFixture()
         defer { fixture.cleanUp() }
@@ -297,6 +434,8 @@ private final class ScreenCoachFixture {
     let opener = ScreenTestOpener()
     let activity = ScreenTestActivity()
     let audio = ScreenTestAudio()
+    let commands = FakeCommandSpeechInput()
+    let waiter = ScreenTestWaiter()
     let guide: HelpGuide
     let suite: String
     let defaults: UserDefaults
@@ -314,11 +453,21 @@ private final class ScreenCoachFixture {
         defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         store = CoachProgressStore(defaults: defaults)
         let clock = self.clock
+        let waiter = self.waiter
+        let source = self.source
         engine = TaskPlannerEngine(brain: KeywordFallbackBrain(), voiceInput: ScreenTestInput(), voiceOutput: output,
-            permissions: PermissionsManager(), userName: "", permissionCheck: { false }, settleBeforeListening: {},
+            permissions: PermissionsManager(), userName: "", permissionCheck: { true }, settleBeforeListening: {},
             guides: [guide], helpRouter: ScreenTestRouter(), coachService: CoachModelService(brain: nil),
             coachStore: store, appOpener: opener, activityUpdater: activity, screenSource: source,
-            screenNow: { clock.now }, screenAudio: audio)
+            screenNow: { clock.now }, screenAudio: audio, commandInput: commands,
+            screenRecheckWait: { seconds in
+                waiter.count += 1
+                clock.now += seconds
+                if let onWait = waiter.onWait { onWait() }
+                else if let snapshot = source.value {
+                    source.value = ScreenSnapshot(timestamp: clock.now, lines: snapshot.lines)
+                }
+            })
         engine.appBecameActive()
         let resolvedEngine = engine
         opener.onOpen = { [weak resolvedEngine] in resolvedEngine?.appEnteredBackground() }
@@ -338,9 +487,21 @@ private final class ScreenCoachFixture {
     }
 
     func cleanUp() {
+        waiter.onWait = nil
         engine.endSession()
         defaults.removePersistentDomain(forName: suite)
     }
+
+    func readyCommands() {
+        now += 0.2
+        engine.pollScreen()
+    }
+}
+
+@MainActor
+private final class ScreenTestWaiter {
+    var count = 0
+    var onWait: (() -> Void)?
 }
 
 @MainActor
@@ -348,11 +509,13 @@ private final class ScreenTestClock { var now = 100.0 }
 
 @MainActor
 private final class ScreenTestOutput: VoiceOutputService {
+    var onPlaybackStarted: (() -> Void)?
     var lines: [String] = []
     var suspendOn: String?
     var pending: CheckedContinuation<Void, Never>?
     func speak(_ text: String) async {
         lines.append(text)
+        onPlaybackStarted?()
         if text == suspendOn { await withCheckedContinuation { pending = $0 } }
     }
     func stop() { finish() }
@@ -400,6 +563,8 @@ private final class ScreenTestActivity: CoachActivityUpdating {
 private final class ScreenTestAudio: ScreenGuidanceKeepingAlive {
     var starts = 0
     var stops = 0
+    var speaking: [Bool] = []
     func start() { starts += 1 }
     func stop() { stops += 1 }
+    func setSpeaking(_ value: Bool) { speaking.append(value) }
 }
