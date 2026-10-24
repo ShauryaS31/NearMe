@@ -6,6 +6,23 @@ import XCTest
 
 @MainActor
 final class OnDeviceVoiceInputTests: XCTestCase {
+    func testRouterForwardsFinishSeparatelyFromCancelAndPassesPlaybackGate() async throws {
+        let capability = FakeSpeechCapability()
+        capability.supportedIdentifier = "en-AU"
+        let router = VoiceInputRouter(capabilities: capability, locales: [Locale(identifier: "en-AU")])
+        var outputPlaying = true
+        router.acceptsTranscript = { !outputPlaying }
+        _ = try await router.startListening { _ in }
+        XCTAssertFalse(capability.input.acceptsTranscript())
+        outputPlaying = false
+        XCTAssertTrue(capability.input.acceptsTranscript())
+        router.finishListening()
+        XCTAssertEqual(capability.input.finishes, 1)
+        XCTAssertEqual(capability.input.cancellations, 0)
+        router.stopListening()
+        XCTAssertEqual(capability.input.cancellations, 1)
+    }
+
     func testUnsupportedLocaleShowsTypingAndNeverStartsRecognition() async {
         let capability = FakeSpeechCapability()
         let router = VoiceInputRouter(capabilities: capability, locales: [Locale(identifier: "en-AU"), Locale(identifier: "fr-FR")])
@@ -101,13 +118,17 @@ private final class FakeSpeechCapability: OnDeviceSpeechCapabilityChecking {
 
 @MainActor
 private final class LocalTestInput: VoiceInputService {
+    var acceptsTranscript: () -> Bool = { true }
+    var finishes = 0
+    var cancellations = 0
     var isListening = false
     var startCount = 0
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
         startCount += 1
         return "Local transcript"
     }
-    func stopListening() { isListening = false }
+    func finishListening() { finishes += 1; isListening = false }
+    func stopListening() { cancellations += 1; isListening = false }
 }
 
 @MainActor

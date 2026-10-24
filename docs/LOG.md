@@ -67,4 +67,9 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema and validator; 0 problems, 56 regression checks passed; 36 phone checks listed; uncommitted because sandbox blocked git index.lock, manager commits
 - 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema doc, validator 0 problems, 36 verify flags (committed by manager)
 - 2026-10-24 17:06 AEDT | P07a | claude | review r1 PASS | read all 15 guides; 16 source URLs live and matching; validator 0 problems; merged to main; 36 verify steps for owner
+- 2026-10-24 17:08 AEDT | P04b | codex | dev-report r1 | Tap-to-finish, word-based 1.5 s backup/12 s cap, voice processing, playback gating and barge-in; commit c9d0218; Mac/iPhone checks pending
+- 2026-10-24 17:09 AEDT | P04b | claude | review r1 CHANGES | barge-in during practice discards the practice; manager fixed a MainActor default argument in TaskPlannerEngineTests; dispatch r2
 - 2026-10-24 17:10 AEDT | P07 | owner | decision | top priority after P04b (image-to-mom request entered the trip flow on the phone); added exclusive routing, 7 acceptance phrases, person personalisation, nearby-label wording, home hint
+- 2026-10-24 17:11 AEDT | P04b | codex | dev-report r2 | Preserve practice and step during voice interruptions, route practice commands and add regression tests; commit 6cb4302; Mac/iPhone checks pending
+- 2026-10-24 17:12 AEDT | P04b | claude | review r2 PASS | static; merged to main; next: P07 (top priority)
+- 2026-10-24 17:12 AEDT | P07 | claude | dispatch r1 | top priority; branch task/P07-guided-coach (P07a guides on main)

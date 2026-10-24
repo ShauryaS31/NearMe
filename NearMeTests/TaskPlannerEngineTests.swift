@@ -93,8 +93,9 @@ final class TaskPlannerEngineTests: XCTestCase {
         engine.endSession()
     }
 
-    private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain = CannedEngineBrain()) -> TaskPlannerEngine {
-        TaskPlannerEngine(brain: brain, voiceInput: input ?? SilentInput(),
+    // Defaults are built in the body: default arguments are evaluated outside the main actor.
+    private func makeEngine(input: SilentInput? = nil, brain: TaskPlannerBrain? = nil) -> TaskPlannerEngine {
+        TaskPlannerEngine(brain: brain ?? CannedEngineBrain(), voiceInput: input ?? SilentInput(),
                           voiceOutput: SilentOutput(), permissions: PermissionsManager(), userName: "")
     }
 
@@ -143,6 +144,7 @@ private struct CannedEngineBrain: TaskPlannerBrain {
 
 @MainActor
 private final class SilentInput: VoiceInputService {
+    var acceptsTranscript: () -> Bool = { true }
     var isListening = false
     var stopCount = 0
     var startCount = 0
@@ -150,6 +152,7 @@ private final class SilentInput: VoiceInputService {
         startCount += 1
         throw VoiceInputError.microphoneUnavailable
     }
+    func finishListening() { isListening = false }
     func stopListening() { stopCount += 1 }
 }
 

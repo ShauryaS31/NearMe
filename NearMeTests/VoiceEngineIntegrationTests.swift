@@ -64,12 +64,14 @@ final class VoiceEngineIntegrationTests: XCTestCase {
 
 @MainActor
 private final class EngineVoiceInput: VoiceInputService {
+    var acceptsTranscript: () -> Bool = { true }
     var isListening = false
     var starts = 0
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
         starts += 1
         throw VoiceInputError.recognizerUnavailable
     }
+    func finishListening() { isListening = false }
     func stopListening() { isListening = false }
 }
 

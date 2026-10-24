@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (top priority: dispatch right after P04b, before P05) |
+| Status | in_progress |
 | Window | Sat 24 Oct |
 | Depends on | P04b, P07a |
 | Assignee | codex |

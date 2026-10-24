@@ -5,35 +5,296 @@ import XCTest
 
 @MainActor
 final class VoiceReviewTests: XCTestCase {
-    func testSilenceUsesEightTenthsRuleWithFakeClock() {
-        let clock = SpeechTestClock()
-        var rule = SpeechSilenceRule(now: { clock.now })
-        clock.now = 10
-        XCTAssertFalse(rule.hasEnded, "No speech must use the no-speech backstop")
-        rule.observe(isSpeech: true)
-        clock.now = 10.79
-        rule.observe(isSpeech: false)
-        XCTAssertFalse(rule.hasEnded)
-        clock.now = 10.81
-        XCTAssertTrue(rule.hasEnded)
-        rule.observe(isSpeech: true)
-        XCTAssertFalse(rule.hasEnded, "New speech resets the silence window")
-        clock.now = 11.62
-        XCTAssertTrue(rule.hasEnded)
-        XCTAssertEqual(SpeechSilenceRule.interval, 0.8)
+    func testTapToggleFinishesOnceAndUsesFinalWords() async {
+        let input = ReviewInput()
+        let engine = makeEngine(input: input)
+        XCTAssertEqual(engine.plannerState, .idle)
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        XCTAssertEqual(engine.plannerState, .listening)
+        input.emit("to Town")
+        engine.userTappedToTalk()
+        XCTAssertEqual(engine.plannerState, .finishing)
+        XCTAssertFalse(input.isListening)
+        XCTAssertEqual(input.finishes, 1)
+        engine.userTappedToTalk()
+        XCTAssertEqual(input.finishes, 1)
+        XCTAssertEqual(input.starts, 1)
+        input.deliverResult("to Town Hall")
+        await eventually { engine.currentIntent.destination == "Town Hall" }
+        XCTAssertEqual(engine.conversation.last(where: { $0.speaker == .user })?.text, "to Town Hall")
+        engine.endSession()
     }
 
-    func testNoiseCannotEndTurnWithoutWordsAndLatePartialCanEndAfterSilence() {
+    func testTapWithoutWordsDoesNotRestartCapture() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        engine.userTappedToTalk()
+        input.deliverResult()
+        await eventually { engine.plannerState == .idle }
+        XCTAssertEqual(input.starts, 1)
+        XCTAssertEqual(engine.lastErrorMessage, "I didn't hear anything. Tap and try again, or type instead.")
+        XCTAssertEqual(output.lines, [engine.lastErrorMessage ?? ""])
+        XCTAssertFalse(engine.isTyping)
+        engine.endSession()
+    }
+
+    func testCapPartialReachesPlannerAndEmptyCapStaysIdle() async {
+        for words in ["", "to Town Hall"] {
+            let input = ReviewInput()
+            let engine = makeEngine(input: input)
+            engine.userTappedToTalk()
+            await eventually { input.pending != nil }
+            let clock = SpeechTestClock()
+            var rule = SpeechSilenceRule(now: { clock.now })
+            clock.now = 11.9
+            rule.observe(transcript: words)
+            input.emit(words)
+            clock.now = 12
+            XCTAssertEqual(rule.endReason, .cap)
+            input.finishListening()
+            XCTAssertEqual(engine.plannerState, .finishing)
+            input.deliverResult()
+            if words.isEmpty {
+                await eventually { engine.plannerState == .idle }
+                XCTAssertEqual(input.starts, 1)
+                XCTAssertNotNil(engine.lastErrorMessage)
+            } else {
+                await eventually { engine.currentIntent.destination == "Town Hall" }
+                XCTAssertEqual(engine.conversation.last(where: { $0.speaker == .user })?.text, words)
+            }
+            engine.endSession()
+        }
+    }
+
+    func testBargeInStopsGreetingImmediatelyAndNeverRepeatsIt() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        output.suspend = true
+        let engine = makeEngine(input: input, output: output)
+        engine.beginSession()
+        await eventually { output.pending != nil }
+        let stops = output.stops
+        XCTAssertTrue(engine.isVoiceOutputActive)
+        engine.userTappedToTalk()
+        XCTAssertEqual(output.stops, stops + 1)
+        XCTAssertNil(output.pending)
+        XCTAssertFalse(engine.isVoiceOutputActive)
+        await eventually { input.pending != nil }
+        XCTAssertEqual(engine.plannerState, .listening)
+        XCTAssertEqual(output.lines, ["Hi, what can we help you with?"])
+        XCTAssertEqual(input.starts, 1)
+        engine.endSession()
+    }
+
+    func testBargeInDuringPracticeCaptionKeepsViewModelAndStepAndListens() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && output.lines.count == 2 && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        output.suspend = true
+        practice.completeCurrentStep()
+        await eventually { output.pending != nil }
+        XCTAssertEqual(practice.step, .tapFrom)
+        let lines = output.lines
+        let stops = output.stops
+        engine.userTappedToTalk()
+        XCTAssertEqual(output.stops, stops + 1)
+        XCTAssertNil(output.pending)
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .tapFrom)
+        await eventually { input.pending != nil }
+        XCTAssertEqual(engine.plannerState, .listening)
+        XCTAssertEqual(output.lines, lines, "Interrupted caption is never replayed")
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .tapFrom)
+        input.emit("repeat")
+        engine.userTappedToTalk()
+        XCTAssertEqual(engine.plannerState, .finishing)
+        engine.userTappedToTalk()
+        XCTAssertEqual(input.finishes, 1)
+        input.deliverResult()
+        await eventually { output.pending != nil }
+        XCTAssertEqual(output.lines.last, practice.currentCaption)
+        XCTAssertEqual(engine.plannerState, .guiding(.tapFrom))
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        engine.stopPracticeSpeech()
+        // The callback must use the new generation after barge-in.
+        practice.completeCurrentStep()
+        await eventually { output.pending != nil }
+        XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
+        XCTAssertEqual(output.lines.last, practice.currentCaption)
+        engine.endSession()
+    }
+
+    func testPracticeVoiceCommandsRepeatCurrentFinalCaptionWithoutCallingBrain() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let brain = ReviewBrain()
+        let engine = makeEngine(input: input, output: output, brain: brain)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        output.suspend = true
+        while practice.step != .showingResults { practice.completeCurrentStep() }
+        await eventually { output.pending != nil }
+        for command in [" Slower! ", "Repeat.", "Where should I tap?"] {
+            engine.userTappedToTalk()
+            await eventually { input.pending != nil }
+            output.suspend = false
+            let count = output.lines.count
+            engine.userTappedToTalk()
+            input.deliverResult(command)
+            await eventually { output.lines.count == count + 1 && !engine.isVoiceOutputActive }
+            // A repeated final caption must not trigger the normal completion delay.
+            try? await Task.sleep(for: .milliseconds(450))
+            XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+            XCTAssertEqual(practice.step, .showingResults)
+            XCTAssertEqual(engine.plannerState, .guiding(.showingResults))
+            XCTAssertEqual(output.lines.last, practice.currentCaption)
+            XCTAssertEqual(input.starts, input.finishes, "No automatic re-listen")
+        }
+        XCTAssertEqual(output.slowerValues, [true, false, false])
+        XCTAssertEqual(brain.intentCalls, 1, "Practice input bypasses journey extraction")
+        XCTAssertEqual(brain.placeCalls, 0)
+        engine.endSession()
+    }
+
+    func testSpokenStopAndEndExitPractice() async {
+        for command in ["Stop.", " END! "] {
+            let input = ReviewInput()
+            let output = ReviewOutput()
+            let brain = ReviewBrain()
+            let engine = makeEngine(input: input, output: output, brain: brain)
+            engine.useTypedInput()
+            engine.submitTypedInput("from Central to Town Hall")
+            await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+            let lines = output.lines
+            engine.userTappedToTalk()
+            await eventually { input.pending != nil }
+            engine.userTappedToTalk()
+            input.deliverResult(command)
+            await eventually { engine.tripPlannerPracticeViewModel == nil }
+            XCTAssertEqual(engine.plannerState, .idle)
+            XCTAssertEqual(engine.currentIntent.kind, .unknown)
+            XCTAssertEqual(output.lines, lines)
+            XCTAssertEqual(input.starts, 1)
+            XCTAssertEqual(brain.intentCalls, 1)
+            engine.endSession()
+        }
+    }
+
+    func testNoWordsDuringPracticeKeepsStepAndStaysIdle() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        engine.userTappedToTalk()
+        input.deliverResult()
+        await eventually { engine.plannerState == .idle }
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.step, .forYouOpened)
+        XCTAssertEqual(input.starts, 1)
+        XCTAssertEqual(engine.lastErrorMessage, "I didn't hear anything. Tap and try again, or type instead.")
+        XCTAssertEqual(output.lines.last, engine.lastErrorMessage)
+        engine.endSession()
+    }
+
+    func testPlaybackAndSettleGateRejectPartialsBeforeNextCapture() async {
+        let input = ReviewInput()
+        let output = ReviewOutput()
+        let settle = ReviewSettle()
+        let engine = makeEngine(input: input, output: output, settle: { await settle.wait() })
+        engine.userTappedToTalk()
+        await eventually { settle.pending != nil }
+        XCTAssertEqual(input.starts, 0, "No input tap before settle completes")
+        XCTAssertFalse(input.acceptsTranscript())
+        settle.release()
+        await eventually { input.pending != nil }
+        input.emit("to Town Hall")
+        output.suspend = true
+        input.deliverResult()
+        await eventually { output.pending != nil }
+        let lastTranscript = engine.liveTranscript
+        XCTAssertFalse(input.acceptsTranscript(), "Recognizer must discard output echo")
+        input.emit("NearMe's own words")
+        input.partial?("late callback bypassing the recognizer guard")
+        XCTAssertEqual(engine.liveTranscript, lastTranscript, "Engine also rejects echo callbacks")
+        output.stop()
+        await eventually { settle.pending != nil }
+        XCTAssertEqual(input.starts, 1)
+        XCTAssertFalse(input.acceptsTranscript())
+        settle.release()
+        await eventually { input.starts == 2 }
+        XCTAssertTrue(input.acceptsTranscript())
+        XCTAssertEqual(SpeechSilenceRule.playbackSettle, 0.15)
+        engine.endSession()
+    }
+
+    func testCancellationDuringSettleNeverInstallsInput() async {
+        let input = ReviewInput()
+        let settle = ReviewSettle()
+        let engine = makeEngine(input: input, settle: { await settle.wait() })
+        engine.userTappedToTalk()
+        await eventually { settle.pending != nil }
+        engine.cancelCurrentAction()
+        settle.release()
+        await Task.yield()
+        XCTAssertEqual(input.starts, 0)
+        XCTAssertEqual(engine.plannerState, .idle)
+    }
+
+    func testWordsSettleOnlyAfterLastTranscriptChangeWithFakeClock() {
         let clock = SpeechTestClock()
         var rule = SpeechSilenceRule(now: { clock.now })
-        rule.observe(isSpeech: true) // A cough crosses the acoustic threshold.
-        clock.now = 1
-        XCTAssertTrue(rule.hasEnded)
-        XCTAssertFalse(rule.shouldEnd(transcript: ""))
-        XCTAssertFalse(rule.shouldEnd(transcript: " \n\t "))
-        XCTAssertTrue(rule.shouldEnd(transcript: " Central "))
-        rule.observe(isSpeech: true)
-        XCTAssertFalse(rule.shouldEnd(transcript: "Central"), "Words alone cannot end active speech")
+        clock.now = 3
+        XCTAssertFalse(rule.hasEnded, "No word means no settled-words end")
+        rule.observe(transcript: " ")
+        clock.now = 5
+        XCTAssertFalse(rule.hasEnded)
+        rule.observe(transcript: "Town")
+        clock.now = 6.49
+        XCTAssertFalse(rule.hasEnded)
+        rule.observe(transcript: "Town Hall")
+        clock.now = 7.98
+        XCTAssertFalse(rule.hasEnded, "Changing partials restart the window")
+        rule.observe(transcript: "Town Hall")
+        clock.now = 7.99
+        XCTAssertTrue(rule.hasEnded, "Identical partials do not restart the window")
+        XCTAssertEqual(rule.endReason, .wordsSettled)
+        XCTAssertEqual(SpeechSilenceRule.interval, 1.5)
+        // The policy has no audio/loudness input; background sound cannot reset it.
+    }
+
+    func testTwelveSecondCapWithAndWithoutWords() throws {
+        for text in ["", "to Town Hall"] {
+            let clock = SpeechTestClock()
+            var rule = SpeechSilenceRule(now: { clock.now })
+            clock.now = 11.9
+            rule.observe(transcript: text)
+            XCTAssertNil(rule.endReason)
+            clock.now = 12
+            XCTAssertEqual(rule.endReason, .cap)
+            if text.isEmpty {
+                XCTAssertThrowsError(try SpeechTurn.transcriptResult(text).get())
+            } else {
+                XCTAssertEqual(try SpeechTurn.transcriptResult(text).get(), text)
+            }
+        }
+        XCTAssertEqual(SpeechSilenceRule.hardCap, 12)
+        XCTAssertEqual(SpeechSilenceRule.finalResultWait, 1)
     }
 
     func testDeadlineCompletionPreservesLatestPartialAndRejectsOnlyEmptyText() throws {
@@ -172,8 +433,8 @@ final class VoiceReviewTests: XCTestCase {
         engine.endSession()
     }
 
-    func testNoSpeechAndTransientTimeoutRetryWithoutSwitchingToTyping() async {
-        for error in [VoiceInputError.noSpeechDetected, .transcriptionFailed("timeout")] {
+    func testTransientTimeoutRetriesWithoutSwitchingToTyping() async {
+        for error in [VoiceInputError.transcriptionFailed("timeout")] {
             let input = ReviewInput()
             input.outcomes = [.failure(error)]
             let output = ReviewOutput()
@@ -220,17 +481,21 @@ final class VoiceReviewTests: XCTestCase {
         }
     }
 
-    func testNoSpeechBreaksFailureStreakAndKeepsRetrying() async {
+    func testNoWordsShowsAndSpeaksMessageThenStaysIdleUntilTapped() async {
         let input = ReviewInput()
-        input.outcomes = [.failure(VoiceInputError.microphoneUnavailable),
-                          .failure(VoiceInputError.noSpeechDetected),
-                          .failure(VoiceInputError.noSpeechDetected),
-                          .failure(VoiceInputError.microphoneUnavailable)]
-        let engine = makeEngine(input: input)
+        input.outcomes = [.failure(VoiceInputError.noSpeechDetected)]
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
         engine.beginSession()
-        await eventually { input.starts == 5 }
-        XCTAssertEqual(engine.plannerState, .listening)
-        XCTAssertFalse(engine.isTyping)
+        let message = "I didn't hear anything. Tap and try again, or type instead."
+        await eventually { engine.plannerState == .idle && engine.lastErrorMessage == message }
+        XCTAssertEqual(output.lines.last, message)
+        XCTAssertEqual(input.starts, 1)
+        XCTAssertFalse(engine.isTyping, "The Type instead button remains visible")
+        try? await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(input.starts, 1, "No automatic re-listen")
+        engine.userTappedToTalk()
+        await eventually { input.starts == 2 }
         engine.endSession()
     }
 
@@ -512,9 +777,10 @@ final class VoiceReviewTests: XCTestCase {
 
     // Defaults are built in the body: default arguments are evaluated outside the main actor.
     private func makeEngine(input: ReviewInput? = nil, output: ReviewOutput? = nil,
-                            brain: TaskPlannerBrain? = nil) -> TaskPlannerEngine {
+                            brain: TaskPlannerBrain? = nil,
+                            settle: (() async throws -> Void)? = nil) -> TaskPlannerEngine {
         TaskPlannerEngine(brain: brain ?? ReviewBrain(), voiceInput: input ?? ReviewInput(), voiceOutput: output ?? ReviewOutput(),
-                          permissions: PermissionsManager(), userName: "", permissionCheck: { true })
+                          permissions: PermissionsManager(), userName: "", permissionCheck: { true }, settleBeforeListening: settle)
     }
 
     private func eventually(_ condition: () -> Bool) async {
@@ -524,6 +790,13 @@ final class VoiceReviewTests: XCTestCase {
         }
         XCTFail("Expected state was not reached")
     }
+}
+
+@MainActor
+private final class ReviewSettle {
+    var pending: CheckedContinuation<Void, Never>?
+    func wait() async { await withCheckedContinuation { pending = $0 } }
+    func release() { let continuation = pending; pending = nil; continuation?.resume() }
 }
 
 nonisolated private final class SpeechTestClock: @unchecked Sendable {
@@ -541,6 +814,10 @@ private final class ReviewInput: VoiceInputService {
     var lastTurn = SpeechTurn()
     var onSpeechEnd: ((String) -> Void)?
     var outcomes: [Result<String, Error>] = []
+    var finishes = 0
+    var acceptsTranscript: () -> Bool = { true }
+    var partial: ((String) -> Void)?
+    var latest = ""
     var starts = 0
     var preparations = 0
     var confidence: Double = 0.9
@@ -557,6 +834,7 @@ private final class ReviewInput: VoiceInputService {
     func releasePreparation() { let continuation = preparation; preparation = nil; continuation?.resume() }
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
         starts += 1
+        partial = onPartialTranscript
         isListening = true
         defer { isListening = false }
         if outcomes.isEmpty { return try await withCheckedThrowingContinuation { pending = $0 } }
@@ -566,6 +844,23 @@ private final class ReviewInput: VoiceInputService {
         onSpeechEnd?(text)
         onPartialTranscript(text)
         return text
+    }
+    func emit(_ text: String) {
+        guard acceptsTranscript() else { return }
+        latest = text
+        partial?(text)
+    }
+    func finishListening() {
+        guard isListening else { return }
+        finishes += 1
+        isListening = false
+        lastTurn.endedAt = ProcessInfo.processInfo.systemUptime
+        onSpeechEnd?(latest)
+    }
+    func deliverResult(_ text: String? = nil) {
+        let continuation = pending
+        pending = nil
+        continuation?.resume(with: SpeechTurn.transcriptResult(text ?? latest))
     }
     func stopListening() {
         isListening = false
@@ -578,14 +873,17 @@ private final class ReviewInput: VoiceInputService {
 @MainActor
 private final class ReviewOutput: VoiceOutputService {
     var lines: [String] = []
+    var slowerValues: [Bool] = []
     var onPlaybackStarted: (() -> Void)?
     var suspend = false
+    var stops = 0
     var pending: CheckedContinuation<Void, Never>?
     func speak(_ text: String) async {
         lines.append(text)
         if suspend { await withCheckedContinuation { pending = $0 } }
     }
-    func stop() { let continuation = pending; pending = nil; continuation?.resume() }
+    func stop() { stops += 1; let continuation = pending; pending = nil; continuation?.resume() }
+    func setSlower(_ slower: Bool) { slowerValues.append(slower) }
 }
 
 @MainActor

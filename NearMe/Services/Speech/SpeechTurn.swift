@@ -1,5 +1,5 @@
-import AVFoundation
 import Foundation
+import OSLog
 import Speech
 
 nonisolated enum PracticeVocabulary {
@@ -74,36 +74,50 @@ nonisolated struct SpeechTurn {
     }
 }
 
-/// Shared acoustic silence policy. Tests inject a monotonic clock without sleeping.
+nonisolated enum SpeechEndReason: String {
+    case tap
+    case wordsSettled = "words settled"
+    case cap = "12 s cap"
+}
+
+/// Recognizer activity only: microphone loudness is deliberately not an input.
 nonisolated struct SpeechSilenceRule {
-    static let interval: TimeInterval = 0.8
+    static let interval: TimeInterval = 1.5
+    static let hardCap: TimeInterval = 12
+    static let finalResultWait: TimeInterval = 1
+    static let playbackSettle: TimeInterval = 0.15
     private let now: @Sendable () -> TimeInterval
+    private let startedAt: TimeInterval
+    private var transcript = ""
     private(set) var lastActivity: TimeInterval?
 
     init(now: @escaping @Sendable () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
         self.now = now
+        self.startedAt = now()
     }
 
-    mutating func observe(isSpeech: Bool) {
-        if isSpeech { lastActivity = now() }
+    mutating func observe(transcript: String) {
+        guard transcript != self.transcript else { return }
+        self.transcript = transcript
+        lastActivity = now()
     }
 
     var hasEnded: Bool {
-        guard let lastActivity else { return false }
+        guard !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              let lastActivity else { return false }
         return now() - lastActivity >= Self.interval
     }
 
-    func shouldEnd(transcript: String) -> Bool {
-        hasEnded && !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    var duration: TimeInterval { max(0, now() - startedAt) }
+
+    var endReason: SpeechEndReason? {
+        if duration >= Self.hardCap { return .cap }
+        return hasEnded ? .wordsSettled : nil
     }
 
-    /// A small RMS gate avoids treating decoder callback latency as speech activity.
-    static func hasSpeech(_ buffer: AVAudioPCMBuffer) -> Bool {
-        guard let channels = buffer.floatChannelData, buffer.frameLength > 0 else { return false }
-        let samples = channels[0]
-        var sum: Float = 0
-        for index in 0..<Int(buffer.frameLength) { sum += samples[index] * samples[index] }
-        return sum / Float(buffer.frameLength) > 0.0001
+    func logEnd(reason: SpeechEndReason, transcript: String, voiceProcessing: Bool, duration: TimeInterval) {
+        let outcome = transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "no words" : reason.rawValue
+        VoiceDiagnostics.logger.info("Input voice processing=\(voiceProcessing ? "on" : "off", privacy: .public) end=\(outcome, privacy: .public) trigger=\(reason.rawValue, privacy: .public) duration=\(duration) s")
     }
 }
 

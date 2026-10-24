@@ -29,12 +29,8 @@ struct VoiceSessionView: View {
                     }
                 }
 
-                VoiceOrbView(state: orbState)
-                    .onTapGesture {
-                        if case .idle = engine.plannerState {
-                            useVoiceInput()
-                        }
-                    }
+                VoiceOrbButton(state: orbState, instruction: orbInstruction, action: useVoiceInput)
+                    .disabled(engine.plannerState == .finishing || engine.plannerState == .thinking || engine.isStartingListening)
 
                 Text(subtitleText)
                     .font(TTFont.title())
@@ -163,6 +159,12 @@ struct VoiceSessionView: View {
         }
     }
 
+    private var orbInstruction: String {
+        if engine.isStartingListening { return "Getting ready to listen..." }
+        if engine.plannerState == .finishing { return "Finishing..." }
+        return orbState.instruction
+    }
+
     private var statusLabel: String {
         switch engine.plannerState {
         case .listening: return "LISTENING...."
@@ -179,6 +181,8 @@ struct VoiceSessionView: View {
             return engine.conversation.last?.text ?? "Listening..."
         case .thinking:
             return engine.liveTranscript.isEmpty ? "One moment..." : "Got it: \(engine.liveTranscript)"
+        case .finishing:
+            return engine.liveTranscript
         case .idle:
             if engine.isTyping {
                 return engine.conversation.last(where: { $0.speaker == .nearme })?.text ?? "What would you like help with?"

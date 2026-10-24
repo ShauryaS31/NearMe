@@ -1,6 +1,7 @@
 // Adapted from a prior prototype, used with permission.
 
 import AVFoundation
+import OSLog
 import Speech
 
 @MainActor
@@ -16,11 +17,13 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
     private var silenceRule = SpeechSilenceRule()
     private var ending = false
     private var receivedFinal = false
+    private var voiceProcessing = false
+    private var endReason: SpeechEndReason?
+    private var captureDuration: TimeInterval = 0
+    var acceptsTranscript: () -> Bool = { true }
     private var generation = 0
     private(set) var lastTurn = SpeechTurn()
     var onSpeechEnd: ((String) -> Void)?
-    /// Backstop if the recognizer never calls back at all.
-    private let hardTimeout: TimeInterval = 25
 
     /// The in-flight continuation's resolver, if a `startListening` call is
     /// currently pending — lets `stopListening()` resolve it directly rather
@@ -53,6 +56,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         silenceRule = SpeechSilenceRule()
         ending = false
         receivedFinal = false
+        endReason = nil
         isListening = true
         defer { if generation == token { isListening = false } }
 
@@ -60,6 +64,12 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         // NearMeAudioSession.swift. The session is configured once for the
         // whole conversation rather than being switched on every turn.
         try NearMeAudioSession.configureIfNeeded()
+        voiceProcessing = false
+        do {
+            try engine.inputNode.setVoiceProcessingEnabled(true)
+            voiceProcessing = engine.inputNode.isVoiceProcessingEnabled
+        } catch { VoiceDiagnostics.log(error) }
+        VoiceDiagnostics.logger.info("Input voice processing=\(self.voiceProcessing ? "on" : "off", privacy: .public)")
 
         let request = Self.makeRecognitionRequest()
         self.request = request
@@ -71,13 +81,8 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             throw VoiceInputError.microphoneUnavailable
         }
         inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
-            let active = SpeechSilenceRule.hasSpeech(buffer)
-            Task { @MainActor in
-                guard let self, token == self.generation, !self.ending else { return }
-                self.silenceRule.observe(isSpeech: active)
-            }
         }
 
         engine.prepare()
@@ -89,6 +94,7 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             throw VoiceInputError.audioEngineFailed(error)
         }
 
+        silenceRule = SpeechSilenceRule()
         return try await withCheckedThrowingContinuation { [weak self] continuation in
             guard let self else { return }
             let resume = ResumeOnce(continuation)
@@ -106,8 +112,9 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                     guard let self else { return }
                     guard self.activeResume === resume else { return }
 
-                    if let transcript {
+                    if let transcript, self.acceptsTranscript() {
                         self.latestTranscript = transcript
+                        self.silenceRule.observe(transcript: transcript)
                         onPartialTranscript(transcript)
                         self.lastTurn.confidence = confidence
                         self.receivedFinal = final
@@ -116,6 +123,9 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                     }
 
                     if failed, self.activeResume === resume {
+                        if self.ending { self.complete(resume); return }
+                        self.silenceRule.logEnd(reason: .wordsSettled, transcript: self.latestTranscript,
+                                               voiceProcessing: self.voiceProcessing, duration: self.silenceRule.duration)
                         self.activeResume = nil
                         self.finish()
                         let failure: VoiceInputError = self.recognizer?.isAvailable == false
@@ -129,32 +139,34 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
                 while !Task.isCancelled {
                     do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
                     guard let self, self.activeResume === resume else { return }
-                    if self.silenceRule.shouldEnd(transcript: self.latestTranscript) {
-                        self.endSpeech(resume)
+                    if let reason = self.silenceRule.endReason {
+                        self.endSpeech(resume, reason: reason)
                         return
                     }
                 }
             }
-            Task { [weak self] in
-                try? await Task.sleep(nanoseconds: UInt64(self?.hardTimeout ?? 25) * 1_000_000_000)
-                guard let self, self.activeResume === resume else { return }
-                self.complete(resume)
-            }
         }
+    }
+
+    func finishListening() {
+        if let resume = activeResume { endSpeech(resume, reason: .tap) }
     }
 
     func stopListening() {
         if let resume = activeResume {
             activeResume = nil
-            resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
+            resume.fulfill(throwing: CancellationError())
         }
         finish()
     }
 
-    private func endSpeech(_ resume: ResumeOnce<String>) {
+    private func endSpeech(_ resume: ResumeOnce<String>, reason: SpeechEndReason) {
         guard !ending else { return }
         ending = true
-        lastTurn.endedAt = silenceRule.lastActivity
+        endReason = reason
+        captureDuration = silenceRule.duration
+        lastTurn.endedAt = ProcessInfo.processInfo.systemUptime
+        silenceTask?.cancel()
         engine.stop()
         engine.inputNode.removeTap(onBus: 0)
         isListening = false
@@ -162,13 +174,15 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         request?.endAudio()
         if receivedFinal { complete(resume); return }
         finalizationTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            do { try await Task.sleep(for: .seconds(SpeechSilenceRule.finalResultWait)) } catch { return }
             guard let self, self.activeResume === resume else { return }
             self.complete(resume)
         }
     }
 
     private func complete(_ resume: ResumeOnce<String>) {
+        silenceRule.logEnd(reason: endReason ?? .wordsSettled, transcript: latestTranscript,
+                           voiceProcessing: voiceProcessing, duration: captureDuration)
         activeResume = nil
         let result = SpeechTurn.transcriptResult(latestTranscript)
         finish()
