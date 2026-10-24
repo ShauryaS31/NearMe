@@ -31,7 +31,8 @@ Gate for every task: CI green (NearMeCore tests and NearMe compile on macos-26).
 | [N09](../tasks/N09-scx.md) | STRETCH: SCX fallback for hard goals | Only after N07 | N03 | codex | todo |
 
 ## Decisions
-- 2026-10-24 (manager, owner may veto): AXStaticText's AXValue is read as its label because it is the visible text (System Settings sidebar rows would otherwise be unlabelled). AXValue is never read for any other role. N03 PrivacyFilter still applies on top.
+- 2026-10-24 (manager proposed, owner APPROVED): AXStaticText's AXValue is read as its label because it is the visible text (System Settings sidebar rows would otherwise be unlabelled). AXValue is never read for any other role. N03 PrivacyFilter still applies on top.
+- 2026-10-24 (owner): the AX (top-left) to AppKit (bottom-left) flip is one function in NearMeCore, tested for the main display and a second display above or left of it.
 
 ## Mac gate checklist
 (manager appends PENDING MAC items here)
