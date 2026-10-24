@@ -9,9 +9,3 @@ public enum StepValidator {
         return ["click", "scroll", "none"].contains(action)
     }
 }
-
-public enum ScreenCoordinates {
-    public static func appKitRect(fromAX rect: CGRect, mainScreenHeight: CGFloat) -> CGRect {
-        CGRect(x: rect.minX, y: mainScreenHeight - rect.maxY, width: rect.width, height: rect.height)
-    }
-}

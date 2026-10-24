@@ -148,3 +148,39 @@ Fixes:
    c. `secondDisplayLeft`: 1920 x 1080 display left of the primary with bottoms aligned, AX frame (-1920, -180, 1920, 1080), AppKit frame (-1920, 0, 1920, 1080). AX (-1800, 100, 200, 50) gives AppKit (-1800, 750, 200, 50), inside the second display and not inside the primary.
    Keep or fold in the existing coordinate test; no duplicate assertions needed.
 2. Optional: replace the three `unsafeBitCast` uses CI warns about (AXReader.swift:85, :126, :127) with `unsafeDowncast(_:to:)` only if it compiles cleanly for CF types; otherwise leave them.
+
+## Dev Report (round 3)
+- Date: 2026-10-24 12:45 AEDT
+- Changed files: NearMeCore/Sources/NearMeCore/StepValidator.swift; NearMeCore/Sources/NearMeCore/ScreenCoordinates.swift; NearMeCore/Tests/NearMeCoreTests/GuidanceTests.swift; NearMeCore/Tests/NearMeCoreTests/ScreenCoordinatesTests.swift; tasks/N01-spike.md. docs/LOG.md will receive one line after a successful commit, as requested.
+- What I did (Review round 2, every numbered point):
+  1. Moved the single public ScreenCoordinates.appKitRect(fromAX:mainScreenHeight:) function into ScreenCoordinates.swift, retaining its exact signature and formula. Documented that the height is the primary display's height. Added separate mainDisplay, secondDisplayAbove and secondDisplayLeft @Test functions with the requested display-layout comments, exact input/output rectangles, expected-display containment, and secondary-display exclusion from the primary. Replaced the previous coordinate test, retaining its distinct bottom-edge assertion in mainDisplay. Foundation and CoreGraphics are imported in both new files.
+  2. Left the three optional unsafeBitCast replacements unchanged: this machine cannot compile the CF-type alternative, and the review permits leaving them unless a clean compile can be confirmed.
+- Acceptance criteria (coverage of all original criteria; runtime verification remains pending):
+  1. AXPermission trust check and Privacy pane opening remain unchanged.
+  2. Bounded off-main-thread AXReader remains unchanged, including the reviewed static-text label exception and 250 ms partial-read / 300 ms watchdog deadlines.
+  3. ElementList indices, compact rendering, cap and reader content preference remain unchanged.
+  4. Structured Foundation Models step and fresh tool-free session remain unchanged.
+  5. StepValidator behavior remains unchanged; only ScreenCoordinates moved out of its file.
+  6. Overlay window configuration and conversion call remain unchanged; conversion now has explicit primary/above/left display coverage.
+  7. Goal, Next step, element count, chosen element and latency panel remain unchanged.
+  8. Last external app tracking and target/window display remain unchanged.
+  9. Empty-label-first capping, traversal order and contiguous indices retain existing tests.
+  10. Grounded prompt rendering and clarification instructions retain existing tests.
+  11. The conversion remains one pure public core function with the same signature and formula, now in ScreenCoordinates.swift.
+  12. Existing non-coordinate tests are retained; one coordinate test became three named layout tests, for ten test functions total. Execution is pending CI/Mac.
+  13. Role/label/instruction, AX/model timing, Clear ring and error handling remain unchanged.
+  14. Nonactivating click-through overlay and absence of AX actions remain unchanged.
+  15. Owner gate remains pending; no System Settings success or measured latency is claimed.
+- Verify commands run and results:
+  - `swift test --package-path NearMeCore`: could not execute; Swift is not installed/recognized.
+  - `xcodegen`: could not execute; command unavailable.
+  - `xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build`: could not execute; Xcode is unavailable. Generation/build were attempted separately in PowerShell.
+  - `git diff --check`: initially found extra EOF blank lines after the moves; removed them and reran successfully.
+  - PowerShell static checks passed: exactly one public conversion, unchanged signature/formula compared with HEAD, three required test names, three display-containment assertions, two primary-display exclusion assertions, ten total test functions, and no trailing whitespace in either new file. These checks do not execute Swift or CGRect.contains.
+  - Read the new tests and implementation, package manifest and overlay call site. SwiftPM discovers the new source/test files without manifest or project changes. Branch is task/N01-spike; initial working tree was clean. Git status warned about an inaccessible global ignore file.
+- Mac test steps for the owner:
+  1. Check out the manager's round 3 commit on macOS 26 with Xcode 26. From the repository root run `swift test --package-path NearMeCore`; require all ten tests to pass, including mainDisplay, secondDisplayAbove and secondDisplayLeft. These fixtures need no physical secondary display.
+  2. Run `xcodegen && xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build`; require BUILD SUCCEEDED. Keep NearMe.xcodeproj uncommitted.
+  3. Open NearMe.xcodeproj, run NearMe on an Apple Intelligence-ready Mac, grant Accessibility permission, and place NearMe beside System Settings on the primary display. Activate System Settings, return to NearMe, enter `make text bigger`, then click Next step. Check the real chosen label/role, sensible instruction, ring placement and click-through. Record success/failure and AX/model/total ms in docs/LOG.md for the original owner gate.
+  4. If secondary displays are available, use System Settings > Displays > Arrange to place one above the primary, then to its left with bottoms aligned. For each arrangement, move the target window onto that display, activate it, return to NearMe and click Next step. Verify the ring follows the selected target control on that display; Clear ring before changing layouts. Record actual layouts and results separately from the unit-test fixtures.
+- Not done / risks / questions: This machine has no Swift or Xcode. GitHub CI is the compile gate; the green CI mentioned in Review round 2 predates these changes and does not verify them. New Swift tests, compilation, real multi-display ring placement and the System Settings owner gate remain unverified. The optional cast warnings remain. Commit will be attempted after this report; if the sandbox prevents .git writes, changes must remain uncommitted for the manager.

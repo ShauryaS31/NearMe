@@ -70,11 +70,3 @@ private func element(_ label: String = "Display", enabled: Bool = true) -> Scree
     #expect(!StepValidator.isValid(elementIndex: 0, action: "type", in: list))
     #expect(!StepValidator.isValid(elementIndex: 0, action: "click", in: ElementList([])))
 }
-
-@Test func coordinateConversionUsesMainScreenHeightAndPreservesSize() {
-    #expect(ScreenCoordinates.appKitRect(fromAX: CGRect(x: 20, y: 30, width: 100, height: 40), mainScreenHeight: 900)
-        == CGRect(x: 20, y: 830, width: 100, height: 40))
-    #expect(ScreenCoordinates.appKitRect(fromAX: CGRect(x: -500, y: -100, width: 50, height: 20), mainScreenHeight: 900)
-        == CGRect(x: -500, y: 980, width: 50, height: 20))
-    #expect(ScreenCoordinates.appKitRect(fromAX: CGRect(x: 0, y: 880, width: 50, height: 20), mainScreenHeight: 900).minY == 0)
-}
