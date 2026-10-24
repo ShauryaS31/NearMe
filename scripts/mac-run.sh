@@ -55,8 +55,15 @@ newest_simulator() {
   udid="$(xcrun simctl list devices available -j | python3 scripts/newest-iphone.py)"
   out="$(xcrun simctl boot "$udid" 2>&1)" || [[ "$out" == *"Booted"* ]] || { echo "$out" >&2; exit 1; }
   xcrun simctl bootstatus "$udid" -b > /dev/null
-  open -a Simulator
+  open_device_ui
   echo "$udid"
+}
+
+open_device_ui() {
+  # Xcode 27 replaced Simulator.app with DeviceHub.app. Opening the UI is optional;
+  # the booted simulator keeps running either way. Keep stdout clean (it returns the UDID).
+  open -a DeviceHub > /dev/null 2>&1 || open -a Simulator > /dev/null 2>&1 ||
+    echo "Note: could not open DeviceHub or Simulator; the simulator is still booted." >&2
 }
 
 case "$mode" in

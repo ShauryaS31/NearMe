@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_review (Mac pending, checked in P02) |
+| Status | done |
 | Window | Sat 24 Oct, pivot |
 | Depends on | - |
 | Assignee | codex (import, as N10 on archive branch task/N10-ios-import), manager (move to repo root, build setup) |
@@ -20,10 +20,14 @@ Start the iPhone plan from the prior prototype (used with permission), imported 
 - [x] `scripts/mac-run.sh`: default simulator mode, `device`, `test`, `report`, `--current`
 - [x] CI manual only (workflow_dispatch)
 - [x] `git grep` finds no old project name or author name
-- [ ] PENDING MAC: builds, tests pass, launches in simulator and on iPhone (P02)
+- [x] Mac gate: builds and NearMeTests 4/4 JourneyIntent tests pass (owner, Xcode 27.1, iOS 27.1 simulator "iPhone Duo"). Launch and walkthrough checks continue in P02
 
 ## Review (round 1)
 - Date: 2026-10-24 14:02 AEDT
 - Verdict: PASS for the import (static); runtime is P02.
 - N10 round 1 Dev Report: 48 Swift and 15 asset files imported, inventory and normalised-source comparison against the originals passed, assets byte-identical, name check clean. Manager moved the tree to the repo root, renamed module `NearMeiOS` to `NearMe` (one `@testable import`), rewrote project.yml, mac-run.sh and CI.
 - Known: never compiled yet (CI is manual, Mac is the gate). The original test files were never part of a target; `KeywordFallbackBrainTests.swift` contains only an import, so NearMeTests runs the 4 JourneyIntent tests.
+
+## Mac gate (owner)
+- Xcode 27.1, iOS 27.1 simulator "iPhone Duo": 4/4 JourneyIntent tests pass. PASS.
+- Found: Xcode 27 has no Simulator.app (replaced by DeviceHub.app), so `open -a Simulator` failed. Fixed on fix/P01-devicehub: mac-run.sh opens DeviceHub, else Simulator, and never fails on either; MAC-TESTING.md updated for Xcode 27.1 / iOS 27.1 / DeviceHub.
