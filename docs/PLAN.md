@@ -31,7 +31,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
 | [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | done (owner compile and phrase-1 check pending) |
 | [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | done (Mac check pending) |
-| [P07d](../tasks/P07d-router-keyword-override.md) | Router fix: a strong guide match beats a model "general" pick; owner's phrase as acceptance test | P07b | codex | in_progress (worktree ../NearMe-p07d) |
+| [P07d](../tasks/P07d-router-keyword-override.md) | Router fix: a strong guide match beats a model "general" pick; owner's phrase as acceptance test | P07b | codex | done (combined iPhone check after P11) |
 | [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | in_progress (lane worker, worktree ../NearMe-p09, task/P09-ui-polish) |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P11 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | in_progress |

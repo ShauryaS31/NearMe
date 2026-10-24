@@ -96,7 +96,7 @@ final class VoiceReviewTests: XCTestCase {
         let engine = makeEngine(input: input, output: output)
         engine.useTypedInput()
         engine.submitTypedInput("from Central to Town Hall")
-        await eventually { engine.tripPlannerPracticeViewModel != nil && output.lines.count == 2 && !engine.isVoiceOutputActive }
+        await eventually { engine.tripPlannerPracticeViewModel != nil && output.lines.count == 3 && !engine.isVoiceOutputActive }
         guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
         output.suspend = true
         practice.completeCurrentStep()
@@ -319,7 +319,7 @@ final class VoiceReviewTests: XCTestCase {
         await eventually { input.starts == 2 }
         XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
         XCTAssertEqual(engine.conversation.last(where: { $0.speaker == .user })?.text, "to Town Hall")
-        XCTAssertEqual(output.lines, ["Hi, what can we help you with?", "Where are you starting from?"])
+        XCTAssertEqual(output.lines, ["Hi, what can we help you with?", "Sure, let me help you with that.", "Where are you starting from?"])
         engine.endSession()
     }
 
@@ -879,6 +879,8 @@ private final class ReviewOutput: VoiceOutputService {
     var suspend = false
     var stops = 0
     var pending: CheckedContinuation<Void, Never>?
+    // These tests suspend the reply/caption; acknowledgement timing has dedicated tests.
+    func speakAcknowledgement(_ text: String) async { lines.append(text) }
     func speak(_ text: String) async {
         lines.append(text)
         if suspend { await withCheckedContinuation { pending = $0 } }

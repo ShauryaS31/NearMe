@@ -4,6 +4,26 @@ import XCTest
 
 @MainActor
 final class ElevenLabsVoiceOutputTests: XCTestCase {
+    func testAcknowledgementUsesSystemImmediatelyThenReusesCachedNaturalVoice() async throws {
+        let fixture = try VoiceFixture()
+        defer { fixture.cleanUp() }
+        let output = fixture.output()
+        let line = "Sure, let me help you with that."
+        fixture.session.suspend = true
+        await output.speakAcknowledgement(line)
+        XCTAssertEqual(fixture.system.lines, [line])
+        XCTAssertEqual(output.lastVoice, "System voice")
+        XCTAssertEqual(fixture.player.playCount, 0)
+        await eventually { fixture.session.pending != nil }
+        fixture.session.release()
+        await eventually { fixture.cache.audio(for: fixture.cacheKey(line)) != nil }
+        await output.speakAcknowledgement(line)
+        XCTAssertEqual(output.lastVoice, "ElevenLabs")
+        XCTAssertEqual(fixture.player.playCount, 1)
+        XCTAssertEqual(fixture.session.requests.count, 1)
+        XCTAssertEqual(fixture.system.lines, [line])
+    }
+
     func testCacheKeyUsesVoiceModelAndExactText() {
         let key = VoiceAudioCache.key(voiceID: "test-voice", modelID: ElevenLabsVoiceOutput.modelID, text: "Hello")
         XCTAssertEqual(key, "4ee7c9676f5a5696daae822c2fde5196d3a288892af1d5ba91f161a306050404")

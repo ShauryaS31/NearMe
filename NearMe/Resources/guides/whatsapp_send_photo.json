@@ -16,36 +16,43 @@
   "steps": [
     {
       "instruction": "Open \"WhatsApp\".",
-      "ui_label_hint": "WhatsApp"
+      "ui_label_hint": "WhatsApp",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap \"Chats\".",
-      "ui_label_hint": "Chats"
+      "ui_label_hint": "Chats",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap the chat with the person you want to send the photo to.",
       "ui_label_hint": "Chats",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "person"
     },
     {
       "instruction": "Tap \"+\" beside the message box.",
       "ui_label_hint": "+",
-      "verify": true
+      "verify": true,
+      "icon": "plus"
     },
     {
       "instruction": "Tap \"Photos\".",
       "ui_label_hint": "Photos",
-      "verify": true
+      "verify": true,
+      "icon": "photo.on.rectangle"
     },
     {
       "instruction": "Tap the photo you want to send.",
       "ui_label_hint": "photo thumbnail",
-      "verify": true
+      "verify": true,
+      "icon": "photo"
     },
     {
       "instruction": "Tap the paper plane icon to send the photo.",
       "ui_label_hint": "paper plane icon",
-      "verify": true
+      "verify": true,
+      "icon": "paperplane"
     }
   ],
   "source_note": "WhatsApp for iPhone, October 2026 layout on iOS 26/27, English. Assumes an existing individual chat and photo access already allowed. The attachment menu may say Photos or Photo & Video Library; the picker may require Next before the preview. Check flagged steps on the installed version. Documentation review only; not checked on a phone. Source: https://faq.whatsapp.com/453914586839706/?cms_platform=iphone",

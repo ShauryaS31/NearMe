@@ -16,31 +16,37 @@
   "steps": [
     {
       "instruction": "Open \"Messages\".",
-      "ui_label_hint": "Messages"
+      "ui_label_hint": "Messages",
+      "icon": "bubble.left"
     },
     {
       "instruction": "Tap the pencil in a square icon for a new message.",
-      "ui_label_hint": "pencil in a square icon"
+      "ui_label_hint": "pencil in a square icon",
+      "icon": "square.and.pencil"
     },
     {
       "instruction": "Type the person's name in \"To:\".",
       "ui_label_hint": "To:",
-      "verify": true
+      "verify": true,
+      "icon": "person"
     },
     {
       "instruction": "Tap the matching person in the suggestions below \"To:\".",
       "ui_label_hint": "To:",
       "verify": true,
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "person"
     },
     {
       "instruction": "Type your message in the message box above the keyboard.",
       "ui_label_hint": "message box",
-      "verify": true
+      "verify": true,
+      "icon": "keyboard"
     },
     {
       "instruction": "Tap the upward arrow beside your message to send it.",
-      "ui_label_hint": "upward arrow"
+      "ui_label_hint": "upward arrow",
+      "icon": "paperplane"
     }
   ],
   "source_note": "Messages on iOS 26/27, English, October 2026 documentation review. Assumes Messages is set up and starts on the conversation list, with the recipient saved in Contacts. The message box placeholder and arrow colour vary between iMessage, RCS and SMS. Delivery depends on the available connection. Not checked on a phone. Source: https://support.apple.com/guide/iphone/iph82fb73ba3/26/ios/26",

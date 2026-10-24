@@ -16,16 +16,19 @@
     {
       "instruction": "Swipe down from the top-right corner of the screen.",
       "ui_label_hint": "battery icon",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "arrow.down"
     },
     {
       "instruction": "Touch and hold \"Focus\".",
       "ui_label_hint": "Focus",
-      "verify": true
+      "verify": true,
+      "icon": "moon"
     },
     {
       "instruction": "Tap \"Do Not Disturb\" if it is not already on.",
-      "ui_label_hint": "Do Not Disturb"
+      "ui_label_hint": "Do Not Disturb",
+      "icon": "moon"
     }
   ],
   "source_note": "Control Centre on Face ID iPhones with iOS 26/27, English, October 2026 documentation review. Assumes no other Focus is active; an active Focus shows its own name instead of Focus. Home button iPhones open Control Centre with an upward swipe from the bottom. Allowed people, apps and alarms may still alert you. Not checked on a phone. Source: https://support.apple.com/en-gb/105112",
