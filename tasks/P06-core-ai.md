@@ -4,7 +4,7 @@
 |---|---|
 | Status | todo (after P05 and its Mac check) |
 | Window | Sat 24 Oct |
-| Depends on | P05 |
+| Depends on | P05, P07 |
 | Assignee | codex |
 | Branch | task/P06-core-ai |
 
@@ -19,8 +19,7 @@ New `LanguageModelSession` per call, greedy sampling, `maximumResponseTokens` 60
 
 ## Acceptance criteria
 ### 1. Task router
-- [ ] After the user's first sentence, a `@Generable` router picks from `enum PracticeTask { tripPlanner, notAvailableYet }` (defined so new tasks are added in one place). Keyword fallback: trip words (go, get to, travel, train, bus, from, to) give tripPlanner, otherwise notAvailableYet
-- [ ] notAvailableYet: NearMe says kindly what it can help practise today (for example "I can't practise that one yet. Today I can help you practise planning a trip, like getting to Town Hall."), then listens again. tripPlanner continues into today's trip flow unchanged
+- [ ] Superseded by P07 item 2 (router: practice, guide or general). P06 adds nothing here; the help, wrong-tap and tap-and-hold features below apply to the practice screens, and "What do I do now?" also works inside a P07 coach session using the current guide step as context
 
 ### 2. "What do I do now?"
 - [ ] A Help button (SF Symbol `questionmark.circle` plus "Help", 44 x 44 pt) on practice screens, and the phrases "help", "what do I do", "what do I do now" (spoken or typed) during practice
@@ -39,7 +38,7 @@ New `LanguageModelSession` per call, greedy sampling, `maximumResponseTokens` 60
 
 ### 6. Tests
 - [ ] Default run (fake brain, no model): router mapping and keyword fallback, help validator accept and reject cases, wrong-tap counter (1st nudge, 3rd escalation, reset on advance), long-press fallback, conversation cleared on end
-- [ ] Real-model cases in `ModelEvalTests` (NEARME_MODEL_EVAL=1, `eval` mode), at most 4 more, each with a 20 s limit and an `EVAL |` line: "help me order groceries" gives notAvailableYet; "I need to get to Town Hall" gives tripPlanner; one help answer and one long-press answer pass the validator
+- [ ] Real-model cases in `ModelEvalTests` (NEARME_MODEL_EVAL=1, `eval` mode), at most 4 more, each with a 20 s limit and an `EVAL |` line: "I need to get to Town Hall" routes to practice; one help answer and one long-press answer pass the validator
 
 ## Verify (Mac)
 ```
@@ -47,6 +46,6 @@ bash scripts/mac-run.sh test --current
 bash scripts/mac-run.sh eval --current
 bash scripts/mac-run.sh quick
 ```
-Mac checks: "help me order groceries" gives a polite not-available-yet answer; during practice "what do I do now" gives a correct grounded answer; 3 wrong taps give simpler help and a pulse; long-press explains an element; the Debug badge shows On-device model and ms for each.
+Mac checks: during practice "what do I do now" gives a correct grounded answer; 3 wrong taps give simpler help and a pulse; long-press explains an element; the Debug badge shows On-device model and ms for each.
 
 <!-- Dev Reports and Reviews appended below. -->

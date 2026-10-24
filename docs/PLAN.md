@@ -24,8 +24,10 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
 | [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | in_progress |
+| [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04 | codex | todo |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
-| [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05 | codex | todo |
+| [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05, P07 | codex | todo |
+| [P08](../tasks/P08-look-at-my-screen.md) | STRETCH: Look at my screen (App Intent, Back Tap, Vision OCR, privacy filter, grounded step), real iPhone only | P07 | codex, owner | todo (only after P07 passes) |
 
 Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when that passes; then P05, P06, stopping after each for the owner's Mac check.
 
@@ -46,6 +48,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): all P04 to P06 brief choices approved. Voice input is always on-device (ElevenLabs speech-to-text removed, in P04), because recorded speech must not leave the phone. Settings toggle "Natural voice (online)": off means only the system voice and nothing leaves the phone (logic in P04, toggle in P05). P06 privacy copy is the owner's exact wording, naming place names sent to ElevenLabs.
 - 2026-10-24 (owner): Apple speech must run strictly on-device (requiresOnDeviceRecognition = true or SpeechAnalyzer); if on-device recognition is unavailable for the locale, show Type instead, never a server. Added to P04.
 - 2026-10-24 (owner): start P04 now without waiting for the P02c/P02b/P03 retest (running in parallel). Retest issues become P03a, done right after P04. Stop after P04 for the owner's Mac check.
+- 2026-10-24 (owner): NearMe must help with any task, not one scripted flow. New P07 (guided coach for any app) after P04 and before P05; P07's router replaces P06 item 1. P08 (look at my screen, stretch, real iPhone only) starts only after P07 passes. Order: P04, P07, P05, P06, then P08. Manager notes: guides carry verified_on_device (false until the owner checks on the iPhone); Settings guides cannot deep-link (no private App-prefs URLs).
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
@@ -54,3 +57,5 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - [ ] P04: ElevenLabs voice speaks steps; second run faster (cache); Wi-Fi off gives system voice, no hang; largest text usable on practice screens.
 - [ ] P05: switch voices; "AI voice of <name>" label only for the family voice; consent shown once; switching back works.
 - [ ] P06: "help me order groceries" gives not-available-yet; "what do I do now" grounded answer; 3 wrong taps give simpler help and pulse; long-press explains; Debug badge shows On-device model and ms.
+- [ ] P07: WhatsApp photo request gives the guide, step by step, Done/Repeat/I'm stuck work; ringtone request gives labelled general guidance; Open WhatsApp button; resume after app switch; owner spot-checks 3 guides on the iPhone.
+- [ ] P08 (real iPhone): Back Tap Shortcut set up from in-app steps; next step names a visible label; codes and emails never read out.
