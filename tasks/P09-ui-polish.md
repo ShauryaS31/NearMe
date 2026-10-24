@@ -299,3 +299,80 @@ CHANGES (final round). Review (round 1) items 1-8 MET; 9.A, 9.C, 9.D MET statica
 
 Follow-up for the manager (not P09): after backgrounding with a fallback session held, `appBecameActive` calls `resumeCoach()` and would say "You were on step 1: I'm not sure about that one". Engine behaviour; candidate task after P11.
 - 2026-10-24 18:46 AEDT | P09 | claude (P09 lane) | review r2 CHANGES | error during a guide wipes progress; I'm stuck fallback drops the card; read-only Reduce Motion preview breaks Debug build; Cancel visible when idle; dispatch r3 (final)
+
+## Dev Report (round 3)
+- Date: 2026-10-24 18:47 AEDT
+- Changed files: `NearMe/Views/Voice/CoachPresentation.swift`, `NearMe/Views/Voice/HelpHomeView.swift`, `NearMe/Views/Components/UIPolishPreviews.swift`, `NearMeTests/UIPolishTests.swift`, this task file.
+- What I did: addressed Review (round 2) items 1-4 only. Kept all changes in view presentation, preview fixtures and regression tests. No engine, service, model, progress-store or protected-document edits.
+- Acceptance criteria / Review (round 2):
+  1. `showsCoachCard` now depends solely on `kind(for:)`, ignoring errors. `reply` returns errors only for the Home-reply kind (including no coach). Home's Talk and Type actions cancel an existing coach only when its kind is `.homeReply`. Real guide/general sessions therefore stay in CoachView and use the existing dock error display. Replaced the old error regression test with separate guide-at-step-3, real-general and no-coach tests covering errors and the actual no-words diagnostic; added fallback-session error coverage.
+  2. Removed the current-text fallback check. Classification now uses only the guide and stored general steps. Inverted the rewrite test: a real general session remains a coach card after its current text changes to `CoachText.generalFallback`, preserving the view that owns the stuck sheet.
+  3. Removed the preview that wrote the read-only `accessibilityReduceMotion` environment key. No override or new default argument was introduced. The existing system-driven Reduce Motion behavior is unchanged; 44 DEBUG previews remain, including preparation in the default/accessibility5 light/dark matrix.
+  4. Home and preview fixtures show Cancel only for listening or preparing activity. The existing resolver includes finishing, starting the microphone, thinking and speech preparation in preparing. Ready, speaking and paused states do not show Cancel. Native Cancel behavior is unchanged.
+- Other acceptance criteria: retained the existing Theme, buttons, onboarding, coach actions and Home transcript behavior. No new force unwraps, app/test-type default arguments, MainActor-static default arguments, or environment writes. SwiftUI bodies remain split into the existing small components.
+- Verify commands run and results:
+  - `git diff --check`: no output, exit 0.
+  - `git diff --name-only HEAD -- NearMe/Services NearMe/Models NearMe/ViewModels Shared project.yml NearMe/Info.plist NearMe/Resources NearMe/Views/TripPlannerPractice docs/PLAN.md docs/LOG.md docs/SPEC.md AGENTS.md`: no output, exit 0.
+  - `git grep -n -F '.environment(' -- NearMe/Views/Components/UIPolishPreviews.swift`: no output, zero hits (exit 1).
+  - `(Select-String -Path NearMeTests/UIPolishTests.swift -Pattern '    func test').Count`: 21. `(Select-String -Path NearMe/Views/Components/UIPolishPreviews.swift -Pattern '^#Preview').Count`: 44. These are source counts, not execution results.
+  - `Get-Command swift,xcodebuild -ErrorAction SilentlyContinue`: no output, exit 1. This Windows machine has no Swift or Xcode. No Swift compilation, test execution or preview rendering was run or claimed to pass. `rg` was unavailable when invoked; used git grep and PowerShell instead.
+  - Reviewed the complete four-file code diff and the existing activity resolver and dock error rendering. Exact colour and scope evidence follows.
+- Mac test steps for the owner:
+  1. In the `task/P09-ui-polish` checkout containing these changes, run `bash scripts/mac-run.sh test --current`, then `bash scripts/mac-run.sh quick` from the repository root. Require all tests, including the 21 UIPolishTests, to pass. Inspect `build/xcodebuild.log` on failure. Do not use the default command that switches to main.
+  2. Open `NearMe.xcodeproj` in Xcode, select NearMe, and render the 44 previews in `NearMe/Views/Components/UIPolishPreviews.swift`. Confirm Debug builds without the read-only environment error. Check Home ready/listening/preparing/speaking/paused and fallback reply at default/accessibility5 in light/dark; Cancel must appear only in listening/preparing previews.
+  3. On an iOS 26.5 simulator/device, ask to send a photo on WhatsApp, advance to step 3, tap the dock microphone, say nothing, then tap it to finish. Confirm the coach card stays at step 3 and the dock displays the no-words error. Retry using the dock microphone and Type instead; neither must clear the guide. Repeat with an unrecognised coach command. Background and return to confirm saved guide progress remains.
+  4. In a real general-guidance session, cause the same no-words/error conditions and confirm the coach remains. Exercise I'm stuck when the model is unavailable and the rewrite returns the fallback text: the coach card and large stuck sheet must remain, and Close must return to the same session. The deterministic rewrite test covers the classification even when this runtime failure is difficult to induce.
+  5. With no coach, submit no words and confirm the Home error, Try again and Type instead still work. Exercise a fallback-only session and retry by voice and typing; it must start a fresh request. No coach step count or Done should appear on Home.
+  6. On Home verify Cancel during microphone startup, listening, finishing and answer/speech preparation. Cancel during capture must discard the turn. Verify no Cancel while idle, showing an idle reply, speaking or paused. Enable Settings > Accessibility > Motion > Reduce Motion and confirm preparation uses the static hourglass. Recheck Stop and barge-in, plus large-text scrolling.
+- Not done / risks / questions: all four review fixes are implemented; compilation, tests, rendered layout and on-device progress/cancel checks remain PENDING MAC. The manager's fallback-session background/resume follow-up is engine behavior outside P09 and remains untouched. No merge, push or next task. docs/PLAN.md and docs/LOG.md were not edited; the requested lane-log line is appended to this task instead.
+
+### Round 3 colour evidence
+
+```powershell
+git grep -n -E 'Color[[:space:]]*\([[:space:]]*red:|#colorLiteral' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+```powershell
+git grep -n -E '(Color|UIColor)[[:space:]]*\([[:space:]]*hex:|init[[:space:]]*\([[:space:]]*hex:|0x[0-9A-Fa-f]+|#[0-9A-Fa-f]{6,8}' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+### Round 3 scope evidence
+
+Exact command: `git diff --stat main`. Output captured before appending this report:
+
+```text
+ NearMe/App/AppCoordinator.swift                    |   7 +-
+ NearMe/App/ContentView.swift                       |  12 +-
+ NearMe/Views/Components/CaptionBubble.swift        |  60 ----
+ NearMe/Views/Components/PrimaryButton.swift        |  54 ++--
+ NearMe/Views/Components/ProgressDotsView.swift     |  33 +-
+ NearMe/Views/Components/ScreenScaffold.swift       |  16 +-
+ NearMe/Views/Components/SessionDock.swift          |   6 +-
+ NearMe/Views/Components/Theme.swift                |  36 ++-
+ NearMe/Views/Components/UIPolishPreviews.swift     | 353 +++++++++++++++++++++
+ NearMe/Views/Components/VoiceOrbView.swift         | 140 ++++----
+ NearMe/Views/Onboarding/GoodMorningView.swift      |  64 ----
+ NearMe/Views/Onboarding/HowItWorksView.swift        |  61 ++--
+ NearMe/Views/Onboarding/WelcomeView.swift          |  90 +++---
+ .../TripPlannerPractice/TripPlannerChrome.swift    |  10 +-
+ NearMe/Views/Voice/CoachPresentation.swift         |  39 +++
+ NearMe/Views/Voice/CoachView.swift                 | 189 ++++++-----
+ NearMe/Views/Voice/HelpHomeView.swift              | 212 +++++++++++++
+ NearMe/Views/Voice/OpeningPracticeView.swift       |  19 +-
+ NearMe/Views/Voice/SessionContainerView.swift      |   8 +-
+ NearMe/Views/Voice/VoiceSessionView.swift          | 263 +++++----------
+ NearMeTests/UIPolishTests.swift                    | 246 ++++++++++++++
+ docs/LOG.md                                        |   4 -
+ docs/PLAN.md                                       |   6 +-
+ tasks/P07d-router-keyword-override.md              |  44 ---
+ tasks/P09-ui-polish.md                             | 235 +++++++++++++-
+ 25 files changed, 1507 insertions(+), 700 deletions(-)
+```
+
+The main comparison includes prior lane commits and pre-existing branch divergence. This round's protected-path HEAD comparison is empty; its changes are limited to the five files listed above.
+
+- Commit disposition: staging succeeded on `task/P09-ui-polish`; committing these five files as `N09: Preserve coach sessions through UI error recovery`. No merge or push.
+
+- 2026-10-24 18:47 AEDT | P09 | codex | dev-report r3 | final review 1-4: preserve coach on errors and fallback rewrites, remove read-only preview override, restrict Cancel to active capture/preparation; Mac gate pending

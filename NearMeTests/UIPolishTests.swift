@@ -141,19 +141,49 @@ final class UIPolishTests: XCTestCase {
         }
     }
 
-    func testFallbackRewriteOfGeneralStepsUsesHomeReply() {
-        let session = generalSession(steps: ["Open the app."], text: CoachText.generalFallback)
-        XCTAssertEqual(CoachPresentation.kind(for: session), .homeReply)
+    func testFallbackRewriteOfGeneralStepsKeepsCoachCard() {
+        var session = generalSession(steps: ["Open the app."], text: "Open the app.")
+        XCTAssertEqual(CoachPresentation.kind(for: session), .coachCard)
+        session.text = CoachText.generalFallback
+        XCTAssertEqual(CoachPresentation.kind(for: session), .coachCard)
+        XCTAssertTrue(CoachPresentation.showsCoachCard(session: session, error: nil))
+        XCTAssertNil(CoachPresentation.reply(session: session, error: nil))
     }
 
-    func testErrorsAndNoWordsUseHomeReplyEvenWithExistingCoach() {
+    func testErrorsAndNoWordsKeepGuideCoachCard() throws {
+        let guides: [HelpGuide] = try GuideLibrary.load()
+        let guide = try XCTUnwrap(guides.first { $0.id == "whatsapp_send_photo" })
+        let session = CoachSession(guide: guide, request: "Send a photo", person: nil,
+                                   generalSteps: [], stepIndex: 2, text: guide.steps[2].instruction)
+        let noWords = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
+        for message in ["Something went wrong.", noWords] {
+            XCTAssertTrue(CoachPresentation.showsCoachCard(session: session, error: message))
+            XCTAssertNil(CoachPresentation.reply(session: session, error: message))
+        }
+    }
+
+    func testErrorsAndNoWordsKeepRealGeneralCoachCard() {
         let session = generalSession(steps: ["Open the app."], text: "Open the app.")
         let noWords = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
         for message in ["Something went wrong.", noWords] {
-            XCTAssertFalse(CoachPresentation.showsCoachCard(session: session, error: message))
-            XCTAssertEqual(CoachPresentation.reply(session: session, error: message), message)
+            XCTAssertTrue(CoachPresentation.showsCoachCard(session: session, error: message))
+            XCTAssertNil(CoachPresentation.reply(session: session, error: message))
+        }
+    }
+
+    func testErrorsAndNoWordsWithoutCoachUseHomeReply() {
+        let noWords = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
+        for message in ["Something went wrong.", noWords] {
+            XCTAssertFalse(CoachPresentation.showsCoachCard(session: nil, error: message))
             XCTAssertEqual(CoachPresentation.reply(session: nil, error: message), message)
         }
+    }
+
+    func testErrorWithFallbackSessionUsesHomeReply() {
+        let session = generalSession(steps: [CoachText.generalFallback], text: CoachText.generalFallback)
+        let message = "Something went wrong."
+        XCTAssertFalse(CoachPresentation.showsCoachCard(session: session, error: message))
+        XCTAssertEqual(CoachPresentation.reply(session: session, error: message), message)
     }
 
     func testGuideUsesCoachCardAndWhatsAppOpenLinkWithoutChangingStep() throws {

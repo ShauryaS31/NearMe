@@ -43,7 +43,8 @@ struct HelpHomeView: View {
         NavigationStack {
             HelpHomeContent(state: state, activity: activity, transcript: transcript,
                             showsRetry: reply != nil, isTyping: showsTypedEntry,
-                            showsCancel: !engine.isHome, onTalk: talk, onCancel: cancel,
+                            showsCancel: activity == .listening || activity == .preparing,
+                            onTalk: talk, onCancel: cancel,
                             onType: type, onPractice: engine.startPractice) {
                 if showsTypedEntry { typedEntry }
                 if engine.isShowingPlaceSuggestions { PlaceSuggestionsView(engine: engine) }
@@ -103,14 +104,18 @@ struct HelpHomeView: View {
 
     private func talk() {
         // A non-step session must be cleared so a new request is not parsed as a coach command.
-        if engine.coach != nil { engine.cancelCurrentAction() }
+        if let coach = engine.coach, CoachPresentation.kind(for: coach) == .homeReply {
+            engine.cancelCurrentAction()
+        }
         isPaused = false
         textEntryFocused = false
         engine.userTappedToTalk()
     }
 
     private func type() {
-        if engine.coach != nil { engine.cancelCurrentAction() }
+        if let coach = engine.coach, CoachPresentation.kind(for: coach) == .homeReply {
+            engine.cancelCurrentAction()
+        }
         isPaused = false
         isEditingReply = true
         engine.useTypedInput()

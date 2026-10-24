@@ -55,7 +55,8 @@ private struct PolishPreview: View {
                                      isStartingListening: false)
         return NavigationStack {
             HelpHomeContent(state: state, activity: activity, transcript: transcript,
-                            showsRetry: retry, isTyping: false, showsCancel: activity != .ready,
+                            showsRetry: retry, isTyping: false,
+                            showsCancel: activity == .listening || activity == .preparing,
                             onTalk: {}, onCancel: {}, onType: {}, onPractice: {}) {
                 if activity == .speaking {
                     PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary, action: {})
@@ -347,12 +348,6 @@ private struct PolishPreview: View {
     PolishPreview(screen: .guideCoach)
         .dynamicTypeSize(.accessibility5)
         .preferredColorScheme(.dark)
-}
-
-#Preview("Home preparing / Reduce Motion") {
-    PolishPreview(screen: .conversation(.preparing))
-        .environment(\.accessibilityReduceMotion, true)
-        .dynamicTypeSize(.accessibility5)
 }
 
 #endif

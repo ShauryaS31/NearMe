@@ -14,8 +14,6 @@ enum CoachPresentation {
     static func kind(for session: CoachSession?) -> CoachPresentationKind {
         guard let session else { return .homeReply }
         if session.guide != nil { return .coachCard }
-        let currentText = session.text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard currentText != CoachText.generalFallback else { return .homeReply }
         let realSteps: [String] = session.generalSteps.filter {
             let text = $0.trimmingCharacters(in: .whitespacesAndNewlines)
             return !text.isEmpty && text != CoachText.generalFallback
@@ -24,12 +22,13 @@ enum CoachPresentation {
     }
 
     static func showsCoachCard(session: CoachSession?, error: String?) -> Bool {
-        error == nil && kind(for: session) == .coachCard
+        kind(for: session) == .coachCard
     }
 
     static func reply(session: CoachSession?, error: String?) -> String? {
+        guard kind(for: session) == .homeReply else { return nil }
         if let error { return error }
-        guard let session, kind(for: session) == .homeReply else { return nil }
+        guard let session else { return nil }
         return session.text.isEmpty ? CoachText.generalFallback : session.text
     }
 
