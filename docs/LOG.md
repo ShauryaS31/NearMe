@@ -34,3 +34,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 14:53 AEDT | P02b | claude | queued | onboarding at largest accessibility sizes; explainer copy 'never looks at your other apps'; screen-permission step becomes How NearMe works; waits for owner P02a compile check
 - 2026-10-24 15:13 AEDT | P02a | owner | mac compile OK | Foundation Models available in simulator; real-model test ran over 9 min, context size exceeded at about 7 min, fell back to keywords
 - 2026-10-24 15:13 AEDT | P02c | claude | dispatch r1 | sessions already fresh per call, so cause is a runaway response: token caps, greedy sampling, 10 s timeout, latency in log and badge, model eval behind NEARME_MODEL_EVAL=1, eval mode; branch task/P02c-model-calls-eval
+- 2026-10-24 15:18 AEDT | P02c | codex | dev-report r1 | Bounded model calls, planner latency and Debug badge, opt-in three-sentence model eval and Mac eval mode; committed b70e42a. Static and shell mock checks passed; Swift/Xcode unavailable, owner Mac gate pending.
+- 2026-10-24 15:18 AEDT | P02c | claude | review r1 PASS | static; merged to main; Mac compile and eval pending
+- 2026-10-24 15:18 AEDT | P02b | claude | dispatch r1 | large text onboarding, honest explainer, quick mode, simulator-selection errexit fix; branch task/P02b-onboarding-text-copy

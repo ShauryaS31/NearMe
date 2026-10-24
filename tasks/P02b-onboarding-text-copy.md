@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (after P02c) |
+| Status | in_progress |
 | Window | Sat 24 Oct, after P02a, before P03 |
 | Depends on | P02c |
 | Assignee | codex |
@@ -31,6 +31,7 @@ AGENTS.md; docs/design/HIG-NOTES.md rules 2, 3, 7, 11, 12 and 13. Files: `NearMe
 ### 7. Faster Mac runs: `quick` mode in scripts/mac-run.sh
 - [ ] `bash scripts/mac-run.sh quick`: no git checkout or pull (builds whatever is checked out); runs `xcodegen` only when `project.yml` or the list of files under `NearMe/`, `Shared/` and `NearMeTests/` changed since the last generation (store a hash in `build/.xcodegen-hash`); reuses the already booted simulator (boots only if none is booted); incremental build into `build/` (no clean); install and launch. Prints the elapsed seconds at the end
 - [ ] Usage line, README table and docs/MAC-TESTING.md list `quick`
+- [ ] Fix: if picking or booting the simulator fails, every mode stops with the error instead of continuing with an empty device id (command substitution does not inherit `set -e`: use `shopt -s inherit_errexit` and check the id is non-empty)
 
 ## Verify (Mac)
 ```

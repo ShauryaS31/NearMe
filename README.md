@@ -20,7 +20,8 @@ cp -n Config/Team.xcconfig.example Config/Team.xcconfig  # needed for a real iPh
 | Command | What it does |
 |---|---|
 | `bash scripts/mac-run.sh` | Pull main, generate the project, build for the newest iPhone simulator, boot, install, launch |
-| `bash scripts/mac-run.sh test` | Run NearMeTests on that simulator |
+| `bash scripts/mac-run.sh test` | Run fast NearMeTests on that simulator; real-model eval is skipped |
+| `bash scripts/mac-run.sh eval` | Run the three opt-in real-model sentences; print EVAL lines and test results, with the full log in `build/xcodebuild.log` |
 | `bash scripts/mac-run.sh device` | Build, install and launch on a connected iPhone (signed with your Personal Team) |
 | `bash scripts/mac-run.sh report` | Write and push a results file in docs/mac-results/ |
 

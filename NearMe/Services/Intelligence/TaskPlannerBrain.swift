@@ -20,6 +20,13 @@ enum BrainSource: String, Sendable {
 struct BrainAnswer<Value: Sendable>: Sendable {
     let value: Value
     let source: BrainSource
+    let latencyMilliseconds: Int?
+
+    init(value: Value, source: BrainSource, latencyMilliseconds: Int? = nil) {
+        self.value = value
+        self.source = source
+        self.latencyMilliseconds = latencyMilliseconds
+    }
 }
 
 protocol TaskPlannerBrain: Sendable {
@@ -33,9 +40,18 @@ protocol TaskPlannerBrain: Sendable {
 enum PlannerDiagnostics {
     static let logger = Logger(subsystem: "au.nearme.ios", category: "planner")
 
-    static func fallback(after error: Error) {
+    static func milliseconds(_ duration: Duration) -> Int {
+        let parts = duration.components
+        return Int(parts.seconds * 1_000 + parts.attoseconds / 1_000_000_000_000_000)
+    }
+
+    static func modelCall(_ kind: String, outcome: String, milliseconds: Int) {
+        logger.notice("Model call=\(kind, privacy: .public) outcome=\(outcome, privacy: .public) ms=\(milliseconds, privacy: .public)")
+    }
+
+    static func fallback(after error: Error, call: String) {
         let nsError = error as NSError
-        logger.error("Model error type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .public); using keyword fallback")
+        logger.error("Model call=\(call, privacy: .public) failed type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .private) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .private); using keyword fallback")
     }
 }
 
@@ -54,7 +70,7 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         do {
             answer = try await primary.extractIntent(from: utterance)
         } catch {
-            PlannerDiagnostics.fallback(after: error)
+            PlannerDiagnostics.fallback(after: error, call: "extractIntent")
             return try await fallback.extractIntent(from: utterance)
         }
 
@@ -85,7 +101,8 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         if didFill {
             PlannerDiagnostics.logger.debug("Model extraction supplemented by keyword fill")
         }
-        return BrainAnswer(value: intent, source: didFill ? .onDeviceModelWithKeywordFill : answer.source)
+        return BrainAnswer(value: intent, source: didFill ? .onDeviceModelWithKeywordFill : answer.source,
+                           latencyMilliseconds: answer.latencyMilliseconds)
     }
 
     func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
@@ -93,7 +110,7 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         do {
             modelAnswer = try await primary.extractPlace(from: answer, for: slot)
         } catch {
-            PlannerDiagnostics.fallback(after: error)
+            PlannerDiagnostics.fallback(after: error, call: "extractPlace")
             return try await fallback.extractPlace(from: answer, for: slot)
         }
 
@@ -109,14 +126,15 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         if didFill {
             PlannerDiagnostics.logger.debug("Model place extraction supplemented by keyword fill")
         }
-        return BrainAnswer(value: place, source: didFill ? .onDeviceModelWithKeywordFill : modelAnswer.source)
+        return BrainAnswer(value: place, source: didFill ? .onDeviceModelWithKeywordFill : modelAnswer.source,
+                           latencyMilliseconds: modelAnswer.latencyMilliseconds)
     }
 
     func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
         do {
             return try await primary.clarifyingQuestion(for: missing, currentIntent: currentIntent)
         } catch {
-            PlannerDiagnostics.fallback(after: error)
+            PlannerDiagnostics.fallback(after: error, call: "clarifyingQuestion")
             return try await fallback.clarifyingQuestion(for: missing, currentIntent: currentIntent)
         }
     }
@@ -125,7 +143,7 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
         do {
             return try await primary.confirmationLine(for: intent)
         } catch {
-            PlannerDiagnostics.fallback(after: error)
+            PlannerDiagnostics.fallback(after: error, call: "confirmationLine")
             return try await fallback.confirmationLine(for: intent)
         }
     }

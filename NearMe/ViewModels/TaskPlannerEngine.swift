@@ -14,6 +14,7 @@ final class TaskPlannerEngine: ObservableObject {
     @Published var lastErrorMessage: String?
     @Published private(set) var hasCompletedAtLeastOneJourney = false
     @Published private(set) var latestBrainSource: BrainSource
+    @Published private(set) var latestBrainLatencyMilliseconds: Int?
     @Published private(set) var isTyping = false
 
     private let brain: TaskPlannerBrain
@@ -215,6 +216,7 @@ final class TaskPlannerEngine: ObservableObject {
                 let answer = try await brain.extractPlace(from: transcript, for: missing)
                 guard isCurrent(generation) else { return }
                 latestBrainSource = answer.source
+                latestBrainLatencyMilliseconds = answer.latencyMilliseconds
                 guard let place = answer.value?.trimmingCharacters(in: .whitespacesAndNewlines), !place.isEmpty else {
                     clarificationFailures += 1
                     let question: String
@@ -241,6 +243,7 @@ final class TaskPlannerEngine: ObservableObject {
             let answer = try await brain.extractIntent(from: transcript)
             guard isCurrent(generation) else { return }
             latestBrainSource = answer.source
+            latestBrainLatencyMilliseconds = answer.latencyMilliseconds
             let extracted = answer.value
 
             guard extracted.kind == .planJourney else {
@@ -273,11 +276,12 @@ final class TaskPlannerEngine: ObservableObject {
             do {
                 answer = try await brain.clarifyingQuestion(for: missing, currentIntent: currentIntent)
             } catch {
-                PlannerDiagnostics.fallback(after: error)
+                PlannerDiagnostics.fallback(after: error, call: "clarifyingQuestion")
                 answer = BrainAnswer(value: missing == .origin ? "Sure! Where are you leaving from?" : "And where are you headed?", source: .keywordFallback)
             }
             guard isCurrent(generation) else { return }
             latestBrainSource = answer.source
+            latestBrainLatencyMilliseconds = answer.latencyMilliseconds
             await speak(answer.value, generation: generation)
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
@@ -294,11 +298,12 @@ final class TaskPlannerEngine: ObservableObject {
         do {
             answer = try await brain.confirmationLine(for: currentIntent)
         } catch {
-            PlannerDiagnostics.fallback(after: error)
+            PlannerDiagnostics.fallback(after: error, call: "confirmationLine")
             answer = BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
         }
         guard isCurrent(generation) else { return }
         latestBrainSource = answer.source
+        latestBrainLatencyMilliseconds = answer.latencyMilliseconds
         await speak(answer.value, generation: generation)
         guard isCurrent(generation) else { return }
 

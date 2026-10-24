@@ -17,6 +17,7 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
             XCTAssertEqual(answer.value.origin, "Central")
             XCTAssertEqual(answer.value.destination, "Holsworthy")
             XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+            XCTAssertEqual(answer.latencyMilliseconds, 840)
         }
     }
 
@@ -34,6 +35,7 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         let answer = try await brain.extractPlace(from: "I'm leaving from Central", for: .origin)
         XCTAssertEqual(answer.value, "Central")
         XCTAssertEqual(answer.source, .onDeviceModelWithKeywordFill)
+        XCTAssertEqual(answer.latencyMilliseconds, 840)
     }
 
     func testMissingOrEmptyModelPlaceUsesKeywordAnswer() async throws {
@@ -97,6 +99,10 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         for source in [intent.source, place.source, question.source, confirmation.source] {
             XCTAssertEqual(source, .keywordFallback)
         }
+        for latency in [intent.latencyMilliseconds, place.latencyMilliseconds,
+                        question.latencyMilliseconds, confirmation.latencyMilliseconds] {
+            XCTAssertNil(latency)
+        }
     }
 
     func testSuccessfulModelAnswersKeepTheirSourceAndNilPlace() async throws {
@@ -108,6 +114,26 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         for source in [place.source, question.source, confirmation.source] {
             XCTAssertEqual(source, .onDeviceModel)
         }
+        for latency in [place.latencyMilliseconds, question.latencyMilliseconds, confirmation.latencyMilliseconds] {
+            XCTAssertEqual(latency, 840)
+        }
+    }
+
+    func testTimeoutFallsBackWithoutModelLatency() async throws {
+        let brain = ResilientTaskPlannerBrain(primary: StubModelBrain(shouldTimeout: true), fallback: KeywordFallbackBrain())
+        let intent = try await brain.extractIntent(from: "from Central to Holsworthy")
+        let place = try await brain.extractPlace(from: "from Central", for: .origin)
+        let question = try await brain.clarifyingQuestion(for: .origin, currentIntent: .empty)
+        let confirmation = try await brain.confirmationLine(for: .empty)
+        XCTAssertEqual(intent.value.origin, "Central")
+        XCTAssertEqual(place.value, "Central")
+        for source in [intent.source, place.source, question.source, confirmation.source] {
+            XCTAssertEqual(source, .keywordFallback)
+        }
+        for latency in [intent.latencyMilliseconds, place.latencyMilliseconds,
+                        question.latencyMilliseconds, confirmation.latencyMilliseconds] {
+            XCTAssertNil(latency)
+        }
     }
 }
 
@@ -116,10 +142,12 @@ private struct StubModelBrain: TaskPlannerBrain {
     var intent: JourneyIntent = .empty
     var place: String? = nil
     var shouldThrow = false
+    var shouldTimeout = false
 
     private func answer<T: Sendable>(_ value: T) throws -> BrainAnswer<T> {
         if shouldThrow { throw NSError(domain: "TestModel", code: 1) }
-        return BrainAnswer(value: value, source: .onDeviceModel)
+        if shouldTimeout { throw PlannerCallTimeout.exceeded }
+        return BrainAnswer(value: value, source: .onDeviceModel, latencyMilliseconds: 840)
     }
 
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> { try answer(intent) }
