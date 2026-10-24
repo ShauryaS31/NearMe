@@ -2,6 +2,24 @@
 
 import SwiftUI
 
+/// Read-only Home copy and action visibility, shared with presentation tests.
+struct HelpHomePresentation {
+    static let hint = "Try: 'Help me send a photo to Mum on WhatsApp'"
+
+    let activity: VoiceActivity
+    let isHome: Bool
+    let reply: String?
+    let hasCompletedJourney: Bool
+
+    var showsCancel: Bool {
+        if activity == .listening || activity == .preparing { return true }
+        return !isHome && reply == nil
+    }
+
+    var showsStop: Bool { activity == .speaking }
+    var showsEndSession: Bool { hasCompletedJourney && !isHome }
+}
+
 struct HelpHomeView: View {
     @ObservedObject var engine: TaskPlannerEngine
     @State private var typedText = ""
@@ -27,6 +45,16 @@ struct HelpHomeView: View {
 
     private var showsTypedEntry: Bool { engine.isTyping && (reply == nil || isEditingReply) }
 
+    private var presentation: HelpHomePresentation {
+        HelpHomePresentation(activity: activity, isHome: engine.isHome, reply: reply,
+                             hasCompletedJourney: engine.hasCompletedAtLeastOneJourney)
+    }
+
+    private var sendEmphasis: ButtonEmphasis {
+        if reply == nil { return .primary }
+        return .secondary
+    }
+
     private var transcript: ConversationPresentation {
         let liveText: String
         switch engine.plannerState {
@@ -43,18 +71,18 @@ struct HelpHomeView: View {
         NavigationStack {
             HelpHomeContent(state: state, activity: activity, transcript: transcript,
                             showsRetry: reply != nil, isTyping: showsTypedEntry,
-                            showsCancel: activity == .listening || activity == .preparing,
+                            showsCancel: presentation.showsCancel,
                             onTalk: talk, onCancel: cancel,
                             onType: type, onPractice: engine.startPractice) {
                 if showsTypedEntry { typedEntry }
                 if engine.isShowingPlaceSuggestions { PlaceSuggestionsView(engine: engine) }
-                if engine.isVoiceOutputActive || engine.isPreparingSpeech {
+                if presentation.showsStop {
                     PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary) {
                         engine.stopSessionSpeech()
                         isPaused = true
                     }
                 }
-                if engine.hasCompletedAtLeastOneJourney && !engine.isHome {
+                if presentation.showsEndSession {
                     PrimaryButton(title: "End session", systemImage: "xmark.circle", emphasis: .secondary,
                                   action: engine.endSession)
                 }
@@ -84,7 +112,7 @@ struct HelpHomeView: View {
                 .submitLabel(.send)
                 .onSubmit(send)
             PrimaryButton(title: "Send", systemImage: "paperplane.fill",
-                          emphasis: reply == nil ? .primary : .secondary, action: send)
+                          emphasis: sendEmphasis, action: send)
                 .disabled(!canSend)
         }
     }
@@ -145,6 +173,16 @@ struct HelpHomeContent<Actions: View>: View {
     let onPractice: () -> Void
     @ViewBuilder var actions: () -> Actions
 
+    private var talkTitle: String {
+        if showsRetry { return "Try again" }
+        return "Talk to NearMe"
+    }
+
+    private var talkEmphasis: ButtonEmphasis {
+        if isTyping && !showsRetry { return .secondary }
+        return .primary
+    }
+
     var body: some View {
         ScreenScaffold(isGrouped: true) {
             VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
@@ -164,10 +202,9 @@ struct HelpHomeContent<Actions: View>: View {
             Text("What would you like help with?")
                 .font(TTFont.title())
                 .accessibilityAddTraits(.isHeader)
-            Text("Try: help me send a photo to Mum").font(TTFont.body())
+            Text(HelpHomePresentation.hint).font(TTFont.body())
             VoiceOrbButton(state: state.micState, instruction: state.instruction,
-                           title: showsRetry ? "Try again" : "Talk to NearMe",
-                           emphasis: isTyping && !showsRetry ? .secondary : .primary, action: onTalk)
+                           title: talkTitle, emphasis: talkEmphasis, action: onTalk)
                 .disabled(state.micDisabled)
             if showsCancel {
                 PrimaryButton(title: "Cancel", systemImage: "xmark", emphasis: .secondary, action: onCancel)

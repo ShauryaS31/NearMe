@@ -53,12 +53,16 @@ private struct PolishPreview: View {
         }
         let state = SessionDockState(plannerState: plannerState, isSpeaking: activity == .speaking,
                                      isStartingListening: false)
+        let isHome = !transcript.hasContent && !retry
+        let reply: String? = retry ? CoachText.generalFallback : nil
+        let controls = HelpHomePresentation(activity: activity, isHome: isHome, reply: reply,
+                                             hasCompletedJourney: false)
         return NavigationStack {
             HelpHomeContent(state: state, activity: activity, transcript: transcript,
                             showsRetry: retry, isTyping: false,
-                            showsCancel: activity == .listening || activity == .preparing,
+                            showsCancel: controls.showsCancel,
                             onTalk: {}, onCancel: {}, onType: {}, onPractice: {}) {
-                if activity == .speaking {
+                if controls.showsStop {
                     PrimaryButton(title: "Stop", systemImage: "stop.fill", emphasis: .secondary, action: {})
                 }
             }
@@ -68,14 +72,14 @@ private struct PolishPreview: View {
 
     private var guideCoach: CoachSession {
         let steps: [HelpGuide.Step] = [
-            HelpGuide.Step(instruction: "Open \"WhatsApp\".", uiLabelHint: "WhatsApp"),
-            HelpGuide.Step(instruction: "Tap \"Chats\".", uiLabelHint: "Chats")
+            HelpGuide.Step(instruction: "Open \"WhatsApp\".", uiLabelHint: "WhatsApp", icon: "app"),
+            HelpGuide.Step(instruction: "Tap \"Chats\".", uiLabelHint: "Chats", icon: "bubble.left.and.bubble.right")
         ]
         let guide = HelpGuide(id: "preview", title: "Send a photo", app: "WhatsApp",
                               appURLScheme: "whatsapp://", aliases: [], steps: steps,
                               sourceNote: "Preview", lastChecked: "2026-10-24")
         return CoachSession(guide: guide, request: "Send a photo", person: nil,
-                            generalSteps: [], stepIndex: 1, text: steps[1].instruction)
+                            generalSteps: [], stepIndex: 0, text: steps[0].instruction)
     }
 
     private var coach: CoachSession {

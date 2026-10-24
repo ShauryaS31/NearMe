@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct CoachView: View {
     @ObservedObject var engine: TaskPlannerEngine
@@ -58,6 +59,13 @@ struct CoachStepPresentation {
     var completedSteps: Double { Double(session.stepIndex) }
     var totalSteps: Double { Double(session.count) }
     var doneTitle: String { "Done" }
+    var icon: String? {
+        guard let guide = session.guide, guide.steps.indices.contains(session.stepIndex),
+              let name = guide.steps[session.stepIndex].icon,
+              UIImage(systemName: name) != nil else { return nil }
+        return name
+    }
+
     var instruction: AttributedString {
         var text = AttributedString(session.text)
         if let label = session.guide?.steps[session.stepIndex].uiLabelHint,
@@ -70,10 +78,17 @@ struct CoachStepPresentation {
 
 struct CoachStepContent: View {
     @Environment(\.openURL) private var openURL
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @ScaledMetric(relativeTo: .title2) private var scaledIconSize: CGFloat = 60
     let session: CoachSession
     let onCommand: (CoachCommand) -> Void
 
     private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
+
+    private var iconSize: CGFloat {
+        if dynamicTypeSize.isAccessibilitySize { return min(scaledIconSize, 44) }
+        return min(scaledIconSize, 72)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: TTSpacing.sectionGap) {
@@ -88,6 +103,7 @@ struct CoachStepContent: View {
             if presentation.hasKnownTotal {
                 progress
             }
+            stepIcon
             Text(presentation.instruction)
                 .font(TTFont.title())
                 .fixedSize(horizontal: false, vertical: true)
@@ -111,6 +127,16 @@ struct CoachStepContent: View {
         .padding(TTSpacing.screenInset)
         .frame(maxWidth: .infinity)
         .tint(TTColor.accent)
+    }
+
+    @ViewBuilder private var stepIcon: some View {
+        if let icon = presentation.icon {
+            Image(systemName: icon)
+                .font(.system(size: iconSize))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(TTColor.accent)
+                .accessibilityHidden(true)
+        }
     }
 
     private func openApp(_ launch: CoachAppLink) -> some View {

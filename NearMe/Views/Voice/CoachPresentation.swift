@@ -33,7 +33,8 @@ enum CoachPresentation {
     }
 
     static func appLaunch(for session: CoachSession) -> CoachAppLink? {
-        guard let guide = session.guide, let url = CoachAppLaunch.url(for: guide) else { return nil }
+        guard session.stepIndex == 0, let guide = session.guide,
+              let url = CoachAppLaunch.url(for: guide) else { return nil }
         return CoachAppLink(app: guide.app, url: url)
     }
 }

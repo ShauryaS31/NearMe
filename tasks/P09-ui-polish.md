@@ -400,3 +400,83 @@ Fixes (this round):
 8. Open app row in the coach card only on step 1 (`CoachView.swift:94`).
 9. Owner: big per-step icon on the coach card. In `CoachStepContent` between the progress block and the instruction text: `CoachStepPresentation.icon` from `session.guide?.steps[session.stepIndex].icon` (field from P07d); `Image(systemName:)`, `@ScaledMetric` about 60 pt, capped (smaller) at accessibility sizes, `.symbolRenderingMode(.hierarchical)`, accent colour, `.accessibilityHidden(true)`; skip when nil or `UIImage(systemName:)` is nil; no symbol effects; it fades with the existing step transition. Not in the dock or the Live Activity.
 10. Tests for 2, 4, 5 and 9 (icon present when the step has one, absent otherwise).
+
+## Dev Report (merge round)
+- Date: 2026-10-24 19:05 AEDT
+- Changed files: `NearMe/Views/Voice/HelpHomeView.swift`, `NearMe/Views/Components/VoiceOrbView.swift`, `NearMe/Views/Voice/CoachView.swift`, `NearMe/Views/Voice/CoachPresentation.swift`, `NearMe/Views/Components/UIPolishPreviews.swift`, `NearMeTests/UIPolishTests.swift`, this task file.
+- What I did: addressed the ten manager merge-review items on `task/P09-merged`. Changes are limited to presentation, preview fixtures and tests. Preserved the manager's AppCoordinator and SessionContainerView conflict resolutions, P07d routing/acknowledgement and P11 progress/deep-link/Live Activity behavior. No engine, model, service, guide JSON, project or protected-document edits. The optional icon field is read from the existing model only.
+- Acceptance criteria / Review (manager, merge round):
+  1. Both onboarding test constructions now use `AppCoordinator(guides: [])`, so a previously saved guide cannot select the session route. Removed the four dynamic UIKit-backed Color equality assertions to avoid relying on provider equality; retained dimension, primary/secondary text and font assertions. Actual semantic appearance still needs the Mac visual gate.
+  2. Home renders `HelpHomePresentation.hint` exactly as `Try: 'Help me send a photo to Mum on WhatsApp'`, with an exact-string regression assertion.
+  3. `VoiceOrbState.listening.symbolName` is `waveform` again for the dock; the Home button retains its waveform. Existing Start/Stop listening VoiceOver labels and tap callbacks are unchanged.
+  4. The read-only `HelpHomePresentation.showsCancel` keeps Cancel during capture/preparation and also when `!isHome && reply == nil`, including waiting journey prompts and place suggestions. The bordered Cancel still invokes the existing `cancel()` / `engine.cancelCurrentAction()` path. End session retains its completed-journey condition and existing callback.
+  5. Stop is gated only by `activity == .speaking`. Preparation, including a speaking planner state during the P07d acknowledgement's preparation, does not expose Stop. The existing Stop command is unchanged.
+  6. Talk and Try again include `Use voice` alongside their visible title and `Start listening` in Voice Control input labels. The listening action retains its visible instruction and `Stop listening` labels.
+  7. Moved Home action visibility, Talk title/emphasis and Send emphasis into small computed properties. VoiceOrbButton resolves its title, symbol and input labels outside the view builder. No new app/test constructions or MainActor-static reads in default arguments, optional initializer dependencies, tuple chains or force unwraps were introduced.
+  8. The view-only app-launch presentation helper now returns a link only at `stepIndex == 0`. General guidance and guides without a launch URL remain hidden. The engine's existing auto-open behavior is untouched. Tests cover first-step visibility and every later WhatsApp step being hidden.
+  9. `CoachStepPresentation.icon` safely reads the current guide step's optional icon and rejects unavailable SF Symbols with `UIImage(systemName:)`. The card renders it between progress and instruction, with hierarchical rendering, the accent, and accessibilityHidden. A 60 pt ScaledMetric is capped at 72 pt for standard text and 44 pt for accessibility text sizes. No symbol effects; it participates in the existing step fade and Reduce Motion handling. No icon was added to the dock or Live Activity. Guide previews now include a first-step icon and Open app; general previews remain icon-free.
+  10. Added regression coverage for exact hint copy, waiting prompts, Cancel on Home/replies, retained End session, Stop only during playback and hidden during acknowledgement preparation, and icon selection/absence. Icon tests cover changing steps, nil, an unknown name, an empty name, invalid indices and general guidance. Additional assertions cover waveform, Voice Control labels and first-step-only launch. The suite now contains 29 test methods (source count only).
+- Verify commands run and results:
+  - `git diff --check`: no output, exit 0.
+  - `git diff --name-only HEAD -- NearMe/Services NearMe/Models NearMe/ViewModels Shared NearMeLiveActivity project.yml NearMe/Info.plist NearMe/Resources NearMe/Views/TripPlannerPractice NearMe/App NearMe/Views/Voice/SessionContainerView.swift docs/PLAN.md docs/LOG.md docs/SPEC.md AGENTS.md`: no output, exit 0. Protected files and both conflict resolutions are unchanged in this round.
+  - `(Select-String -Path NearMeTests/UIPolishTests.swift -Pattern '    func test').Count`: `29`. `(Select-String -Path NearMe/Views/Components/UIPolishPreviews.swift -Pattern '^#Preview').Count`: `44`. Counts are not test or preview execution.
+  - `Get-Command swift,xcodebuild -ErrorAction SilentlyContinue`: no output, exit 1. This Windows machine has no Swift or Xcode. No Swift build, XCTest run, preview rendering or iPhone verification was performed. `rg` was unavailable; used git grep and PowerShell.
+  - Reviewed the full six-file code diff and the merged coordinator/session routing. Colour and scope commands/output are below.
+- Mac test steps for the owner:
+  1. On the Mac, use the `task/P09-merged` checkout containing these changes. Run `git branch --show-current` and confirm `task/P09-merged`, then `bash scripts/mac-run.sh test --current` and `bash scripts/mac-run.sh quick`. Require all default-run tests, including the 29 UIPolishTests and existing P07d/P11 tests, to pass. Inspect `build/xcodebuild.log` on failure. Do not merge to main before the combined iPhone check is reported.
+  2. Open `NearMe.xcodeproj` in Xcode and render the 44 previews in `NearMe/Views/Components/UIPolishPreviews.swift`. Inspect Home, waiting conversation, fallback, guide coach, general coach and onboarding at default/accessibility5 in light/dark. The guide preview must show its icon and first-step Open WhatsApp; general guidance must have no icon. Confirm complete wrapping/scrolling and the smaller decorative icon at accessibility5.
+  3. On an iOS 26.5 iPhone, confirm the exact Home example. Tap Talk, check the in-place waveform/live transcript, then Cancel and confirm nothing is submitted. Start a train request, wait for Where from and exercise an ambiguous place response that displays Did you mean: bordered Cancel must remain available after speech finishes and return Home. Complete a practice journey and confirm End session still appears and works.
+  4. With the P07d acknowledgement enabled, ask for WhatsApp help and observe preparation before playback: Stop must be absent until the activity says Speaking, and the request must continue into its guide. During actual playback, Stop must interrupt speech; then test Talk barge-in. Turn on Voice Control and say Use voice from both Talk and Try again. With VoiceOver, verify Start listening/Stop listening labels and confirm the decorative coach icon is skipped.
+  5. Follow the WhatsApp guide: Open WhatsApp must appear on step 1, open the app without advancing, and disappear after Done advances to step 2. Confirm each supplied step icon updates with the instruction and uses only the existing fade. Check a guide step with no icon and general guidance: no placeholder or blank symbol. Enable Reduce Motion, Reduce Transparency, Bold Text and Button Shapes, then repeat at Accessibility XXXL in light/dark.
+  6. At WhatsApp step 3, submit a no-words turn and an unrecognised command: the coach/dock error must remain at step 3. Retry and use Type instead without losing progress. Exercise I'm stuck for real general guidance with the model unavailable: the card and sheet must remain. Background/foreground and relaunch with saved progress; test existing P11 Live Activity Open/Done deep links and confirm correct restoration/advance behavior. Check the dock still uses waveform while listening and no large step icon appears in the dock or Live Activity.
+- Not done / risks / questions: all ten fixes are implemented statically; Swift 6.4 compilation, runtime tests, symbol rendering, accessibility layout and the combined P07d/P11 iPhone check remain PENDING MAC. No merge, push or next task. `docs/PLAN.md` and `docs/LOG.md` were not edited, per the user's instruction.
+- Commit disposition: **UNCOMMITTED; manager must commit.** Staging succeeded and `git diff --cached --check` passed, but `git commit -m "P09: Address merge review and add coach step icons"` failed (exit 1): `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/worktrees/NearMe-p09trial/index.lock': Permission denied`. The sandbox cannot write the required Git metadata. Per the user's instruction, no retry or permission escalation was attempted. The code and initial report are staged; this final report correction is unstaged. The manager should stage the updated task file and commit the seven files with the intended `P09:` message. No merge or push; stopped after recording the failure.
+
+### Merge-round colour evidence
+
+```powershell
+git grep -n -E 'Color[[:space:]]*\([[:space:]]*red:|#colorLiteral' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+```powershell
+git grep -n -E '(Color|UIColor)[[:space:]]*\([[:space:]]*hex:|init[[:space:]]*\([[:space:]]*hex:|0x[0-9A-Fa-f]+|#[0-9A-Fa-f]{6,8}' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+```powershell
+git grep -n -E '\.purple|\.black|\.tracking\(|\.kerning\(|\.uppercased\(' -- NearMe/Views ':!NearMe/Views/TripPlannerPractice/**'
+```
+Output: none (zero hits, exit 1).
+
+### Merge-round scope evidence
+
+Exact command: `git diff --stat main`. Output captured before appending this report:
+
+```text
+ NearMe/App/AppCoordinator.swift                    |   7 +-
+ NearMe/App/ContentView.swift                       |  12 +-
+ NearMe/Views/Components/CaptionBubble.swift        |  60 ----
+ NearMe/Views/Components/PrimaryButton.swift        |  54 ++--
+ NearMe/Views/Components/ProgressDotsView.swift     |  33 +-
+ NearMe/Views/Components/ScreenScaffold.swift       |  16 +-
+ NearMe/Views/Components/SessionDock.swift          |   6 +-
+ NearMe/Views/Components/Theme.swift                |  36 ++-
+ NearMe/Views/Components/UIPolishPreviews.swift     | 357 +++++++++++++++++++++
+ NearMe/Views/Components/VoiceOrbView.swift         | 152 +++++----
+ NearMe/Views/Onboarding/GoodMorningView.swift      |  64 ----
+ NearMe/Views/Onboarding/HowItWorksView.swift       |  61 ++--
+ NearMe/Views/Onboarding/WelcomeView.swift          |  90 +++---
+ .../TripPlannerPractice/TripPlannerChrome.swift    |  10 +-
+ NearMe/Views/Voice/CoachPresentation.swift         |  40 +++
+ NearMe/Views/Voice/CoachView.swift                 | 215 ++++++++-----
+ NearMe/Views/Voice/HelpHomeView.swift              | 249 ++++++++++++++
+ NearMe/Views/Voice/OpeningPracticeView.swift       |  19 +-
+ NearMe/Views/Voice/SessionContainerView.swift      |   5 +-
+ NearMe/Views/Voice/VoiceSessionView.swift          | 263 +++++----------
+ NearMeTests/UIPolishTests.swift                    | 352 ++++++++++++++++++++
+ tasks/P09-ui-polish.md                             | 336 ++++++++++++++++++-
+ 22 files changed, 1795 insertions(+), 642 deletions(-)
+```
+
+This comparison includes the prior P09 lane. The merge-round HEAD comparison changes only the seven files listed in this report; the protected-path comparison is empty.

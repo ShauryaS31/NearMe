@@ -10,7 +10,7 @@ enum VoiceOrbState: Equatable {
     var symbolName: String {
         switch self {
         case .speaking: return "speaker.wave.2.fill"
-        case .listening: return "mic.fill"
+        case .listening: return "waveform"
         case .idle: return "mic.fill"
         }
     }
@@ -31,7 +31,7 @@ enum VoiceOrbState: Equatable {
 
     var inputLabels: [String] {
         if self == .listening { return [instruction, "Stop listening"] }
-        return ["Talk to NearMe", "Start listening"]
+        return ["Talk to NearMe", "Start listening", "Use voice"]
     }
 }
 
@@ -41,6 +41,21 @@ struct VoiceOrbButton: View {
     var title: String = "Talk to NearMe"
     var emphasis: ButtonEmphasis = .primary
     let action: () -> Void
+
+    private var buttonTitle: String {
+        if state == .listening { return state.instruction }
+        return title
+    }
+
+    private var buttonSymbol: String {
+        if state == .listening { return "waveform" }
+        return "mic.fill"
+    }
+
+    var inputLabels: [String] {
+        if state == .listening { return state.inputLabels }
+        return [title, "Start listening", "Use voice"]
+    }
 
     var body: some View {
         Group {
@@ -54,15 +69,14 @@ struct VoiceOrbButton: View {
 
     private var button: some View {
         Button(action: action) {
-            Label(state == .listening ? state.instruction : title,
-                  systemImage: state == .listening ? "waveform" : "mic.fill")
+            Label(buttonTitle, systemImage: buttonSymbol)
                 .font(TTFont.title())
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, minHeight: TTControl.talkHeight)
         }
         .accessibilityLabel(state.accessibilityLabel)
         .accessibilityValue(instruction)
-        .accessibilityInputLabels(state == .listening ? state.inputLabels : [title, "Start listening"])
+        .accessibilityInputLabels(inputLabels)
     }
 }
 
