@@ -8,8 +8,9 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
 
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         let lowered = " \(utterance.lowercased()) " // pad so " to "/" from " matches at the edges too
+        let mentionsTrip = utterance.lowercased().split(whereSeparator: { !$0.isLetter }).contains("trip")
 
-        guard lowered.contains("catch") || lowered.contains("train") || lowered.contains("tram")
+        guard mentionsTrip || lowered.contains("catch") || lowered.contains("train") || lowered.contains("tram")
                 || lowered.contains("bus") || lowered.contains(" to ") || lowered.contains("get to")
                 || lowered.contains("travel") || lowered.contains("go to") else {
             return BrainAnswer(value: .empty, source: .keywordFallback)
@@ -20,7 +21,8 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
         let origin = firstPhrase(after: " from ", in: utterance, stoppingAt: [" to "])
 
         guard destination != nil || origin != nil else {
-            return BrainAnswer(value: JourneyIntent(intent: .unknown, destination: nil, origin: nil, mode: mode), source: .keywordFallback)
+            return BrainAnswer(value: JourneyIntent(intent: mentionsTrip ? .planJourney : .unknown,
+                                                   destination: nil, origin: nil, mode: mode), source: .keywordFallback)
         }
 
         return BrainAnswer(value: JourneyIntent(intent: .planJourney, destination: destination, origin: origin, mode: mode), source: .keywordFallback)
@@ -37,19 +39,6 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
             place = trimEdges(String(place.dropFirst(prefix.count)))
         }
         return BrainAnswer(value: stripTrailingFiller(place), source: .keywordFallback)
-    }
-
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
-        switch missing {
-        case .origin:
-            return BrainAnswer(value: "Sure! Where are you leaving from?", source: .keywordFallback)
-        case .destination:
-            return BrainAnswer(value: "Got it — and where are you headed?", source: .keywordFallback)
-        }
-    }
-
-    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
-        BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
     }
 
     /// Finds the LAST occurrence of `marker` (e.g. " to ") and returns

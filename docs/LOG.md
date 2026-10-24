@@ -45,5 +45,11 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:00 AEDT | P04-P06 | owner | decision | briefs approved; voice input always on-device (ElevenLabs STT removed in P04); Natural voice (online) toggle (logic P04, UI P05); P06 privacy copy names place names sent to ElevenLabs
 - 2026-10-24 16:00 AEDT | P04 | owner | decision | Apple speech strictly on-device (current code silently uses Apple servers when unsupported); unsupported locale shows Type instead; added to P04
 - 2026-10-24 16:02 AEDT | P04 | claude | dispatch r1 | owner: start now, retest of P02c/P02b/P03 runs in parallel (issues become P03a after P04); branch task/P04-elevenlabs-voice
+- 2026-10-24 16:13 AEDT | P04 | codex | dev-report r1 | ElevenLabs output with cache, prefetch, fallback; strictly on-device input; captions equal labels; practice screens Dynamic Type (committed by manager, sandbox blocked .git)
+- 2026-10-24 16:19 AEDT | P04 | claude | review r1 CHANGES | 6 fixes (silent first-launch greeting, no-speech forces typing, cache deleted on session error, Stop acts as Cancel, unsupported-locale silence, per-listen latency) plus owner additions 7-13 from real-phone test (streaming, vocabulary bias, templates, Got it, Did you mean, timings); dispatch r2
 - 2026-10-24 16:29 AEDT | P07-P08 | owner | decision | help with any task: P07 guided coach (15 guides, router practice/guide/general, coach session, Open app, new home) after P04 before P05; P08 look at my screen (stretch, real iPhone) after P07 passes; P06 router superseded by P07
+- 2026-10-24 16:29 AEDT | P04 | codex | dev-report r2 | review fixes 1-6 and owner additions 7-13 (committed by manager, sandbox blocked .git)
+- 2026-10-24 16:34 AEDT | P04 | claude | review r2 CHANGES | 1 compile error (self captured before init), 1 failing test, turn-ending on noise, first-turn Did you mean, unbounded retries, transcriber reuse; dispatch r3 (final)
 - 2026-10-24 16:36 AEDT | P03a | owner | decision | accept any place; suggestions only on low confidence or no place, with transcript, up to 2 matches and Keep what I said; P03a after P04
+- 2026-10-24 16:38 AEDT | P04 | codex | dev-report r3 | review r2 fixes 1-8 (committed by manager if sandbox blocked .git)
+- 2026-10-24 16:38 AEDT | P04 | claude | review r3 PASS | static; merged to main; stopping for owner Mac check

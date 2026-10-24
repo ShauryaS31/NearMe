@@ -3,16 +3,21 @@
 import SwiftUI
 
 struct TripPlannerTopBar: View {
+    @ScaledMetric(relativeTo: .body) private var backIconSize = 17.0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var title: String
     var trailing: String? = nil
     var onBack: (() -> Void)? = nil
 
     var body: some View {
-        HStack {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+            : AnyLayout(HStackLayout())
+        layout {
             if let onBack {
                 Button(action: onBack) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(.system(size: backIconSize, weight: .semibold))
                 }
                 .minimumTapTarget()
                 .accessibilityLabel("Back")
@@ -60,7 +65,7 @@ enum TripPlannerTab: CaseIterable {
         switch self {
         case .forYou: return "For you"
         case .plan: return "Plan"
-        case .search: return "Search"
+        case .search: return PracticeLabels.search
         case .alerts: return "Alerts"
         case .settings: return "Settings"
         }
@@ -68,16 +73,21 @@ enum TripPlannerTab: CaseIterable {
 }
 
 struct TripPlannerTabBar: View {
+    @ScaledMetric(relativeTo: .body) private var tabIconSize = 19.0
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     var selected: TripPlannerTab
 
     var body: some View {
-        HStack {
+        let layout = dynamicTypeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout())
+        layout {
             ForEach(TripPlannerTab.allCases, id: \.self) { tab in
                 VStack(spacing: 3) {
                     Image(systemName: tab.symbol)
-                        .font(.system(size: 19))
+                        .font(.system(size: tabIconSize))
                     Text(tab.label)
-                        .font(.system(size: 10, weight: .medium))
+                        .font(.body.weight(.medium))
                 }
                 .foregroundStyle(tab == selected ? Color.accentColor : Color.secondary)
                 .frame(maxWidth: .infinity)

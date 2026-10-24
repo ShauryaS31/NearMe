@@ -3,6 +3,8 @@
 import SwiftUI
 
 struct CaptionBubble: View {
+    @ScaledMetric(relativeTo: .title) private var speakerIconSize = 15.0
+    @ScaledMetric(relativeTo: .body) private var dismissIconSize = 13.0
     let text: String
     var icon: String = "speaker.wave.1.fill"
     var onDismiss: (() -> Void)?
@@ -10,13 +12,13 @@ struct CaptionBubble: View {
     var body: some View {
         HStack(alignment: .top, spacing: TTSpacing.sm) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: speakerIconSize, weight: .semibold))
                 .foregroundStyle(.primary)
                 .padding(.top, 2)
                 .accessibilityHidden(true)
 
             Text(text)
-                .font(TTFont.callout())
+                .font(.title)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -24,11 +26,11 @@ struct CaptionBubble: View {
             if let onDismiss {
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(size: dismissIconSize, weight: .bold))
                         .foregroundStyle(.primary)
                         .padding(6)
                 }
-                .minimumTapTarget(32)
+                .minimumTapTarget()
                 .accessibilityLabel("Dismiss guidance message")
             }
         }
@@ -50,7 +52,7 @@ struct CaptionBubble: View {
         Color(.systemBackground)
         VStack {
             Spacer()
-            CaptionBubble(text: "You're in Trip planner practice. Tap Journey Planner.", onDismiss: {})
+            CaptionBubble(text: PracticeStep.forYouOpened.caption(origin: "", destination: ""), onDismiss: {})
                 .padding()
         }
     }

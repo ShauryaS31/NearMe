@@ -3,13 +3,15 @@
 import SwiftUI
 
 struct TripPlannerForYouView: View {
+    @ScaledMetric(relativeTo: .body) private var plannerIconSize = 22.0
+    @ScaledMetric(relativeTo: .body) private var plannerIconFrame = 40.0
     let onTapJourneyPlanner: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             TripPlannerTopBar(title: "For you", trailing: "Log in")
 
-            ScrollView {
+            Group {
                 VStack(alignment: .leading, spacing: TTSpacing.lg) {
                     Text("Favourites")
                         .font(.system(.title3, design: .default).weight(.bold))
@@ -19,14 +21,14 @@ struct TripPlannerForYouView: View {
                     Button(action: onTapJourneyPlanner) {
                         HStack(spacing: TTSpacing.md) {
                             Image(systemName: "point.topleft.down.curvedto.point.bottomright.up.fill")
-                                .font(.system(size: 22))
+                                .font(.system(size: plannerIconSize))
                                 .foregroundStyle(Color.accentColor)
-                                .frame(width: 40, height: 40)
+                                .frame(width: plannerIconFrame, height: plannerIconFrame)
                                 .background(Color.accentColor.opacity(0.12))
                                 .clipShape(Circle())
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Journey Planner")
+                                Text(PracticeLabels.journeyPlanner)
                                     .font(TTFont.headline())
                                     .foregroundStyle(Color.primary)
                                 Text("Practise planning a public transport trip")

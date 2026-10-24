@@ -2,6 +2,15 @@
 
 import Foundation
 
+enum PracticeLabels {
+    static let journeyPlanner = "Journey Planner"
+    static let chooseOrigin = "Choose origin"
+    static let chooseDestination = "Choose destination"
+    static let searchDestination = "Search for a destination"
+    static let search = "Search"
+    static func station(_ destination: String) -> String { "\(destination) Station" }
+}
+
 enum PracticeScreen: Equatable {
     case forYou
     case journeyPlanner
@@ -33,17 +42,17 @@ enum PracticeStep: Equatable, CaseIterable {
     func caption(origin: String, destination: String) -> String {
         switch self {
         case .forYouOpened:
-            return "You're in Trip planner practice. Tap Journey Planner."
+            return "You're in Trip planner practice. Tap \(PracticeLabels.journeyPlanner)."
         case .tapFrom:
-            return "Now tap From."
+            return "Now tap \(PracticeLabels.chooseOrigin)."
         case .typeOrigin:
-            return "Type in \(origin)."
+            return "\(origin) is filled in. Tap \(PracticeLabels.chooseDestination)."
         case .tapToAndTypeDestination:
-            return "Now tap To and type \(destination)."
+            return "Tap \(PracticeLabels.searchDestination) to fill in \(destination)."
         case .selectingDestination:
-            return "Tap \(destination) to add it as your destination."
+            return "Tap \(PracticeLabels.station(destination)) to add it as your destination."
         case .readyToSearch:
-            return "Both fields are filled. Tap Search to see your options."
+            return "Both fields are filled. Tap \(PracticeLabels.search) to see your options."
         case .showingResults:
             return "That's the practice done. In the real app, you'd pick a trip from this list and follow its steps. Anything else you need help with?"
         }

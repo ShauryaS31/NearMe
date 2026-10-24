@@ -96,9 +96,11 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         XCTAssertEqual(intent.value.origin, "Central")
         XCTAssertEqual(intent.value.destination, "Holsworthy")
         XCTAssertEqual(place.value, "Central")
-        for source in [intent.source, place.source, question.source, confirmation.source] {
+        for source in [intent.source, place.source] {
             XCTAssertEqual(source, .keywordFallback)
         }
+        XCTAssertEqual(question.source, .template)
+        XCTAssertEqual(confirmation.source, .template)
         for latency in [intent.latencyMilliseconds, place.latencyMilliseconds,
                         question.latencyMilliseconds, confirmation.latencyMilliseconds] {
             XCTAssertNil(latency)
@@ -111,12 +113,14 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         let question = try await brain.clarifyingQuestion(for: .origin, currentIntent: .empty)
         let confirmation = try await brain.confirmationLine(for: .empty)
         XCTAssertNil(place.value)
-        for source in [place.source, question.source, confirmation.source] {
+        for source in [place.source] {
             XCTAssertEqual(source, .onDeviceModel)
         }
-        for latency in [place.latencyMilliseconds, question.latencyMilliseconds, confirmation.latencyMilliseconds] {
-            XCTAssertEqual(latency, 840)
-        }
+        XCTAssertEqual(place.latencyMilliseconds, 840)
+        XCTAssertEqual(question.source, .template)
+        XCTAssertEqual(confirmation.source, .template)
+        XCTAssertNil(question.latencyMilliseconds)
+        XCTAssertNil(confirmation.latencyMilliseconds)
     }
 
     func testTimeoutFallsBackWithoutModelLatency() async throws {
@@ -127,9 +131,11 @@ final class ResilientTaskPlannerBrainTests: XCTestCase {
         let confirmation = try await brain.confirmationLine(for: .empty)
         XCTAssertEqual(intent.value.origin, "Central")
         XCTAssertEqual(place.value, "Central")
-        for source in [intent.source, place.source, question.source, confirmation.source] {
+        for source in [intent.source, place.source] {
             XCTAssertEqual(source, .keywordFallback)
         }
+        XCTAssertEqual(question.source, .template)
+        XCTAssertEqual(confirmation.source, .template)
         for latency in [intent.latencyMilliseconds, place.latencyMilliseconds,
                         question.latencyMilliseconds, confirmation.latencyMilliseconds] {
             XCTAssertNil(latency)
