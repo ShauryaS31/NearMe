@@ -20,9 +20,10 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
     /// currently pending — lets `stopListening()` resolve it directly rather
     /// than leaving it to leak.
     private var activeResume: ResumeOnce<String>?
+    private var latestTranscript = ""
 
-    override init() {
-        self.recognizer = SFSpeechRecognizer(locale: Locale(identifier: "en-AU"))
+    init(locale: Locale = Locale(identifier: "en-AU")) {
+        self.recognizer = SFSpeechRecognizer(locale: locale)
         super.init()
     }
 
@@ -36,6 +37,9 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         guard let recognizer, recognizer.isAvailable else {
             throw VoiceInputError.recognizerUnavailable
         }
+        guard recognizer.supportsOnDeviceRecognition == true else {
+            throw VoiceInputError.unsupportedOnDeviceLocale
+        }
 
         isListening = true
         defer { isListening = false }
@@ -45,17 +49,12 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         // whole conversation rather than being switched on every turn.
         try NearMeAudioSession.configureIfNeeded()
 
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.shouldReportPartialResults = true
-        // Prefer on-device recognition for privacy/latency when the device supports it.
-        request.requiresOnDeviceRecognition = recognizer.supportsOnDeviceRecognition
+        let request = Self.makeRecognitionRequest()
         self.request = request
 
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
-        // Same defensive check as AudioFileRecorder — see that file's
-        // header comment for why this can transiently be invalid right
-        // after an audio-session category switch on a real device.
+        // Hardware can briefly report an invalid format after activation.
         guard format.sampleRate > 0, format.channelCount > 0 else {
             throw VoiceInputError.microphoneUnavailable
         }
@@ -77,36 +76,40 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
             guard let self else { return }
             let resume = ResumeOnce(continuation)
             self.activeResume = resume
-            var latestTranscript = ""
+            self.latestTranscript = ""
 
             self.task = recognizer.recognitionTask(with: request) { [weak self] result, error in
-                guard let self else { return }
                 if let error { VoiceDiagnostics.log(error) }
-                guard self.activeResume === resume else { return }
+                let transcript = result?.bestTranscription.formattedString
+                let failed = error != nil
+                Task { @MainActor in
+                    guard let self else { return }
+                    guard self.activeResume === resume else { return }
 
-                if let result {
-                    latestTranscript = result.bestTranscription.formattedString
-                    onPartialTranscript(latestTranscript)
-                    self.resetSilenceTimer {
-                        self.activeResume = nil
-                        self.finish()
-                        if latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
-                            resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
-                        } else {
-                            resume.fulfill(returning: latestTranscript)
+                    if let transcript {
+                        self.latestTranscript = transcript
+                        onPartialTranscript(transcript)
+                        self.resetSilenceTimer {
+                            guard self.activeResume === resume else { return }
+                            self.activeResume = nil
+                            self.finish()
+                            if self.latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
+                                resume.fulfill(throwing: VoiceInputError.noSpeechDetected)
+                            } else {
+                                resume.fulfill(returning: self.latestTranscript)
+                            }
                         }
                     }
-                }
 
-                if let error {
-                    self.activeResume = nil
-                    self.finish()
-                    if latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
-                        resume.fulfill(throwing: VoiceInputError.network(error))
-                    } else {
-                        // Some recognizer errors still arrive after a good final transcript
-                        // (e.g. the task being cancelled once we stop) — prefer the transcript.
-                        resume.fulfill(returning: latestTranscript)
+                    if failed {
+                        self.activeResume = nil
+                        self.finish()
+                        if self.latestTranscript.trimmingCharacters(in: .whitespaces).isEmpty {
+                            resume.fulfill(throwing: VoiceInputError.recognizerUnavailable)
+                        } else {
+                            // Prefer a usable transcript if cancellation follows it.
+                            resume.fulfill(returning: self.latestTranscript)
+                        }
                     }
                 }
             }
@@ -134,6 +137,13 @@ final class AppleSpeechFallbackService: NSObject, VoiceInputService {
         silenceTimer = Timer.scheduledTimer(withTimeInterval: silenceInterval, repeats: false) { _ in
             Task { @MainActor in onSilence() }
         }
+    }
+
+    static func makeRecognitionRequest() -> SFSpeechAudioBufferRecognitionRequest {
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.requiresOnDeviceRecognition = true
+        return request
     }
 
     private func finish() {

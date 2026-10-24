@@ -3,18 +3,19 @@
 import SwiftUI
 
 struct TripPlannerJourneyPlannerView: View {
+    @ScaledMetric(relativeTo: .body) private var fieldIconSize = 10.0
     @ObservedObject var viewModel: TripPlannerPracticeViewModel
     let onTapDestinationField: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: "Journey planner")
+            TripPlannerTopBar(title: PracticeLabels.journeyPlanner)
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 fieldRow(
                     icon: "circle.fill",
                     iconColor: Color.accentColor,
-                    placeholder: "Choose origin",
+                    placeholder: PracticeLabels.chooseOrigin,
                     value: viewModel.fromFieldText,
                     isHighlighted: viewModel.step == .tapFrom,
                     action: viewModel.step == .tapFrom ? { viewModel.completeCurrentStep() } : nil
@@ -23,7 +24,7 @@ struct TripPlannerJourneyPlannerView: View {
                 fieldRow(
                     icon: "mappin",
                     iconColor: Color.primary,
-                    placeholder: "Choose destination",
+                    placeholder: PracticeLabels.chooseDestination,
                     value: viewModel.toFieldText,
                     isHighlighted: viewModel.step == .typeOrigin,
                     action: viewModel.step == .typeOrigin ? onTapDestinationField : nil
@@ -42,7 +43,7 @@ struct TripPlannerJourneyPlannerView: View {
 
                 if viewModel.step == .readyToSearch {
                     Button(action: { viewModel.completeCurrentStep() }) {
-                        Text("Search")
+                        Text(PracticeLabels.search)
                             .font(TTFont.headline())
                             .foregroundStyle(.primary)
                             .frame(maxWidth: .infinity)
@@ -73,7 +74,7 @@ struct TripPlannerJourneyPlannerView: View {
         } label: {
             HStack(spacing: TTSpacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 10))
+                    .font(.system(size: fieldIconSize))
                     .foregroundStyle(iconColor)
                 Text(value.isEmpty ? placeholder : value)
                     .font(TTFont.body())

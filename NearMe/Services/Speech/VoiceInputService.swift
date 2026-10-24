@@ -8,7 +8,7 @@ nonisolated enum VoiceDiagnostics {
 
     static func log(_ error: Error) {
         let nsError = error as NSError
-        logger.error("Voice error type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .public)")
+        logger.error("Voice error type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .private)")
         if let inputError = error as? VoiceInputError {
             switch inputError {
             case .network(let underlying), .audioEngineFailed(let underlying): log(underlying)
@@ -29,6 +29,8 @@ nonisolated enum VoiceDiagnostics {
                 message = "NearMe can't hear the microphone right now"
             case .recognizerUnavailable:
                 message = "Speech recognition isn't available right now. You can type instead."
+            case .unsupportedOnDeviceLocale:
+                return "Speech recognition on this phone isn't available for your language yet. You can type instead."
             case .noSpeechDetected:
                 message = "I didn't catch that. Please try again or type instead."
             default:
@@ -56,6 +58,7 @@ nonisolated enum VoiceInputError: Error, LocalizedError {
     case speechPermissionDenied
     case microphoneUnavailable
     case recognizerUnavailable
+    case unsupportedOnDeviceLocale
     case audioEngineFailed(Error)
     case noSpeechDetected
     case network(Error)
@@ -66,6 +69,7 @@ nonisolated enum VoiceInputError: Error, LocalizedError {
         case .microphonePermissionDenied: return "Microphone permission denied."
         case .speechPermissionDenied: return "Speech recognition permission denied."
         case .recognizerUnavailable: return "Speech recognizer unavailable."
+        case .unsupportedOnDeviceLocale: return "On-device speech unavailable for this locale."
         case .audioEngineFailed(let error): return "Audio engine failed: \(error.localizedDescription)"
         case .microphoneUnavailable:
             return "NearMe couldn't access the microphone."
@@ -83,6 +87,7 @@ nonisolated enum VoiceInputError: Error, LocalizedError {
 protocol VoiceInputService: AnyObject {
     /// True while actively recording/listening.
     var isListening: Bool { get }
+    func prepareForListening() async throws
 
     /// Starts listening and returns the final transcript once the user
     /// stops talking (silence timeout) or `stopListening()` is called.
@@ -92,6 +97,10 @@ protocol VoiceInputService: AnyObject {
 
     /// Ends listening early (e.g. the user tapped "cancel").
     func stopListening()
+}
+
+extension VoiceInputService {
+    func prepareForListening() async throws {}
 }
 
 final class ResumeOnce<T>: @unchecked Sendable {

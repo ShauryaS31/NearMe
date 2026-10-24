@@ -85,6 +85,10 @@ struct VoiceSessionView: View {
             }
             .frame(minHeight: 520)
         }
+        .onChange(of: engine.isTyping) { _, isTyping in
+            textEntryFocused = isTyping
+        }
+        .onAppear { textEntryFocused = engine.isTyping }
     }
 
     private var canSend: Bool {

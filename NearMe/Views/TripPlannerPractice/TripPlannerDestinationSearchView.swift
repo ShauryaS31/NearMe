@@ -8,7 +8,7 @@ struct TripPlannerDestinationSearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: "Journey planner", onBack: onBack)
+            TripPlannerTopBar(title: PracticeLabels.journeyPlanner, onBack: onBack)
 
             VStack(alignment: .leading, spacing: TTSpacing.md) {
                 Button {
@@ -19,7 +19,7 @@ struct TripPlannerDestinationSearchView: View {
                     HStack(spacing: TTSpacing.sm) {
                         Image(systemName: "magnifyingglass")
                             .foregroundStyle(Color.secondary)
-                        Text(viewModel.destinationSearchQuery.isEmpty ? "Search for a destination" : viewModel.destinationSearchQuery)
+                        Text(viewModel.destinationSearchQuery.isEmpty ? PracticeLabels.searchDestination : viewModel.destinationSearchQuery)
                             .font(TTFont.body())
                             .foregroundStyle(viewModel.destinationSearchQuery.isEmpty ? Color.secondary : Color.primary)
                         Spacer()
@@ -53,7 +53,7 @@ struct TripPlannerDestinationSearchView: View {
                                 .foregroundStyle(Color.accentColor)
                                 .frame(width: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(viewModel.destinationDisplayName) Station")
+                                Text(PracticeLabels.station(viewModel.destinationDisplayName))
                                     .font(TTFont.headline())
                                     .foregroundStyle(Color.primary)
                                 Text("Practice destination")

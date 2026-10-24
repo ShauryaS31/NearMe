@@ -11,14 +11,14 @@ struct OpeningPracticeView: View {
                 Spacer(minLength: TTSpacing.xxl)
 
                 Text(confirmationText)
-                    .font(TTFont.title())
+                    .font(.title)
                     .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
 
                 VStack(spacing: TTSpacing.md) {
                     Text("Opening Trip planner")
-                        .font(TTFont.statusLabel())
+                        .font(.body)
                         .foregroundStyle(Color.accentColor)
                         .tracking(1.5)
                     Label("Practice", systemImage: "hand.tap")
@@ -31,7 +31,6 @@ struct OpeningPracticeView: View {
 
                 Spacer()
             }
-            .frame(minHeight: 480)
             .padding(TTSpacing.lg)
             .frame(maxWidth: 560)
             .frame(maxWidth: .infinity)

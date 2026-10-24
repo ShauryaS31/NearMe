@@ -8,7 +8,7 @@ struct TripPlannerResultsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: "Journey planner")
+            TripPlannerTopBar(title: PracticeLabels.journeyPlanner)
 
             VStack(alignment: .leading, spacing: TTSpacing.xs) {
                 Text("\(origin) \u{2192} \(destination)")
@@ -17,7 +17,7 @@ struct TripPlannerResultsView: View {
                     .padding(.horizontal, TTSpacing.lg)
                     .padding(.top, TTSpacing.md)
 
-                ScrollView {
+                Group {
                     VStack(spacing: TTSpacing.sm) {
                         ForEach(1...3, id: \.self) { number in
                             HStack(alignment: .top, spacing: TTSpacing.md) {

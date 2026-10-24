@@ -22,6 +22,8 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>ELEVENLABS_API_KEY</key>
     <string>$(ELEVENLABS_API_KEY)</string>
+    <key>ELEVENLABS_VOICE_ID</key>
+    <string>$(ELEVENLABS_VOICE_ID)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSMicrophoneUsageDescription</key>

@@ -16,6 +16,7 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var latestBrainSource: BrainSource
     @Published private(set) var latestBrainLatencyMilliseconds: Int?
     @Published private(set) var isTyping = false
+    @Published private(set) var latestVoice: String?
 
     private let brain: TaskPlannerBrain
     private let voiceInput: VoiceInputService
@@ -27,6 +28,7 @@ final class TaskPlannerEngine: ObservableObject {
     private var clarificationFailures = 0
     /// Guards against overlapping listen/speak loops if the user mashes buttons.
     private var sessionGeneration = 0
+    private var guidanceSpeechGeneration = 0
 
     init(brain: TaskPlannerBrain,
          voiceInput: VoiceInputService,
@@ -39,12 +41,15 @@ final class TaskPlannerEngine: ObservableObject {
         self.voiceOutput = voiceOutput
         self.permissions = permissions
         self.userName = userName
+        self.voiceOutput.onVoiceChanged = { [weak self] voice in self?.latestVoice = voice }
     }
 
     // MARK: - Entry points
 
     func beginSession() {
         sessionGeneration += 1
+        voiceInput.stopListening()
+        voiceOutput.stop()
         let generation = sessionGeneration
         Task { await runGreeting(generation: generation) }
     }
@@ -52,6 +57,8 @@ final class TaskPlannerEngine: ObservableObject {
     /// User tapped the orb from an idle state to speak again.
     func userTappedToTalk() {
         sessionGeneration += 1
+        voiceInput.stopListening()
+        voiceOutput.stop()
         isTyping = false
         lastErrorMessage = nil
         let generation = sessionGeneration
@@ -66,6 +73,7 @@ final class TaskPlannerEngine: ObservableObject {
         voiceInput.stopListening()
         voiceOutput.stop()
         isTyping = true
+        tripPlannerPracticeViewModel = nil
         liveTranscript = ""
         plannerState = .idle
         // Keep pendingClarification and its retry count when changing input mode.
@@ -118,6 +126,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func ensurePermissions(generation: Int) async -> Bool {
+        guard await ensureOnDeviceSpeech(generation: generation) else { return false }
         let didPromptJustNow = !permissions.isFullyAuthorized
         if didPromptJustNow {
             await permissions.requestAll()
@@ -145,6 +154,19 @@ final class TaskPlannerEngine: ObservableObject {
         return true
     }
 
+    private func ensureOnDeviceSpeech(generation: Int) async -> Bool {
+        do {
+            try await voiceInput.prepareForListening()
+            return isCurrent(generation)
+        } catch {
+            guard isCurrent(generation) else { return false }
+            VoiceDiagnostics.log(error)
+            useTypedInput()
+            lastErrorMessage = VoiceDiagnostics.message(for: error)
+            return false
+        }
+    }
+
     // MARK: - Core loop
 
     /// FIX: `updatesPlannerState` defaults to `true` for the plain voice loop
@@ -164,7 +186,9 @@ final class TaskPlannerEngine: ObservableObject {
             plannerState = .speaking(text)
         }
         conversation.append(ConversationTurn(speaker: .nearme, text: text))
+        if voiceInput.isListening { voiceInput.stopListening() }
         await voiceOutput.speak(text)
+        latestVoice = voiceOutput.lastVoice
     }
 
     private func listenAndHandle(generation: Int) async {
@@ -173,6 +197,7 @@ final class TaskPlannerEngine: ObservableObject {
             plannerState = .idle
             return
         }
+        guard await ensureOnDeviceSpeech(generation: generation), isCurrent(generation) else { return }
         lastErrorMessage = nil
         plannerState = .listening
         liveTranscript = ""
@@ -194,6 +219,7 @@ final class TaskPlannerEngine: ObservableObject {
         } catch {
             VoiceDiagnostics.log(error)
             guard isCurrent(generation) else { return }
+            useTypedInput()
             lastErrorMessage = VoiceDiagnostics.message(for: error)
             plannerState = .idle
         }
@@ -319,19 +345,24 @@ final class TaskPlannerEngine: ObservableObject {
         }
         tripPlannerPracticeViewModel = simulation
         plannerState = .guiding(.forYouOpened)
+        prefetchCaption(after: .forYouOpened)
         await speak(PracticeStep.forYouOpened.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""), generation: generation, updatesPlannerState: false)
     }
 
     private func handleGuidanceAdvanced(_ step: PracticeStep, generation: Int) async {
-        guard isCurrent(generation) else { return }
+        guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step else { return }
+        guidanceSpeechGeneration += 1
+        let speechGeneration = guidanceSpeechGeneration
         plannerState = .guiding(step)
+        prefetchCaption(after: step)
         let caption = step.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? "")
         await speak(caption, generation: generation, updatesPlannerState: false)
-        guard isCurrent(generation) else { return }
+        guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step,
+              speechGeneration == guidanceSpeechGeneration else { return }
 
         if step == .showingResults {
             try? await Task.sleep(nanoseconds: 400_000_000)
-            guard isCurrent(generation) else { return }
+            guard isCurrent(generation), speechGeneration == guidanceSpeechGeneration else { return }
             tripPlannerPracticeViewModel = nil
             currentIntent = .empty
             hasCompletedAtLeastOneJourney = true
@@ -341,5 +372,17 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func isCurrent(_ generation: Int) -> Bool {
         generation == sessionGeneration
+    }
+
+    private func prefetchCaption(after step: PracticeStep) {
+        guard let next = step.next else { return }
+        voiceOutput.prefetch(next.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""))
+    }
+
+    func repeatPracticeCaption(slower: Bool = false) {
+        guard let step = tripPlannerPracticeViewModel?.step else { return }
+        voiceOutput.setSlower(slower)
+        let generation = sessionGeneration
+        Task { await handleGuidanceAdvanced(step, generation: generation) }
     }
 }
