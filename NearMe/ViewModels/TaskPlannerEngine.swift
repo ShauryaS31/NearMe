@@ -9,6 +9,9 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var plannerState: TaskPlannerState = .idle
     @Published private(set) var conversation: [ConversationTurn] = []
     @Published private(set) var tripPlannerPracticeViewModel: TripPlannerPracticeViewModel?
+    @Published private(set) var videoPracticeViewModel: VideoPracticeViewModel?
+    @Published private(set) var offersVideoPractice = false
+    static let videoPracticeOffer = "Want to practise this again safely?"
     @Published private(set) var currentIntent: JourneyIntent = .empty
     @Published var liveTranscript: String = ""
     @Published var lastErrorMessage: String?
@@ -69,6 +72,8 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     var isShowingPlaceSuggestions: Bool { suggestionSlot != nil }
+
+    var isPractising: Bool { tripPlannerPracticeViewModel != nil || videoPracticeViewModel != nil }
 
     var debugBadge: SessionDebugBadge {
         SessionDebugBadge(understanding: latestBrainSource, modelMilliseconds: latestBrainLatencyMilliseconds,
@@ -216,7 +221,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// Silence immediately, retaining the current practice or coach step.
     func stopSessionSpeech() {
-        if tripPlannerPracticeViewModel != nil {
+        if isPractising {
             stopPracticeSpeech()
             return
         }
@@ -260,6 +265,8 @@ final class TaskPlannerEngine: ObservableObject {
         clarificationFailures = 0
         currentIntent = .empty
         tripPlannerPracticeViewModel = nil
+        videoPracticeViewModel = nil
+        offersVideoPractice = false
         plannerState = .idle
     }
 
@@ -284,6 +291,8 @@ final class TaskPlannerEngine: ObservableObject {
         voiceInput.stopListening()
         stopOutput()
         tripPlannerPracticeViewModel = nil
+        videoPracticeViewModel = nil
+        offersVideoPractice = false
         plannerState = .idle
     }
 
@@ -460,6 +469,15 @@ final class TaskPlannerEngine: ObservableObject {
                              song: SongNormalization.normalize(transcript), generation: generation)
             return
         }
+        if offersVideoPractice {
+            await handleVideoPracticeOffer(transcript, generation: generation)
+            return
+        }
+        if coach?.guide?.id == "youtube_play_song",
+           GuidePrefilter.practiceRoute(for: transcript) == .practiceVideo {
+            startVideoPractice()
+            return
+        }
         if coach != nil {
             latestBrainSource = .keywordFallback
             latestBrainFallbackReason = nil
@@ -467,7 +485,7 @@ final class TaskPlannerEngine: ObservableObject {
             await handleCoachCommand(CoachCommand.parse(transcript), generation: generation)
             return
         }
-        if tripPlannerPracticeViewModel != nil {
+        if isPractising {
             latestBrainSource = .keywordFallback
             latestBrainFallbackReason = nil
             latestBrainLatencyMilliseconds = nil
@@ -496,6 +514,9 @@ final class TaskPlannerEngine: ObservableObject {
             switch answer.value.route {
             case .practiceTripPlanner:
                 tripRouteActive = true
+            case .practiceVideo:
+                startVideoPractice()
+                return
             case .guide(let id):
                 if let guide = guides.first(where: { $0.id == id }) {
                     let song = SongNormalization.extract(from: transcript) ?? SongNormalization.normalize(answer.value.song)
@@ -658,14 +679,15 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func stopPracticeSpeech() {
-        guard let practice = tripPlannerPracticeViewModel else { return }
+        guard isPractising else { return }
         sessionGeneration += 1
         guidanceSpeechGeneration += 1
         voiceInput.stopListening()
         stopOutput()
         isPreparingSpeech = false
         lastErrorMessage = nil
-        plannerState = .guiding(practice.step)
+        if let practice = tripPlannerPracticeViewModel { plannerState = .guiding(practice.step) }
+        else { plannerState = .idle }
     }
 
     private func stopOutput() {
@@ -758,7 +780,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func beginAcknowledgement(for transcript: String, generation: Int) {
         guard isCurrent(generation), acknowledgementGeneration != generation,
-              coach == nil, !tripRouteActive, tripPlannerPracticeViewModel == nil,
+              coach == nil, !tripRouteActive, !isPractising, !offersVideoPractice,
               pendingClarification == nil, pendingSong == nil, suggestionSlot == nil,
               !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               CoachCommand.parse(transcript) == nil else { return }
@@ -781,6 +803,14 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func repeatPracticeCaption(slower: Bool = false) {
+        if videoPracticeViewModel != nil {
+            speakVideoPracticeCaption(slower: slower, repeatHighlight: !slower)
+            return
+        }
+        if offersVideoPractice {
+            repeatVideoPracticeOffer(slower: slower)
+            return
+        }
         guard let practice = tripPlannerPracticeViewModel else { return }
         if !slower { practice.repeatHighlight() }
         stopPracticeSpeech()
@@ -795,6 +825,62 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     // MARK: - Guided and general coach
+
+    func startVideoPractice() {
+        cancelCurrentAction()
+        isHome = false
+        let practice = VideoPracticeViewModel()
+        practice.onStepAdvanced = { [weak self, weak practice] in
+            guard let self, let practice, self.videoPracticeViewModel === practice else { return }
+            self.speakVideoPracticeCaption()
+        }
+        videoPracticeViewModel = practice
+        speakVideoPracticeCaption()
+    }
+
+    private func speakVideoPracticeCaption(slower: Bool = false, repeatHighlight: Bool = false) {
+        guard let practice = videoPracticeViewModel else { return }
+        if repeatHighlight { practice.repeatHighlight() }
+        stopPracticeSpeech()
+        voiceOutput.setSlower(slower)
+        let generation = sessionGeneration
+        let caption = practice.currentCaption
+        Task {
+            guard self.isCurrent(generation), self.videoPracticeViewModel === practice else { return }
+            await self.speak(caption, generation: generation, updatesPlannerState: false)
+        }
+    }
+
+    func respondToVideoPracticeOffer(accept: Bool) {
+        guard offersVideoPractice else { return }
+        if accept { startVideoPractice() }
+        else { returnHome(clearingProgress: false) }
+    }
+
+    private func repeatVideoPracticeOffer(slower: Bool) {
+        stopSessionSpeech()
+        voiceOutput.setSlower(slower)
+        let generation = sessionGeneration
+        Task {
+            guard self.isCurrent(generation), self.offersVideoPractice else { return }
+            await self.speak(Self.videoPracticeOffer, generation: generation, updatesPlannerState: false)
+        }
+    }
+
+    private func handleVideoPracticeOffer(_ transcript: String, generation: Int) async {
+        let answer = transcript.lowercased().trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+        if ["yes", "yes please", "sure", "ok", "okay"].contains(answer)
+            || GuidePrefilter.practiceRoute(for: transcript) == .practiceVideo {
+            respondToVideoPracticeOffer(accept: true)
+        } else if ["no", "no thanks", "no thank you", "stop", "end"].contains(answer) {
+            respondToVideoPracticeOffer(accept: false)
+        } else if CoachCommand.parse(transcript) == .slower {
+            repeatVideoPracticeOffer(slower: true)
+        } else {
+            plannerState = .idle
+            await speak(Self.videoPracticeOffer, generation: generation, updatesPlannerState: false)
+        }
+    }
 
     func startPractice() {
         cancelCurrentAction()
@@ -956,6 +1042,13 @@ final class TaskPlannerEngine: ObservableObject {
                     }
                 }
                 coachStore.clear()
+                if session.guide?.id == "youtube_play_song" {
+                    returnHome(clearingProgress: false)
+                    isHome = false
+                    offersVideoPractice = true
+                    await speak(Self.videoPracticeOffer, generation: sessionGeneration, updatesPlannerState: false)
+                    return
+                }
                 await speak("That's it, you're done.", generation: generation)
                 // Completion is persisted even if speech is interrupted by backgrounding.
                 guard coach?.id == session.id else { return }

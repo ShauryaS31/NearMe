@@ -75,7 +75,7 @@ struct PracticeHighlight: View {
                 path.addRect(CGRect(origin: .zero, size: geometry.size))
                 path.addRoundedRect(in: outerFrame, cornerSize: CGSize(width: outerRadius, height: outerRadius))
             }
-            .fill(.black.opacity(0.25), style: FillStyle(eoFill: true))
+            .fill(Color(.separator).opacity(0.5), style: FillStyle(eoFill: true))
 
             ring.modifier(PracticeRingPulse(request: pulseRequest))
                 // Repeat starts from a fresh, fully opaque ring, even mid-cycle.

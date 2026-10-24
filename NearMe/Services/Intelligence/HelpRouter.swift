@@ -4,11 +4,13 @@ import OSLog
 
 nonisolated enum HelpRoute: Equatable, Sendable {
     case practiceTripPlanner
+    case practiceVideo
     case guide(String)
     case general
     var description: String {
         switch self {
         case .practiceTripPlanner: return "practiceTripPlanner"
+        case .practiceVideo: return "practiceVideo"
         case .guide(let id): return id
         case .general: return "general"
         }
@@ -90,9 +92,21 @@ nonisolated enum GuidePrefilter {
         return Array(top)
     }
 
+    static func practiceRoute(for request: String) -> HelpRoute? {
+        guard CoachText.matches(request, #"(?i)\b(practi[cs](?:e|ing)|practice|rehearse|rehearsal)\b"#) else { return nil }
+        if CoachText.matches(request, #"(?i)\b(trip|train|travel|journey|station|tram|bus)\b"#) {
+            return .practiceTripPlanner
+        }
+        if CoachText.matches(request, #"(?i)\b(song|music|video|youtube|playing|first|safely)\b"#) {
+            return .practiceVideo
+        }
+        return nil
+    }
+
     static func fallback(request: String, candidates: [GuideCandidate]) -> HelpChoice {
         let route: HelpRoute
-        if let top = candidates.first, top.score >= fallbackThreshold { route = .guide(top.id) }
+        if let practice = practiceRoute(for: request) { route = practice }
+        else if let top = candidates.first, top.score >= fallbackThreshold { route = .guide(top.id) }
         else if CoachText.matches(request, #"(?i)\b(trip|train|travel|journey|station|tram|bus)\b|\bfrom\s+.+\s+to\b|^to\s+|\bget to\b"#) { route = .practiceTripPlanner }
         else { route = .general }
         return HelpChoice(route: route, person: PersonNormalization.extract(from: request),
@@ -128,6 +142,9 @@ final class HelpRouter: HelpRouting {
         let strongMatch = candidates.first.flatMap { $0.score >= GuidePrefilter.fallbackThreshold ? $0 : nil }
         let answer = await service.perform("router", fallback: fallback, candidates: candidates) { brain in
             let choice = try await brain.route(request: request, candidates: candidates)
+            if let practice = GuidePrefilter.practiceRoute(for: request), choice.route != practice {
+                throw CoachModelError.invalid
+            }
             if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }), strongMatch == nil {
                 throw CoachModelError.invalid
             }
@@ -141,7 +158,7 @@ final class HelpRouter: HelpRouting {
         switch answer.value.route {
         case .general: needsOverride = true
         case .guide(let id): needsOverride = !candidates.contains { $0.id == id }
-        case .practiceTripPlanner: needsOverride = false
+        case .practiceTripPlanner, .practiceVideo: needsOverride = false
         }
         guard needsOverride else { return answer }
         PlannerDiagnostics.logger.notice("On-device model + keyword fill reason=general overridden by guide match topCandidate=\(top.id, privacy: .public) topScore=\(top.score, privacy: .public)")
