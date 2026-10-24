@@ -81,7 +81,12 @@ struct SessionDock: View {
     private var instructionArea: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                caption
+                Text(styledInstruction)
+                    .font(.title3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Only the caption changes identity; typing focus and draft survive.
+                    .id(instruction)
                 if engine.plannerState == .listening && !engine.liveTranscript.isEmpty {
                     Text(engine.liveTranscript)
                         .font(.title3)
@@ -112,26 +117,6 @@ struct SessionDock: View {
                 Label("Send", systemImage: "paperplane.fill").minimumTapTarget()
             }
             .disabled(!canSend)
-        }
-    }
-
-    private var caption: some View {
-        HStack(alignment: .top, spacing: 12) {
-            if engine.isPractising {
-                Image(systemName: "speaker.wave.2").font(.body).accessibilityHidden(true)
-            }
-            Text(styledInstruction)
-                .font(.title3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                // Only the caption changes identity; typing focus and draft survive.
-                .id(instruction)
-            if engine.isPractising {
-                Button(action: engine.endSession) {
-                    Image(systemName: "xmark").frame(width: 44, height: 44)
-                }
-                .accessibilityLabel("Close practice")
-            }
         }
     }
 

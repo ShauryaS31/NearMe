@@ -45,12 +45,8 @@ struct SessionContainerView: View {
     @ViewBuilder private var sessionContent: some View {
         if engine.isHome {
             HelpHomeView(engine: engine)
-        } else if engine.offersVideoPractice {
-            VideoPracticeOfferView(engine: engine)
         } else if engine.coach != nil {
             CoachView(engine: engine)
-        } else if let practice = engine.videoPracticeViewModel {
-            VideoPracticeView(viewModel: practice, engine: engine)
         } else if let simulation = engine.tripPlannerPracticeViewModel {
             TripPlannerPracticeView(viewModel: simulation, engine: engine)
         } else if engine.plannerState == .openingApp {
