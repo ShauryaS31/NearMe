@@ -12,8 +12,8 @@ struct ContentView: View {
                 WelcomeView()
             case .goodMorning:
                 GoodMorningView()
-            case .screenPermission:
-                ScreenPermissionView()
+            case .howItWorks:
+                HowItWorksView()
             case .session:
                 SessionContainerView(userName: coordinator.userName) {
                     coordinator.restartOnboarding()

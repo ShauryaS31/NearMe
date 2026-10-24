@@ -37,3 +37,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 15:18 AEDT | P02c | codex | dev-report r1 | Bounded model calls, planner latency and Debug badge, opt-in three-sentence model eval and Mac eval mode; committed b70e42a. Static and shell mock checks passed; Swift/Xcode unavailable, owner Mac gate pending.
 - 2026-10-24 15:18 AEDT | P02c | claude | review r1 PASS | static; merged to main; Mac compile and eval pending
 - 2026-10-24 15:18 AEDT | P02b | claude | dispatch r1 | large text onboarding, honest explainer, quick mode, simulator-selection errexit fix; branch task/P02b-onboarding-text-copy
+- 2026-10-24 15:23 AEDT | P02b | claude | review r1 PASS | static; committed by manager; merged to main; Mac compile pending
+- 2026-10-24 15:23 AEDT | P03 | claude | dispatch r1 | generic Trip planner practice, Sydney places, system colours, delete launcher; branch task/P03-generic-trip-planner

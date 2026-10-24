@@ -11,7 +11,7 @@ enum TaskPlannerState: Equatable {
     case listening
     /// Foundation Models is extracting intent / deciding next step.
     case thinking
-    /// Transition screen while PTV is being opened.
+    /// Transition shown as the PTV practice opens.
     case openingApp
     /// Inside the (simulated) PTV walkthrough, at a specific step.
     case guiding(PTVSimStep)

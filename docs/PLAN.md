@@ -19,10 +19,10 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 |---|---|---|---|---|
 | [P01](../tasks/P01-ios-import.md) | Import the prior iPhone prototype as NearMe | - | codex, manager | done (Mac: 4/4 tests pass) |
 | [P02](../tasks/P02-baseline.md) | Baseline test on Mac (simulator + iPhone if available): what works, what breaks | P01 | owner, manager | done |
-| [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | done (Mac compile pending) |
-| [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | in_progress |
-| [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | todo |
-| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | todo |
+| [P02a](../tasks/P02a-debug-parsing-facts.md) | Debug badge, real voice errors, Type instead; trip parsing fixes; no invented facts | P02 | codex | done (Mac compile OK) |
+| [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | done (Mac compile pending) |
+| [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
+| [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | in_progress |
 
 After P03: owner retests on the Mac before anything else is planned.
 

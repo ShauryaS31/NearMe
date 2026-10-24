@@ -12,8 +12,8 @@ struct PrimaryButton: View {
         Button(action: action) {
             Text(title)
                 .font(TTFont.headline())
-                .lineLimit(2)
-                .minimumScaleFactor(0.9)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, TTSpacing.md)

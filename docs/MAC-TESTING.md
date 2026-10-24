@@ -11,10 +11,13 @@
 ```
 cd ~/NearMe
 bash scripts/mac-run.sh          # newest iPhone simulator: build, boot, install, launch
+bash scripts/mac-run.sh quick    # current checkout, cached generation, booted iPhone, incremental build
 bash scripts/mac-run.sh test     # NearMeTests on the simulator
 bash scripts/mac-run.sh device   # connected iPhone (cable, unlocked, Trust this computer)
 ```
 Add `--current` to test a task branch you have checked out. Build output is in `build/xcodebuild.log`; errors are printed on failure.
+
+`quick` always uses the current checkout without switching branches or pulling. It regenerates the project when `project.yml` or the file list under `NearMe/`, `Shared/` or `NearMeTests/` changes (cached in `build/.xcodegen-hash`), or when the generated project is missing. It reuses an already booted iPhone simulator, boots one only if needed, and builds into `build/` without cleaning before installing and launching. Elapsed seconds are printed at the end. To test a smaller iPhone, boot that simulator first and shut down other iPhone simulators before running `quick`.
 
 Tested with Xcode 27.1 and the iOS 27.1 simulator ("iPhone Duo"). Xcode 27 replaced Simulator.app with DeviceHub.app: the script opens DeviceHub if present, otherwise Simulator, and carries on if neither opens (the simulator stays booted).
 
