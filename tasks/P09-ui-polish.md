@@ -173,3 +173,18 @@ Exact command: `git diff --stat main`. Output captured before appending this rep
 The docs/PLAN.md and docs/LOG.md rows are differences already present between this lane's HEAD and main; the working-tree scope check against HEAD is empty for both. Untracked additions are not included in git diff --stat: `NearMe/Views/Components/UIPolishPreviews.swift` and `NearMeTests/UIPolishTests.swift` (confirmed with `git ls-files --others --exclude-standard`). This report and its lane-log entry are also additional to the captured snapshot.
 - 2026-10-24 18:33 AEDT | P09 | owner | decision | additions A (listen in place on Home), B (non-step replies on Home, not a coach card), C (grouped Home and coach card) added as section 9; for round 2
 - 2026-10-24 18:36 AEDT | P09 | owner | decision | 5.2 Open <App> done view-only via CoachAppLaunch.url(for:) and openURL, step unchanged on tap; added as 9.D for round 2
+
+## Review (round 1)
+CHANGES. Static review (no Swift toolchain here). 1.1 greps zero hits; scope guard and P11 exclusions respected; previews Debug-only; welcome merge and explainer copy correct. Fix these, then do section 9 (owner additions A to D) in the same round:
+
+1. 4.3 / HIG rule 9: `VoiceStateRow` (`VoiceOrbView.swift:118-119`) always shows an animated `ProgressView` for Preparing (also in the stuck sheet, `CoachView.swift:176`). With `accessibilityReduceMotion` show the static `hourglass` symbol instead, as `ProgressDotsView` does.
+2. 3.3 VoiceOver order: the visible state text under the talk button (`VoiceOrbView.swift:43-47`) is read between Talk and Type instead and repeats the hint. Hide it from accessibility (the button's label and value carry the state), so Home reads heading, example, Talk, Type instead, Practise.
+3. 4.1 / owner addition A: the listening text appears twice (state row and under the button). With A, the talk button itself shows "Listening... tap when you're done"; show each state's words exactly once on screen.
+4. 1.3: the coach task title (`CoachView.swift:129-131`) uses the same `.title2.weight(.semibold)` as the instruction. Make the title `.headline` so the instruction is the strongest text.
+5. Swift 6.4 default argument rule: `var emphasis: ButtonEmphasis = .primary` (`PrimaryButton.swift:10`, `VoiceOrbView.swift:36`). Declare `nonisolated enum ButtonEmphasis: Sendable` so the default is certain to compile.
+6. Voice Control: the talk button shows "Talk to NearMe" while its accessibility label is "Start listening". Keep the labels and add `.accessibilityInputLabels(["Talk to NearMe", "Start listening"])` (and the equivalent for the listening state).
+7. Replace the duplicated "Friend" literal (`WelcomeView.swift:22`, `AppCoordinator.swift:9`) with one shared constant such as `AppCoordinator.placeholderName`.
+8. `CaptionBubble` is no longer used: delete the file (and any test or preview that names it).
+
+Mac gate (PENDING MAC): the new Stop on the conversation screen (`VoiceSessionView.swift:81-86`) must not change cancel or barge-in; the dock mic symbol is now `mic.fill` when listening (check it still reads clearly with its state text).
+- 2026-10-24 18:37 AEDT | P09 | claude (P09 lane) | review r1 CHANGES | Reduce Motion spinner, VoiceOver order, duplicate state text, coach title weight, nonisolated ButtonEmphasis, input labels, placeholder name, delete CaptionBubble; plus owner 9.A-D; dispatch r2
