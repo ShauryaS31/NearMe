@@ -167,6 +167,30 @@ final class SessionLayoutTests: XCTestCase {
         engine.endSession()
     }
 
+    func testPracticeCardShowsPendingUntilTheNextTurnIsUnderstood() async {
+        for source in [BrainSource.onDeviceModel, .onDeviceModelWithKeywordFill, .keywordFallback] {
+            let input = LayoutInput()
+            let engine = makeEngine(input: input, brain: LayoutBrain(source: source))
+            engine.useTypedInput()
+            await submit("to Town Hall", to: engine)
+            XCTAssertEqual(engine.latestBrainSource, source)
+            XCTAssertEqual(engine.latestBrainLatencyMilliseconds, 840)
+
+            engine.startPractice()
+            XCTAssertEqual(engine.latestBrainSource, .template)
+            XCTAssertNil(engine.latestBrainLatencyMilliseconds)
+            XCTAssertEqual(engine.debugBadge.lines[0], "Understood: Pending | reply: template")
+            await eventually { input.pending != nil }
+            XCTAssertEqual(engine.debugBadge.lines[0], "Understood: Pending | reply: template")
+
+            engine.useTypedInput()
+            await submit("Town Hall", to: engine)
+            XCTAssertEqual(engine.latestBrainSource, source)
+            XCTAssertEqual(engine.debugBadge.lines[0], "Understood: \(source.label), 840 ms | reply: template")
+            engine.endSession()
+        }
+    }
+
     func testBackgroundPreservesPracticeIdentityFieldsAndStep() async throws {
         let engine = makeEngine()
         engine.useTypedInput()

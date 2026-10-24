@@ -712,7 +712,8 @@ final class TaskPlannerEngine: ObservableObject {
         isHome = false
         // The card explicitly selects practiceTripPlanner; no router/model call is needed.
         tripRouteActive = true
-        latestBrainSource = .practiceCard
+        // Final eight-item review: no user turn has been understood yet.
+        latestBrainSource = .template
         latestBrainLatencyMilliseconds = nil
         latestReplySource = .template
         latestVoice = nil

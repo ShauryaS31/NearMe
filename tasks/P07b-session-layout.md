@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested |
+| Status | changes_requested (round 3) |
 | Window | Sat 24 Oct |
 | Depends on | P07 |
 | Assignee | codex |
@@ -161,3 +161,14 @@ Mac gate addition: also check the practice tab bar at xxxLarge (largest non-acce
   5. Request send a photo to Mum on WhatsApp in a simulator without WhatsApp. Confirm the normal first card, count, bold target, Done, Repeat and I'm stuck, with no auto-open announcement. Advance and verify a 0.2 s fade. Turn on Reduce Motion in Settings > Accessibility > Motion: no fade or pulse, static 6 pt ring. Enable Increase Contrast in Accessibility > Display & Text Size: 8 pt ring. Check light/dark appearances and VoiceOver target hints and Stop label.
   6. Run `bash scripts/mac-run.sh device --current` with the connected iPhone. With WhatsApp installed, request the same guide. Hear the complete I'll open WhatsApp for you now line before the app opens. Return to NearMe: step 2 must be current. Repeat, background/foreground and relaunch NearMe: it must keep the saved step without reopening WhatsApp. Repeat for the other WhatsApp guides. Stop during the opening announcement: remain at step 1 and do not launch. Settings/Photos guides must never auto-open. Confirm unavailable-app behavior on a device/simulator where WhatsApp is absent.
 - Not done / risks / questions: all Swift 6.4 compile and runtime checks remain unverified until the owner's Mac gate. Accessibility XXXL layout, keyboard preservation and badge readability require the explicit rendering checks above. The existing speech protocol returns Void after completion or audio failure, so app opening shares that existing completion contract; it cannot distinguish inaudible playback failure. Concurrent edits listed above were preserved rather than reverted. Commit succeeded on the current branch with title `N07b: Address session review and coach app handoff`; the final hash is in the handoff log.
+
+## Review (round 2)
+- Date: 2026-10-24 17:55 AEDT
+- Verdict: CHANGES (one owner bug, final round). Items 1 to 12 checked: auto-open only when step 1 is exactly "Open \"<app>\"." with a documented scheme (WhatsApp, Messages), step 2 persisted before opening and rolled back if the open fails, Stop during the announcement cancels the hand-off; debug badge hidden by default, every `showsDebugInfo` use inside `#if DEBUG`; default-argument scan clean.
+
+### Fix (owner, from the iPhone 18 Pro Max: phrase 1 routed correctly but the badge said "Keyword fallback, model 0 ms")
+1. Cause found by the manager: `CoachModelService.makeDefault()` (CoachModelService.swift:27) and `TaskPlannerBrainFactory.makeDefault()` (TaskPlannerBrain.swift:158) read `FoundationModelsBrain.isAvailable` once when the session is created. If the model was not ready at that moment (for example just after launch), the brain stays nil (or keyword-only) for the whole session and every call falls back in 0 ms. Fix: never snapshot availability at construction. Always create the model brains when FoundationModels can be imported; check `SystemLanguageModel.default.availability` at the start of every model call (router, rewrite, stuck, general, intent extraction, place cleanup) through one injectable availability provider; only if that call finds it unavailable, or the call fails, use the keyword or scripted fallback. Keyword-only is the fallback, never the first choice.
+2. Log under category "planner" for every call: call kind, outcome (ok, unavailable, timeout, error, invalid), the availability value when not available (deviceNotEligible, appleIntelligenceNotEnabled, modelNotReady, other), error type and NSError code for errors, and for the router the prefilter top candidate id, its score and the number of candidates (no user text at .public).
+3. Badge (Debug, when shown): the fallback line includes the short reason, for example "Understood: Keyword fallback (model not ready), 0 ms" or "(Apple Intelligence off)", "(timeout)", "(rejected)". The engine keeps the reason with the understanding source.
+4. Optional, if cheap: when a session starts and the model is available, call `prewarm()` on a throwaway session to cut first-call latency (no user text in it).
+5. Tests (fakes): availability unavailable at session creation and available at the first call: the router uses the model (source onDeviceModel); availability unavailable at call time: keyword fallback with reason "model not ready"; timeout and error reasons mapped; the model is consulted for routing even when the keyword score is high.
