@@ -24,8 +24,8 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
 | [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | done (Mac check pending) |
-| [P04a](../tasks/P04a-build-fix.md) | Build fix for Xcode 27.1 / Swift 6.4 (MainActor default arguments), Info.plist no longer blocks pull | P04 | manager | done (owner rebuild pending) |
-| [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | in_progress |
+| [P04a](../tasks/P04a-build-fix.md) | Build fix for Xcode 27.1 / Swift 6.4 (MainActor default arguments), Info.plist no longer blocks pull | P04 | manager | done (macfix 5cd50e5; builds, 77 tests pass, 1 skip) |
+| [P03a](../tasks/P03a-fixes.md) | Fixes: accept any place, suggestions only on low confidence or no place, Keep what I said (plus retest findings) | P04 | codex | done (Mac check pending) |
 | [P07a](../tasks/P07a-guides.md) | Guide library content: 15 guide JSON files, schema doc, validator (content only) | - | codex (worktree) | in_progress |
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P03a, P07a | codex | todo |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |

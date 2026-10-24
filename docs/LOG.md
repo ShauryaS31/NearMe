@@ -61,3 +61,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:57 AEDT | P03a | claude | dispatch r1 | accept any place, Keep what I said, nil is not a place; branch task/P03a-fixes (rebase onto macfix before merge)
 - 2026-10-24 16:57 AEDT | P07a | claude | dispatch r1 | 15 guide JSON files, schema doc, validator, in worktree ../NearMe-p07a on task/P07a-guides (content only)
 - 2026-10-24 17:01 AEDT | P03a | codex | dev-report r1 | Accept any practice place, add Keep what I said and bounded suggestions, normalize missing places; commit 3919119
+- 2026-10-24 17:01 AEDT | P04a | claude | macfix review | 5cd50e5 compile-only, OK
+- 2026-10-24 17:01 AEDT | P03a | claude | review r1 PASS | static; merged to main; Mac check pending

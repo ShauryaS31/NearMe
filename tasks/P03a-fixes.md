@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (Mac check pending) |
 | Window | Sat 24 Oct |
 | Depends on | P04 |
 | Assignee | codex |
@@ -57,3 +57,11 @@ Mac checks: say "from Central to Newtown": accepted, no suggestions; mumble a pl
   5. Start again, request `to Town Hall`, then mumble the origin. Verify the transcript, up to two close names, Keep what I said, and Say it again. Tap a suggested name and verify the practice origin; repeat and tap Keep what I said to verify the user's words are retained. Repeat and tap Say it again to answer the same pending slot.
   6. Exercise a no-place/unclear answer with zero close matches; verify the panel and both actions remain visible, and speech says `Did you say <transcript>?`. Check the buttons using VoiceOver and accessibility Dynamic Type. Deterministic zero-match and placeholder cases are also covered by the fake tests from step 2.
 - Not done / risks / questions: Mac build, tests, and phone/accessibility checks remain the owner's gate. No unrelated fixes or other task work performed.
+
+## Review (round 1)
+- Date: 2026-10-24 17:01 AEDT
+- Verdict: PASS (static). Merged to main; owner Mac check pending.
+- 1: any extracted place is accepted (no vocabulary check); suggestions only when recogniser confidence is below 0.5 or no place was extracted, and only for follow-up answers; screen shows "I heard: <transcript>", up to 2 practice places within the edit-distance threshold, "Keep what I said" (fills the slot with the extracted words or the cleaned transcript; nothing usable re-asks) and "Say it again"; "Did you say <transcript>?" when there are no close matches.
+- 2: one PlaceNormalization function (nil, null, none, unknown, n/a, -, empty) used by model extraction, place cleanup, keyword fill, fallback and suggestions; tests include a stub model returning origin "Nil".
+- Swift 6.4 check: no default arguments construct NearMe or test types in the changed files.
+- Reviewed macfix 5cd50e5 (compile-only: self.player/self.fallback; test helper defaults built in the body). OK.
