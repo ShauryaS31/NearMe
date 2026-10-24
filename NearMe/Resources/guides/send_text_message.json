@@ -1,0 +1,47 @@
+{
+  "id": "send_text_message",
+  "title": "Send a text message",
+  "app": "Messages",
+  "app_url_scheme": "sms:",
+  "aliases": [
+    "how do i send a text message",
+    "send a text",
+    "write a message to someone",
+    "text my family",
+    "send an sms",
+    "start a new message on my iphone",
+    "text message bhejna hai",
+    "phone se sms kaise bheje"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Messages\".",
+      "ui_label_hint": "Messages"
+    },
+    {
+      "instruction": "Tap the pencil in a square icon for a new message.",
+      "ui_label_hint": "pencil in a square icon"
+    },
+    {
+      "instruction": "Type the person's name in \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the matching person in the suggestions below \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Type your message in the message box above the keyboard.",
+      "ui_label_hint": "message box",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the upward arrow beside your message to send it.",
+      "ui_label_hint": "upward arrow"
+    }
+  ],
+  "source_note": "Messages on iOS 26/27, English, October 2026 documentation review. Assumes Messages is set up and starts on the conversation list, with the recipient saved in Contacts. The message box placeholder and arrow colour vary between iMessage, RCS and SMS. Delivery depends on the available connection. Not checked on a phone. Source: https://support.apple.com/guide/iphone/iph82fb73ba3/26/ios/26",
+  "last_checked": "2026-10-24"
+}

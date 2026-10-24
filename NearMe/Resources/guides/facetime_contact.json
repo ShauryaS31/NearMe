@@ -1,0 +1,41 @@
+{
+  "id": "facetime_contact",
+  "title": "Call someone with FaceTime",
+  "app": "FaceTime",
+  "aliases": [
+    "how do i facetime someone",
+    "facetime my family",
+    "make a facetime video call",
+    "call a contact on facetime",
+    "start a facetime call",
+    "see someone using facetime",
+    "facetime pe call karni hai",
+    "facetime kaise chalaye"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"FaceTime\".",
+      "ui_label_hint": "FaceTime"
+    },
+    {
+      "instruction": "Tap \"New Call\".",
+      "ui_label_hint": "New Call"
+    },
+    {
+      "instruction": "Type the person's name in \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the matching person in the suggestions below \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Tap \"FaceTime\" to start the video call.",
+      "ui_label_hint": "FaceTime"
+    }
+  ],
+  "source_note": "FaceTime on iOS 26/27, English, October 2026 documentation review. Assumes FaceTime is set up, internet is available and the saved contact can receive FaceTime calls. New Call replaces New FaceTime in older layouts. Confirm the recipient field and suggestion behaviour. Not checked on a phone. Source: https://support.apple.com/en-euro/guide/iphone/iph7801d5771/26/ios/26",
+  "last_checked": "2026-10-24"
+}

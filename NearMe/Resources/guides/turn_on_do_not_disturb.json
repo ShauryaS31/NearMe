@@ -1,0 +1,32 @@
+{
+  "id": "turn_on_do_not_disturb",
+  "title": "Turn on Do Not Disturb",
+  "app": "Control Centre",
+  "aliases": [
+    "how do i turn on do not disturb",
+    "do not disturb",
+    "quiet my phone for a while",
+    "stop notifications while i rest",
+    "pause calls and alerts",
+    "help me switch on do not disturb",
+    "phone par disturb mat karo mode lagao",
+    "notifications band karni hain"
+  ],
+  "steps": [
+    {
+      "instruction": "Swipe down from the top-right corner of the screen.",
+      "ui_label_hint": "battery icon"
+    },
+    {
+      "instruction": "Touch and hold \"Focus\".",
+      "ui_label_hint": "Focus",
+      "verify": true
+    },
+    {
+      "instruction": "Tap \"Do Not Disturb\" if it is not already on.",
+      "ui_label_hint": "Do Not Disturb"
+    }
+  ],
+  "source_note": "Control Centre on Face ID iPhones with iOS 26/27, English, October 2026 documentation review. Assumes no other Focus is active; an active Focus shows its own name instead of Focus. Home button iPhones open Control Centre with an upward swipe from the bottom. Allowed people, apps and alarms may still alert you. Not checked on a phone. Source: https://support.apple.com/en-gb/105112",
+  "last_checked": "2026-10-24"
+}

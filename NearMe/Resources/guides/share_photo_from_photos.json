@@ -1,0 +1,56 @@
+{
+  "id": "share_photo_from_photos",
+  "title": "Send a photo from Photos",
+  "app": "Photos",
+  "aliases": [
+    "how do i share a photo from photos",
+    "send a picture from my photos",
+    "share a saved photo",
+    "text someone a photo from my album",
+    "send a photo from my camera roll",
+    "share a picture with my family",
+    "photos se tasveer bhejni hai",
+    "meri photo share karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Photos\".",
+      "ui_label_hint": "Photos"
+    },
+    {
+      "instruction": "Tap \"Library\".",
+      "ui_label_hint": "Library",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the photo you want to send.",
+      "ui_label_hint": "photo thumbnail"
+    },
+    {
+      "instruction": "Tap the share icon, a square with an arrow pointing up.",
+      "ui_label_hint": "share icon"
+    },
+    {
+      "instruction": "Tap \"Messages\" in the row of apps.",
+      "ui_label_hint": "Messages",
+      "verify": true
+    },
+    {
+      "instruction": "Type the person's name in \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the matching person in the suggestions below \"To:\".",
+      "ui_label_hint": "To:",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the upward arrow beside the photo to send it.",
+      "ui_label_hint": "upward arrow",
+      "verify": true
+    }
+  ],
+  "source_note": "Photos and Messages on iOS 26/27, English, October 2026 documentation review. Shares one saved photo through Messages to an existing contact. Assumes the photo grid is available and Messages is set up. The app row can be scrolled sideways; its order varies. Check the recipient field and send arrow in the sharing screen. Not checked on a phone. Sources: https://support.apple.com/en-nz/guide/iphone/iphf28f17237/27/ios/27 and https://support.apple.com/guide/iphone/iph82fb73ba3/26/ios/26",
+  "last_checked": "2026-10-24"
+}

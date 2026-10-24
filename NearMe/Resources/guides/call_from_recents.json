@@ -1,0 +1,33 @@
+{
+  "id": "call_from_recents",
+  "title": "Call someone from your recent calls",
+  "app": "Phone",
+  "aliases": [
+    "how do i call someone from recent calls",
+    "call back",
+    "ring the person who called me",
+    "find my last phone call",
+    "call from recents",
+    "return a missed call",
+    "recent calls se phone karna hai",
+    "jisne call kiya use wapas phone karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Phone\".",
+      "ui_label_hint": "Phone"
+    },
+    {
+      "instruction": "Tap \"Calls\" to see your recent calls.",
+      "ui_label_hint": "Calls",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the phone icon beside the person or number you want to call back.",
+      "ui_label_hint": "phone icon",
+      "verify": true
+    }
+  ],
+  "source_note": "Phone on iOS 26/27, English, October 2026 documentation review. Uses Unified layout, where Calls contains recent calls. Classic layout has Recents instead; tapping a row or a phone icon may behave differently with the tap-to-call setting. Assumes the wanted call is visible and is a phone call, not a FaceTime video call. Confirm the layout and call control. Not checked on a phone. Source: https://support.apple.com/en-tm/126076",
+  "last_checked": "2026-10-24"
+}

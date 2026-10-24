@@ -1,0 +1,37 @@
+{
+  "id": "whatsapp_video_call",
+  "title": "Make a video call on WhatsApp",
+  "app": "WhatsApp",
+  "app_url_scheme": "whatsapp://",
+  "aliases": [
+    "how do i make a video call on whatsapp",
+    "whatsapp video call",
+    "see my family on whatsapp",
+    "call someone with video on whatsapp",
+    "talk face to face on whatsapp",
+    "start a whatsapp video call",
+    "whatsapp pe video call kaise kare",
+    "whatsapp par video call karni hai"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"WhatsApp\".",
+      "ui_label_hint": "WhatsApp"
+    },
+    {
+      "instruction": "Tap \"Chats\".",
+      "ui_label_hint": "Chats"
+    },
+    {
+      "instruction": "Tap the chat with the person you want to call.",
+      "ui_label_hint": "Chats"
+    },
+    {
+      "instruction": "Tap the video camera icon at the top of the chat to start the call.",
+      "ui_label_hint": "video camera icon",
+      "verify": true
+    }
+  ],
+  "source_note": "WhatsApp for iPhone, October 2026 layout on iOS 26/27, English. Assumes an existing individual chat, internet access, and camera and microphone access already allowed. Group calls use a different path. The current iPhone help article could not be retrieved; confirm the call icon, position and any confirmation screen on the installed version. Not checked on a phone. Reference: https://faq.whatsapp.com/iphone/voice-and-video-calls/how-to-make-a-video-call/",
+  "last_checked": "2026-10-24"
+}

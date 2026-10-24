@@ -1,0 +1,52 @@
+{
+  "id": "add_contact",
+  "title": "Save a new contact",
+  "app": "Contacts",
+  "aliases": [
+    "how do i add a contact",
+    "save a phone number",
+    "new contact",
+    "put someone in my contacts",
+    "save a name and number",
+    "add someone to my address book",
+    "naya contact banana hai",
+    "phone number save karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Contacts\".",
+      "ui_label_hint": "Contacts"
+    },
+    {
+      "instruction": "Tap \"+\" to add a contact.",
+      "ui_label_hint": "+"
+    },
+    {
+      "instruction": "Type the person's first name in \"First name\".",
+      "ui_label_hint": "First name",
+      "verify": true
+    },
+    {
+      "instruction": "Type the person's last name in \"Last name\", if you know it.",
+      "ui_label_hint": "Last name",
+      "verify": true
+    },
+    {
+      "instruction": "Tap \"add phone\".",
+      "ui_label_hint": "add phone",
+      "verify": true
+    },
+    {
+      "instruction": "Type their number in \"Phone\".",
+      "ui_label_hint": "Phone",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the tick icon to save the contact.",
+      "ui_label_hint": "tick icon",
+      "verify": true
+    }
+  ],
+  "source_note": "Contacts on iOS 26/27, English, October 2026 documentation review. Start from the contacts list, not a contact card or the lists screen. First name, Last name, add phone and Phone capitalisation need device confirmation. The save control may be a tick icon or Done depending on the layout. Not checked on a phone. Source: https://support.apple.com/en-au/guide/iphone/iph3e0ca2db/26/ios/26",
+  "last_checked": "2026-10-24"
+}

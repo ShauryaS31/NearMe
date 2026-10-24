@@ -1,0 +1,40 @@
+{
+  "id": "connect_wifi",
+  "title": "Connect to Wi-Fi",
+  "app": "Settings",
+  "aliases": [
+    "how do i connect to wifi",
+    "join wi-fi",
+    "connect my phone to the home internet",
+    "put my iphone on wifi",
+    "choose a wireless network",
+    "connect to my wifi network",
+    "wifi se jodna hai",
+    "phone par wifi chalu karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Settings\".",
+      "ui_label_hint": "Settings"
+    },
+    {
+      "instruction": "Tap \"Wi-Fi\".",
+      "ui_label_hint": "Wi-Fi"
+    },
+    {
+      "instruction": "Turn on \"Wi-Fi\" if it is off.",
+      "ui_label_hint": "Wi-Fi"
+    },
+    {
+      "instruction": "Tap the name of the network you want to join.",
+      "ui_label_hint": "Wi-Fi"
+    },
+    {
+      "instruction": "Type the Wi-Fi password, then tap \"Join\".",
+      "ui_label_hint": "Join",
+      "verify": true
+    }
+  ],
+  "source_note": "Settings on iOS 26/27, English, October 2026 documentation review. For a new password-protected home network; the password is entered in Settings. Known or open networks may connect without the password step; public networks may show a separate sign-in page. A tick next to the network indicates connection. Confirm the password screen and Join label. Not checked on a phone. Source: https://support.apple.com/en-ie/111107",
+  "last_checked": "2026-10-24"
+}

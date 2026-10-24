@@ -1,0 +1,33 @@
+{
+  "id": "turn_on_torch",
+  "title": "Turn on the torch",
+  "app": "Control Centre",
+  "aliases": [
+    "how do i turn on the torch",
+    "torch on",
+    "switch on the flashlight",
+    "i need a light",
+    "turn on my phone light",
+    "help me see in the dark",
+    "torch on karo",
+    "phone ki light jalao"
+  ],
+  "steps": [
+    {
+      "instruction": "Swipe down from the top-right corner of the screen.",
+      "ui_label_hint": "battery icon"
+    },
+    {
+      "instruction": "Tap the torch icon if the light is off.",
+      "ui_label_hint": "torch icon",
+      "verify": true
+    },
+    {
+      "instruction": "Swipe up from the bottom edge to close the controls. The light stays on.",
+      "ui_label_hint": "home indicator",
+      "verify": true
+    }
+  ],
+  "source_note": "Control Centre on Face ID iPhones with iOS 26/27, English, October 2026 documentation review. Assumes the torch control is present on the first page; controls can be moved or removed. Home button iPhones use an upward swipe to open Control Centre and the Home button to close it. Some regions call the torch Flashlight. Not checked on a phone. Source: https://support.apple.com/en-au/guide/iphone/iphf574afb44/26/ios/26",
+  "last_checked": "2026-10-24"
+}

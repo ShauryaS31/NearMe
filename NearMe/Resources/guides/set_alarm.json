@@ -1,0 +1,56 @@
+{
+  "id": "set_alarm",
+  "title": "Set an alarm",
+  "app": "Clock",
+  "aliases": [
+    "how do i set an alarm",
+    "wake me up in the morning",
+    "new alarm",
+    "put an alarm on my phone",
+    "set a wake up time",
+    "make my phone ring at a set time",
+    "alarm lagana hai",
+    "subah ka alarm set karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Clock\".",
+      "ui_label_hint": "Clock"
+    },
+    {
+      "instruction": "Tap \"Alarms\".",
+      "ui_label_hint": "Alarms"
+    },
+    {
+      "instruction": "Tap \"+\" to add an alarm.",
+      "ui_label_hint": "+"
+    },
+    {
+      "instruction": "Set the hour with the hour wheel.",
+      "ui_label_hint": "hour wheel",
+      "verify": true
+    },
+    {
+      "instruction": "Set the minutes with the minute wheel.",
+      "ui_label_hint": "minute wheel",
+      "verify": true
+    },
+    {
+      "instruction": "Set the time-of-day wheel to \"AM\" for morning or \"PM\" for afternoon or evening, if shown.",
+      "ui_label_hint": "AM",
+      "verify": true
+    },
+    {
+      "instruction": "Check that the time shows morning or afternoon as you intended. A 24-hour clock has no \"AM\" or \"PM\".",
+      "ui_label_hint": "PM",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the tick icon to save the alarm.",
+      "ui_label_hint": "tick icon",
+      "verify": true
+    }
+  ],
+  "source_note": "Clock on iOS 26/27, English, October 2026 documentation review. Sets a regular alarm, not a sleep schedule. The time controls depend on 12-hour or 24-hour settings; confirm the wheels and save icon. Some earlier layouts say Alarm or Save instead of Alarms or a tick icon. Not checked on a phone. Source: https://support.apple.com/guide/iphone/iph2909d3a74/27/ios/27",
+  "last_checked": "2026-10-24"
+}

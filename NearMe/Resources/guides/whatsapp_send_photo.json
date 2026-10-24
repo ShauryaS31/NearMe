@@ -1,0 +1,52 @@
+{
+  "id": "whatsapp_send_photo",
+  "title": "Send a photo on WhatsApp",
+  "app": "WhatsApp",
+  "app_url_scheme": "whatsapp://",
+  "aliases": [
+    "how do i send a picture on whatsapp",
+    "send a photo on whatsapp",
+    "whatsapp photo",
+    "share a picture in whatsapp",
+    "send my family a photo on whatsapp",
+    "put a photo in a whatsapp chat",
+    "photo bhejna whatsapp",
+    "whatsapp pe tasveer bhejni hai"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"WhatsApp\".",
+      "ui_label_hint": "WhatsApp"
+    },
+    {
+      "instruction": "Tap \"Chats\".",
+      "ui_label_hint": "Chats"
+    },
+    {
+      "instruction": "Tap the chat with the person you want to send the photo to.",
+      "ui_label_hint": "Chats"
+    },
+    {
+      "instruction": "Tap \"+\" beside the message box.",
+      "ui_label_hint": "+",
+      "verify": true
+    },
+    {
+      "instruction": "Tap \"Photos\".",
+      "ui_label_hint": "Photos",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the photo you want to send.",
+      "ui_label_hint": "photo thumbnail",
+      "verify": true
+    },
+    {
+      "instruction": "Tap the paper plane icon to send the photo.",
+      "ui_label_hint": "paper plane icon",
+      "verify": true
+    }
+  ],
+  "source_note": "WhatsApp for iPhone, October 2026 layout on iOS 26/27, English. Assumes an existing individual chat and photo access already allowed. The attachment menu may say Photos or Photo & Video Library; the picker may require Next before the preview. Check flagged steps on the installed version. Documentation review only; not checked on a phone. Source: https://faq.whatsapp.com/453914586839706/?cms_platform=iphone",
+  "last_checked": "2026-10-24"
+}
