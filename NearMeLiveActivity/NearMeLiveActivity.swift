@@ -5,7 +5,11 @@ import WidgetKit
 
 @main
 struct NearMeLiveActivityBundle: WidgetBundle {
-    var body: some Widget { CoachLiveActivity() }
+    var body: some Widget {
+        CoachLiveActivity()
+        AskNearMeWidget()
+        AskRecordingLiveActivity()
+    }
 }
 
 struct CoachLiveActivity: Widget {

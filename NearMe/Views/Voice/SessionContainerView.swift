@@ -9,14 +9,7 @@ struct SessionContainerView: View {
     @State private var didRestore = false
     @MainActor
     init(userName: String) {
-        let permissions = PermissionsManager()
-        _engine = StateObject(wrappedValue: TaskPlannerEngine(
-            brain: TaskPlannerBrainFactory.makeDefault(),
-            voiceInput: VoiceInputRouter(),
-            voiceOutput: ElevenLabsVoiceOutput(),
-            permissions: permissions,
-            userName: userName
-        ))
+        _engine = StateObject(wrappedValue: NearMeSessionStore.shared.engine(userName: userName))
     }
 
     var body: some View {
@@ -69,6 +62,14 @@ struct SessionContainerView: View {
     }
 
     private func activateSession() {
+        let widget = AskNearMeRuntime.shared.session
+        if let id = widget.state.sessionID {
+            Task {
+                await widget.stop(id: id)
+                activateSession()
+            }
+            return
+        }
         engine.appBecameActive()
         if handlePendingCoachURL() { return }
         guard !didRestore else { return }

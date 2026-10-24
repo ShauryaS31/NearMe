@@ -46,7 +46,7 @@
         <string>youtube</string>
     </array>
     <key>NSMicrophoneUsageDescription</key>
-    <string>NearMe listens when you tap the mic to understand your request. While a guide and screen sharing are on, it also listens for short commands such as "what's next" and "stop", including in the other app.</string>
+    <string>NearMe listens when you tap the mic or Ask NearMe widget. The widget keeps a microphone session active for spoken follow-ups, including pauses; recognition pauses while NearMe speaks. Say Stop or choose Stop to finish. While a guide and screen sharing are on, it also listens for short commands such as "what's next" and "stop", including in the other app.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
     <string>NearMe converts your spoken request into text so it can help you find the right app.</string>
     <key>UIApplicationSupportsIndirectInputEvents</key>

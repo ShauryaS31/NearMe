@@ -228,11 +228,14 @@ final class CoachLiveActivityTests: XCTestCase {
     func testNormalColdLaunchUsesP07ResumePathOnlyWithValidSavedProgress() throws {
         let guide = try photoGuide()
         let store = FakeCoachProgressStore()
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .welcome)
+        let suite = "AskCoordinatorTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .welcome)
         store.progress = CoachProgress(guideID: guide.id, stepIndex: 2, sessionID: UUID(), revision: 2)
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .session)
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .session)
         store.progress?.stepIndex = 999
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .welcome)
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .welcome)
     }
 
     func testURLParserResumesOnlyTheSavedSession() throws {

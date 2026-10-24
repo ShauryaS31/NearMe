@@ -19,6 +19,7 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: coordinator.route)
+        .sheet(isPresented: $coordinator.showsWidgetSetup) { AskWidgetSetupView() }
         // The practice session follows system appearance. Preserve the
         // existing onboarding appearance until its palette is updated.
         .preferredColorScheme(coordinator.route == .session ? nil : .light)

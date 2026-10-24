@@ -21,8 +21,12 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var isTyping = false
     @Published private(set) var latestVoice: String?
     @Published private(set) var isVoiceOutputActive = false {
-        didSet { voiceCommands.setSpeaking(isVoiceOutputActive) }
+        didSet {
+            voiceCommands.setSpeaking(isVoiceOutputActive)
+            onWidgetSpeechChanged?(isVoiceOutputActive)
+        }
     }
+    var onWidgetSpeechChanged: ((Bool) -> Void)?
     @Published private(set) var isStartingListening = false
     @Published private(set) var coach: CoachSession?
     @Published private(set) var screenManualMode = true
@@ -61,6 +65,8 @@ final class TaskPlannerEngine: ObservableObject {
     private var preparedStep: (index: Int, task: Task<BrainAnswer<String>, Never>)?
     private var wasBackgrounded = false
     private var isSceneActive = false
+    private var widgetTurnID: UUID?
+    private var widgetTurnActive: Bool { widgetTurnID != nil }
     private var playbackGeneration = 0
     private var acknowledgement: Task<Void, Never>?
     private var acknowledgementGeneration: Int?
@@ -200,6 +206,40 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     // MARK: - Entry points
+
+    /// Explicit widget capture owns the audio turn while retaining guide/practice state.
+    func beginWidgetTurn() {
+        stopSessionSpeech()
+        if coach == nil, let saved = coachStore.restore(guides: guides) { coach = saved }
+        widgetTurnID = UUID()
+        isStartingListening = false
+        isHome = false
+        isTyping = false
+    }
+
+    func cancelWidgetTurn() {
+        guard widgetTurnActive else { return }
+        widgetTurnID = nil
+        stopSessionSpeech()
+    }
+
+    func receiveWidgetTranscript(_ transcript: String) async {
+        guard let turnID = widgetTurnID else { return }
+        // Invalidate any older guide speech/task before this conversational turn.
+        stopSessionSpeech()
+        let generation = sessionGeneration
+        spokenInput = true
+        plannerState = .thinking
+        await receive(transcript: transcript, generation: generation)
+        if widgetTurnID == turnID, offersScreenSharing, isCurrent(generation) {
+            await speak("Open NearMe to choose screen sharing, or say not now for manual help.", generation: generation)
+        }
+    }
+
+    func speakWidgetSessionLine(_ text: String) async {
+        guard widgetTurnActive else { return }
+        await speak(text, generation: sessionGeneration)
+    }
 
     func beginSession() {
         isHome = false
@@ -441,6 +481,9 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func listenAndHandle(generation: Int) async {
         guard isCurrent(generation) else { return }
+        // The widget conversation owns one persistent hardware capture and rearms
+        // recognition after replies. Never start the ordinary microphone alongside it.
+        guard !widgetTurnActive else { plannerState = .idle; return }
         if isTyping {
             plannerState = .idle
             return
@@ -1305,6 +1348,7 @@ final class TaskPlannerEngine: ObservableObject {
         isSceneActive = false
         screenObserver.sceneBecameInactive()
         wasBackgrounded = true
+        if widgetTurnActive { return }
         if coach?.guide?.id == "youtube_play_song", screenObserver.canSee {
             voiceInput.stopListening()
             if plannerState == .listening || plannerState == .finishing || isStartingListening {
@@ -1330,6 +1374,7 @@ final class TaskPlannerEngine: ObservableObject {
         isSceneActive = true
         screenObserver.sceneBecameActive()
         synchronizeSavedCoach()
+        if widgetTurnActive { return }
         guard wasBackgrounded else { return }
         wasBackgrounded = false
         if pendingAppOpen != nil {
