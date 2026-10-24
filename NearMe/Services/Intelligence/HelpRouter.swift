@@ -1,5 +1,6 @@
 import Foundation
 import NaturalLanguage
+import OSLog
 
 nonisolated enum HelpRoute: Equatable, Sendable {
     case practiceTripPlanner
@@ -118,13 +119,26 @@ final class HelpRouter: HelpRouting {
         let candidates = GuidePrefilter.rank(request: request, guides: guides,
                                             requestVector: embedding?.vector(for: request), guideVectors: vectors)
         let fallback = GuidePrefilter.fallback(request: request, candidates: candidates)
-        return await service.perform("router", fallback: fallback, candidates: candidates) { brain in
+        let strongMatch = candidates.first.flatMap { $0.score >= GuidePrefilter.fallbackThreshold ? $0 : nil }
+        let answer = await service.perform("router", fallback: fallback, candidates: candidates) { brain in
             let choice = try await brain.route(request: request, candidates: candidates)
-            if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }) {
+            if case .guide(let id) = choice.route, !candidates.contains(where: { $0.id == id }), strongMatch == nil {
                 throw CoachModelError.invalid
             }
-            return HelpChoice(route: choice.route, person: PersonNormalization.extractedPerson(choice.person)
-                              ?? PersonNormalization.extract(from: request))
+            // An explicit recipient in the request wins over a model placeholder or wrong person.
+            return HelpChoice(route: choice.route, person: PersonNormalization.extract(from: request)
+                              ?? PersonNormalization.extractedPerson(choice.person))
         }
+        guard answer.source == .onDeviceModel, let top = strongMatch else { return answer }
+        let needsOverride: Bool
+        switch answer.value.route {
+        case .general: needsOverride = true
+        case .guide(let id): needsOverride = !candidates.contains { $0.id == id }
+        case .practiceTripPlanner: needsOverride = false
+        }
+        guard needsOverride else { return answer }
+        PlannerDiagnostics.logger.notice("On-device model + keyword fill reason=general overridden by guide match topCandidate=\(top.id, privacy: .public) topScore=\(top.score, privacy: .public)")
+        return BrainAnswer(value: HelpChoice(route: .guide(top.id), person: answer.value.person),
+                           source: .onDeviceModelWithKeywordFill, latencyMilliseconds: answer.latencyMilliseconds)
     }
 }

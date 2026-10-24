@@ -15,25 +15,30 @@
   "steps": [
     {
       "instruction": "Open \"Settings\".",
-      "ui_label_hint": "Settings"
+      "ui_label_hint": "Settings",
+      "icon": "gearshape"
     },
     {
       "instruction": "Tap \"Wi-Fi\".",
-      "ui_label_hint": "Wi-Fi"
+      "ui_label_hint": "Wi-Fi",
+      "icon": "wifi"
     },
     {
       "instruction": "Turn on \"Wi-Fi\" if it is off.",
-      "ui_label_hint": "Wi-Fi"
+      "ui_label_hint": "Wi-Fi",
+      "icon": "wifi"
     },
     {
       "instruction": "Tap the name of the network you want to join.",
       "ui_label_hint": "Wi-Fi",
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "wifi"
     },
     {
       "instruction": "Type the Wi-Fi password, then tap \"Join\".",
       "ui_label_hint": "Join",
-      "verify": true
+      "verify": true,
+      "icon": "lock"
     }
   ],
   "source_note": "Settings on iOS 26/27, English, October 2026 documentation review. For a new password-protected home network; the password is entered in Settings. Known or open networks may connect without the password step; public networks may show a separate sign-in page. A tick next to the network indicates connection. Confirm the password screen and Join label. Not checked on a phone. Source: https://support.apple.com/en-ie/111107",

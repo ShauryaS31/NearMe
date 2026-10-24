@@ -15,17 +15,20 @@
   "steps": [
     {
       "instruction": "Give the side button and volume up button one quick press together, releasing straight away.",
-      "ui_label_hint": "side button and volume up button"
+      "ui_label_hint": "side button and volume up button",
+      "icon": "iphone"
     },
     {
       "instruction": "Tap the tick icon in the screen picture that appears.",
       "ui_label_hint": "tick icon",
-      "verify": true
+      "verify": true,
+      "icon": "checkmark"
     },
     {
       "instruction": "Tap \"Save to Photos\".",
       "ui_label_hint": "Save to Photos",
-      "verify": true
+      "verify": true,
+      "icon": "photo.on.rectangle"
     }
   ],
   "source_note": "iPhone screenshot controls on iOS 26/27, English, October 2026 documentation review. Start on the screen to capture. Main path: Face ID iPhone with full-screen previews enabled. Home button iPhones use side button + Home instead of side button + volume up. If thumbnail previews are enabled, the image saves automatically. Check the tick menu and Save to Photos wording. The first hint names physical buttons, not an on-screen label. Not checked on a phone. Source: https://support.apple.com/en-au/guide/iphone/iphc872c0115/26/ios/26",

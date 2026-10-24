@@ -56,8 +56,9 @@ Each file is a single JSON object, encoded as UTF-8 without a byte-order mark, w
 | `steps` | Required array of 3 to 8 step objects | Ordered actions. Do not join two independent taps to fit the limit. |
 | `steps[].instruction` | Required non-empty string | One action, at most two short sentences. Keep within 200 characters for P07's coach; each sentence is limited to 25 words by this validator. |
 | `steps[].ui_label_hint` | Required non-empty string | Exact English screen label, preserving case and punctuation, or a plain description of an icon/control such as `microphone icon`. Do not include surrounding quote marks in the value. |
+| `steps[].icon` | Optional non-empty string | SF Symbol name for the action or target. Omit when no clear symbol exists; never use `null`. Data only: coach card rendering is handled separately. |
 | `steps[].verify` | Optional JSON boolean | `true` means the wording, control, position or order needs a phone check. Omission and `false` do not certify device verification. |
-| `steps[].label_is_nearby` | Optional JSON boolean | `true` means the hint is a nearby heading or landmark, not the target to tap. The coach says `Look near "<label>"` and rejects rewrites that tell the user to tap that label. |
+| `steps[].label_is_nearby` | Optional JSON boolean | `true` means the hint is a nearby heading or landmark, not the target to tap. The coach describes the real target by the label, for example `In your "Chats" list, tap Mum's name.` It rejects `look near` wording and instructions to tap that label. |
 | `source_note` | Required non-empty string | App and version/layout, language, prerequisites, known variations, and provenance. Keep alternative paths here rather than mixing them into the main steps. |
 | `last_checked` | Required date string | Exactly `2026-10-24` for this task. |
 

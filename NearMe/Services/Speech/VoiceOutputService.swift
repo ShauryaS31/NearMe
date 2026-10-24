@@ -9,6 +9,7 @@ protocol VoiceOutputService: AnyObject {
     var onVoiceChanged: ((String) -> Void)? { get set }
     func speak(_ text: String) async
     func speakGreeting(_ text: String) async
+    func speakAcknowledgement(_ text: String) async
     func prefetch(_ text: String)
     func setSlower(_ slower: Bool)
     func stop()
@@ -16,6 +17,7 @@ protocol VoiceOutputService: AnyObject {
 
 extension VoiceOutputService {
     func speakGreeting(_ text: String) async { await speak(text) }
+    func speakAcknowledgement(_ text: String) async { await speak(text) }
     var onPlaybackStarted: (() -> Void)? {
         get { nil }
         set {}

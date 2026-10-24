@@ -15,17 +15,20 @@
   "steps": [
     {
       "instruction": "Open \"Phone\".",
-      "ui_label_hint": "Phone"
+      "ui_label_hint": "Phone",
+      "icon": "phone"
     },
     {
       "instruction": "Tap \"Calls\" to see your recent calls.",
       "ui_label_hint": "Calls",
-      "verify": true
+      "verify": true,
+      "icon": "clock"
     },
     {
       "instruction": "Tap the phone icon beside the person or number you want to call back.",
       "ui_label_hint": "phone icon",
-      "verify": true
+      "verify": true,
+      "icon": "phone"
     }
   ],
   "source_note": "Phone on iOS 26/27, English, October 2026 documentation review. Uses Unified layout, where Calls contains recent calls. Classic layout has Recents instead; tapping a row or a phone icon may behave differently with the tap-to-call setting. Assumes the wanted call is visible and is a phone call, not a FaceTime video call. Confirm the layout and call control. Not checked on a phone. Source: https://support.apple.com/en-tm/126076",

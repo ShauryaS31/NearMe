@@ -92,10 +92,13 @@ nonisolated enum GuideLibrary {
         guard let rawSteps = root["steps"] as? [[String: Any]] else { throw GuideLibraryError.invalid("Steps") }
         let capitalWords = Set("WhatsApp FaceTime Settings Display Brightness Text Size Wi Fi Join Save Photos Library Messages To New Call Contacts First Last Phone Do Not Disturb Focus General Software Update Clock Alarms AM PM Calls Chats".split(separator: " ").map(String.init))
         for (step, raw) in zip(guide.steps, rawSteps) {
-            try fields(raw, required: ["instruction", "ui_label_hint"], optional: ["verify", "label_is_nearby"])
+            try fields(raw, required: ["instruction", "ui_label_hint"], optional: ["verify", "label_is_nearby", "icon"])
             // JSONDecoder rejects non-boolean values, including numbers and null for present flags.
             for flag in ["verify", "label_is_nearby"] where raw.keys.contains(flag) {
                 try require((flag == "verify" ? step.verify : step.labelIsNearby) != nil, "Null boolean")
+            }
+            if raw.keys.contains("icon") {
+                try require(step.icon?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false, "Empty/null icon")
             }
             let instruction = step.instruction
             let parts = instruction.components(separatedBy: "\"")

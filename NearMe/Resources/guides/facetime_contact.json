@@ -15,26 +15,31 @@
   "steps": [
     {
       "instruction": "Open \"FaceTime\".",
-      "ui_label_hint": "FaceTime"
+      "ui_label_hint": "FaceTime",
+      "icon": "video"
     },
     {
       "instruction": "Tap \"New Call\".",
-      "ui_label_hint": "New Call"
+      "ui_label_hint": "New Call",
+      "icon": "video.badge.plus"
     },
     {
       "instruction": "Type the person's name in \"To:\".",
       "ui_label_hint": "To:",
-      "verify": true
+      "verify": true,
+      "icon": "person"
     },
     {
       "instruction": "Tap the matching person in the suggestions below \"To:\".",
       "ui_label_hint": "To:",
       "verify": true,
-      "label_is_nearby": true
+      "label_is_nearby": true,
+      "icon": "person"
     },
     {
       "instruction": "Tap \"FaceTime\" to start the video call.",
-      "ui_label_hint": "FaceTime"
+      "ui_label_hint": "FaceTime",
+      "icon": "video"
     }
   ],
   "source_note": "FaceTime on iOS 26/27, English, October 2026 documentation review. Assumes FaceTime is set up, internet is available and the saved contact can receive FaceTime calls. New Call replaces New FaceTime in older layouts. Confirm the recipient field and suggestion behaviour. Not checked on a phone. Source: https://support.apple.com/en-euro/guide/iphone/iph7801d5771/26/ios/26",

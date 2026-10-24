@@ -96,6 +96,17 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         await speakSystem(text, reason: settings.naturalVoiceEnabled ? "greeting before speech preparation" : "natural voice off", started: .now)
     }
 
+    func speakAcknowledgement(_ text: String) async {
+        // Never wait for a network request before acknowledging a new request.
+        if fallbackReason == nil, cache.audio(for: cacheKey(text)) != nil {
+            await speak(text)
+        } else {
+            stopPlayback()
+            prefetch(text)
+            await speakSystem(text, reason: "acknowledgement before cached audio", started: .now)
+        }
+    }
+
     func speak(_ text: String) async {
         stopPlayback()
         let token = generation
