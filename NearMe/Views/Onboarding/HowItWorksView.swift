@@ -25,7 +25,7 @@ struct HowItWorksView: View {
                         .foregroundStyle(TTColor.ink)
                         .multilineTextAlignment(.center)
 
-                    Text("NearMe shows you practice copies of everyday apps, so you can learn safely. It never looks at your other apps.")
+                    Text(ScreenSharingCopy.explanation)
                         .font(TTFont.body())
                         .foregroundStyle(TTColor.textSecondary)
                         .multilineTextAlignment(.center)

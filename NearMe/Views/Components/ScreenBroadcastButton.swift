@@ -22,17 +22,21 @@ struct ScreenBroadcastButton: View {
 
 private struct ScreenBroadcastPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("screenSharingExplanationSeen") private var explanationSeen = false
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
-                    Text("Try the screen connection").font(.title)
-                    Text("This test counts screen updates to check the connection. NearMe does not read the words, save pictures or sound, or send your screen anywhere.")
-                    Text("Tap the broadcast button below, then Start Broadcast. You can stop using the screen recording control on your iPhone.")
-                    SystemScreenBroadcastPicker()
-                        .frame(width: 60, height: 60)
-                        .frame(maxWidth: .infinity)
+                    Text("Let NearMe see my screen").font(.title)
+                    if explanationSeen {
+                        pickerContent
+                    } else {
+                        Text(ScreenSharingCopy.explanation)
+                        Button("Continue to screen sharing") { explanationSeen = true }
+                            .buttonStyle(.borderedProminent)
+                            .frame(minHeight: 44)
+                    }
                 }
                 .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
@@ -43,6 +47,15 @@ private struct ScreenBroadcastPickerSheet: View {
                     Button("Done", systemImage: "checkmark") { dismiss() }
                 }
             }
+        }
+    }
+
+    private var pickerContent: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text("Tap the broadcast button below, then Start Broadcast. You can stop using the screen recording control on your iPhone.")
+            SystemScreenBroadcastPicker()
+                .frame(width: 60, height: 60)
+                .frame(maxWidth: .infinity)
         }
     }
 }
@@ -60,6 +73,7 @@ private struct SystemScreenBroadcastPicker: UIViewRepresentable {
 
 #if DEBUG
 struct ScreenBroadcastDebugLine: View {
+    var song: String? = nil
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             Text(status(at: context.date))
@@ -68,8 +82,8 @@ struct ScreenBroadcastDebugLine: View {
     }
 
     private func status(at date: Date) -> String {
-        let heartbeat = SharedScreenBridge.heartbeatURL.flatMap { SharedScreenBridge.read(from: $0) }
-        return SharedScreenBridge.debugLine(heartbeat: heartbeat, now: date)
+        let snapshot = AppGroupScreenSnapshotSource().latest()
+        return ScreenDebugLine.make(snapshot: snapshot, song: song, now: date.timeIntervalSince1970)
     }
 }
 #endif

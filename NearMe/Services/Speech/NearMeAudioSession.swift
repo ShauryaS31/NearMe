@@ -6,6 +6,22 @@ nonisolated enum NearMeAudioSession {
     private static let lock = NSLock()
     private static var isConfigured = false
 
+    /// Mix while coaching across apps so the song is not held ducked during waits.
+    static func setScreenGuidanceActive(_ active: Bool) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        let session = AVAudioSession.sharedInstance()
+        if active {
+            try session.setCategory(.playAndRecord, mode: .default,
+                                    options: [.mixWithOthers, .defaultToSpeaker, .allowBluetooth])
+            try session.setActive(true)
+            isConfigured = true
+        } else {
+            try session.setActive(false, options: .notifyOthersOnDeactivation)
+            isConfigured = false
+        }
+    }
+
     /// Configures the app's one persistent audio session for the whole
     /// voice conversation. Safe to call repeatedly, and safe to call from
     /// any thread — only does real work once per app launch (and will

@@ -607,7 +607,8 @@ final class GuidedCoachTests: XCTestCase {
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
             coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
-            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater())
+            appOpener: UnavailableCoachAppOpener(), activityUpdater: FakeCoachActivityUpdater(),
+            screenSource: FakeScreenSnapshotSource())
     }
 
     private func eventually(_ condition: () -> Bool) async {
