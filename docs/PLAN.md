@@ -23,8 +23,11 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | done (Mac compile pending) |
 | [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
+| [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | todo (after owner's Mac check of P02c, P02b, P03) |
+| [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
+| [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05 | codex | todo |
 
-Now: owner compiles and retests P02c, P02b and P03 on the Mac. Nothing else is planned until then.
+Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when that passes; then P05, P06, stopping after each for the owner's Mac check.
 
 ## Decisions
 - 2026-10-24 (owner): PIVOT to the iPhone. Start from the prior prototype app and improve it. macOS NearMe parked on `archive/mac-nearme`. macOS code (NearMe/, NearMeCore/) and tasks N00 to N11 removed from main.
@@ -39,7 +42,12 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. Nothing else is p
 
 - 2026-10-24 (owner): Mac compile of P02a OK; Foundation Models is available in the simulator. The real-model test ran over 9 minutes and hit "transcript exceeded the model's context size" at about 7 minutes. P02c fixes this before P02b: fresh bounded session per call, latency logging and badge, model eval behind NEARME_MODEL_EVAL=1 with an `eval` mode. Then P02b (with `quick` mode), then P03.
 
+- 2026-10-24 (owner): new tasks P04 (ElevenLabs voice and rough edges), P05 (consented family voice), P06 (Core AI: router, grounded help, wrong-tap help, tap and hold, privacy). Start P04 once the current Mac check passes; stop after each task for the owner's Mac check. Gate for each: `bash scripts/mac-run.sh quick` builds and launches and default tests pass.
+
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).
 - [x] P02: full flow works on the simulator (iOS 27); mic needs macOS mic permission for DeviceHub. Findings in tasks/P02-baseline.md.
 - [ ] P02c/P02b/P03 retest: steps in the manager's handoff message and each task's Verify section.
+- [ ] P04: ElevenLabs voice speaks steps; second run faster (cache); Wi-Fi off gives system voice, no hang; largest text usable on practice screens.
+- [ ] P05: switch voices; "AI voice of <name>" label only for the family voice; consent shown once; switching back works.
+- [ ] P06: "help me order groceries" gives not-available-yet; "what do I do now" grounded answer; 3 wrong taps give simpler help and pulse; long-press explains; Debug badge shows On-device model and ms.

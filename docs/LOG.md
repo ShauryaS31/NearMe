@@ -41,3 +41,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 15:23 AEDT | P03 | claude | dispatch r1 | generic Trip planner practice, Sydney places, system colours, delete launcher; branch task/P03-generic-trip-planner
 - 2026-10-24 15:26 AEDT | P03 | codex | dev-report r1 | Rebranded generic Trip planner practice with Sydney examples and adaptive system colours; removed brand palette and launcher; committed b9b504d. Static checks passed; Swift/Xcode unavailable, owner Mac tests and visual gate pending.
 - 2026-10-24 15:27 AEDT | P03 | claude | review r1 PASS | static; merged to main; stopping for owner Mac compile and retest of P02c, P02b, P03
+- 2026-10-24 15:57 AEDT | P04-P06 | claude | queued | owner decision: P04 ElevenLabs voice + rough edges, P05 consented family voice, P06 Core AI (router, grounded help, wrong-tap, tap and hold, privacy); P04 waits for owner Mac check of P02c/P02b/P03; stop after each task
