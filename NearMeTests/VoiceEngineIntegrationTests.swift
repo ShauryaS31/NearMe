@@ -11,15 +11,19 @@ final class VoiceEngineIntegrationTests: XCTestCase {
         engine.submitTypedInput("travel from Central to Town Hall")
         await eventually { engine.tripPlannerPracticeViewModel != nil && output.lines.count >= 2 }
         guard let practice = engine.tripPlannerPracticeViewModel else { XCTFail("Practice did not open"); return }
+        practice.fromFieldText = "Redfern"
+        practice.destinationSearchQuery = "Parramatta"
         for step in PracticeStep.allCases {
-            let caption = step.caption(origin: "Central", destination: "Town Hall")
+            let caption = step.caption(origin: "Redfern", destination: "Parramatta")
             await eventually { output.lines.last == caption }
             XCTAssertEqual(practice.currentCaption, caption)
             if let next = step.next {
-                await eventually { output.prefetched.last == next.caption(origin: "Central", destination: "Town Hall") }
+                await eventually { output.prefetched.last == next.caption(origin: "Redfern", destination: "Parramatta") }
                 practice.completeCurrentStep()
             }
         }
+        try? await Task.sleep(for: .milliseconds(500))
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice, "Keep review available for opening Maps and editing")
         XCTAssertEqual(input.starts, 0)
         engine.endSession()
     }

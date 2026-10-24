@@ -756,21 +756,14 @@ final class TaskPlannerEngine: ObservableObject {
         guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step,
               speechGeneration == guidanceSpeechGeneration else { return }
         plannerState = .guiding(step)
-        let caption = step.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? "")
+        let caption = tripPlannerPracticeViewModel?.currentCaption
+            ?? step.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? "")
         await speak(caption, generation: generation, updatesPlannerState: false)
         guard isCurrent(generation), tripPlannerPracticeViewModel?.step == step,
               speechGeneration == guidanceSpeechGeneration else { return }
 
-        if step == .showingResults {
-            try? await Task.sleep(nanoseconds: 400_000_000)
-            guard isCurrent(generation), speechGeneration == guidanceSpeechGeneration else { return }
-            tripPlannerPracticeViewModel = nil
-            currentIntent = .empty
-            hasCompletedAtLeastOneJourney = true
-            tripRouteActive = false
-            isHome = true
-            plannerState = .idle
-        }
+        // Keep the editable journey review visible. It contains the user's
+        // departure time and the explicit action that opens real transit options.
     }
 
     func stopPracticeSpeech() {
@@ -895,7 +888,9 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func prefetchCaption(after step: PracticeStep) {
         guard let next = step.next else { return }
-        voiceOutput.prefetch(next.caption(origin: currentIntent.origin ?? "", destination: currentIntent.destination ?? ""))
+        voiceOutput.prefetch(next.caption(
+            origin: tripPlannerPracticeViewModel?.originDisplayName ?? currentIntent.origin ?? "",
+            destination: tripPlannerPracticeViewModel?.destinationDisplayName ?? currentIntent.destination ?? ""))
     }
 
     func repeatPracticeCaption(slower: Bool = false) {

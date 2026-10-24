@@ -54,6 +54,8 @@ final class SessionLayoutTests: XCTestCase {
     func testChangingPracticeStepResetsPulsesForItsNewTarget() {
         let intent = JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: "Central", mode: nil)
         let practice = TripPlannerPracticeViewModel(intent: intent)
+        practice.fromFieldText = "Central"
+        practice.destinationSearchQuery = "Town Hall"
         var state = PracticeHighlightState()
         for step in PracticeStep.allCases {
             XCTAssertEqual(practice.step, step)
@@ -262,12 +264,12 @@ final class SessionLayoutTests: XCTestCase {
                               "\(step): the instruction must name its target")
             }
         }
-        XCTAssertEqual(PracticeStep.selectingDestination.targetLabel(destination: "Holsworthy"), "Holsworthy Station")
+        XCTAssertEqual(PracticeStep.selectingDestination.targetLabel(destination: "Holsworthy"), "Use Holsworthy")
     }
 
-    func testResultsTargetNamesTheFirstTripRow() {
-        let label = PracticeScreen.ResultsLabels.tripOption(1)
-        XCTAssertEqual(label, "Trip option 1 (example)")
+    func testResultsTargetNamesTheActualMapsHandoff() {
+        let label = PracticeScreen.ResultsLabels.openMaps
+        XCTAssertEqual(label, "Find transit in Google Maps")
         XCTAssertEqual(PracticeScreen.results.targetLabels(destination: "Town Hall"), [label])
         XCTAssertEqual(PracticeStep.showingResults.targetLabel(destination: "Town Hall"), label)
         XCTAssertTrue(PracticeStep.showingResults.caption(origin: "Central", destination: "Town Hall").contains(label))
@@ -329,6 +331,7 @@ final class SessionLayoutTests: XCTestCase {
         await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
         let practice = try XCTUnwrap(engine.tripPlannerPracticeViewModel)
         practice.completeCurrentStep()
+        practice.fromFieldText = "Central"
         practice.completeCurrentStep()
         engine.appEnteredBackground()
         engine.appBecameActive()
@@ -348,6 +351,7 @@ final class SessionLayoutTests: XCTestCase {
         await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
         let practice = try XCTUnwrap(engine.tripPlannerPracticeViewModel)
         practice.completeCurrentStep()
+        practice.fromFieldText = "Central"
         practice.completeCurrentStep()
         await eventually { engine.plannerState == .guiding(.typeOrigin) && !engine.isVoiceOutputActive }
 

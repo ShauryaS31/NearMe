@@ -16,16 +16,16 @@ enum PracticeScreen: Equatable {
     enum JourneyPlannerLabels {
         static let chooseOrigin = "Choose origin"
         static let chooseDestination = "Choose destination"
-        static let search = "Search"
+        static let search = "Review journey"
     }
 
     enum DestinationSearchLabels {
         static let searchDestination = "Search for a destination"
-        static func station(_ destination: String) -> String { "\(destination) Station" }
+        static func station(_ destination: String) -> String { "Use \(destination)" }
     }
 
     enum ResultsLabels {
-        static func tripOption(_ number: Int) -> String { "Trip option \(number) (example)" }
+        static let openMaps = "Find transit in Google Maps"
     }
 
     func targetLabels(destination: String) -> [String] {
@@ -38,7 +38,7 @@ enum PracticeScreen: Equatable {
         case .destinationSearch:
             return [DestinationSearchLabels.searchDestination, DestinationSearchLabels.station(destination)]
         case .results:
-            return [ResultsLabels.tripOption(1)]
+            return [ResultsLabels.openMaps]
         }
     }
 }
@@ -69,7 +69,7 @@ enum PracticeStep: Equatable, CaseIterable {
         case .tapToAndTypeDestination: return PracticeScreen.DestinationSearchLabels.searchDestination
         case .selectingDestination: return PracticeScreen.DestinationSearchLabels.station(destination)
         case .readyToSearch: return PracticeScreen.JourneyPlannerLabels.search
-        case .showingResults: return PracticeScreen.ResultsLabels.tripOption(1)
+        case .showingResults: return PracticeScreen.ResultsLabels.openMaps
         }
     }
 
@@ -81,17 +81,17 @@ enum PracticeStep: Equatable, CaseIterable {
         case .forYouOpened:
             return "You're in Trip planner practice. Tap \(PracticeScreen.ForYouLabels.journeyPlanner)."
         case .tapFrom:
-            return "Now tap \(PracticeScreen.JourneyPlannerLabels.chooseOrigin)."
+            return "Tap \(PracticeScreen.JourneyPlannerLabels.chooseOrigin), type your starting place, then tap Continue."
         case .typeOrigin:
-            return "\(origin) is filled in. Tap \(PracticeScreen.JourneyPlannerLabels.chooseDestination)."
+            return "Starting from \(origin). Tap \(PracticeScreen.JourneyPlannerLabels.chooseDestination)."
         case .tapToAndTypeDestination:
-            return "Tap \(PracticeScreen.DestinationSearchLabels.searchDestination) to fill in \(destination)."
+            return "Tap \(PracticeScreen.DestinationSearchLabels.searchDestination), type where you want to go, then tap Continue."
         case .selectingDestination:
             return "Tap \(PracticeScreen.DestinationSearchLabels.station(destination)) to add it as your destination."
         case .readyToSearch:
-            return "Both fields are filled. Tap \(PracticeScreen.JourneyPlannerLabels.search) to see your options."
+            return "From \(origin) to \(destination). Choose your departure date and time, then tap \(PracticeScreen.JourneyPlannerLabels.search)."
         case .showingResults:
-            return "That's the practice done. In the real app, tap \(PracticeScreen.ResultsLabels.tripOption(1)) to see its steps. Anything else you need help with?"
+            return "Tap \(PracticeScreen.ResultsLabels.openMaps) for routes from \(origin) to \(destination). Set your chosen departure time there too. NearMe has not checked timetables."
         }
     }
 

@@ -142,3 +142,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 22:41 AEDT | N14 | codex | dev-report r1 | Verified delivered demo paths with available checks; corrected supported-app explanation. Native build/device gates remain.
 - 2026-10-24 22:46 AEDT | N15 | codex | dev-report r1 | Preserved old main c158d00 on verified backup; reviewed merge df11cd0 pushed and verified on main after direct user confirmation; P09 UI and completed demo features retained; native gate pending.
 - 2026-10-24 22:57 AEDT | N16 | codex | dev-report r2 | Manual hosted Mac run 40091481419 passed native simulator build and XCTest on 3ea0e9f: 323 passed, 3 opt-in model evaluations skipped, 0 failures; Xcode 26.5; physical-device gates remain.
+- 2026-10-25 10:22 AEDT | N18 | codex | dev-report r1 | Editable trip fields and departure review; honest Google Maps transit handoff, native validation pending.

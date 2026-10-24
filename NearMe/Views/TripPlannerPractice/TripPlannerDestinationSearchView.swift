@@ -5,82 +5,58 @@ import SwiftUI
 struct TripPlannerDestinationSearchView: View {
     @ObservedObject var viewModel: TripPlannerPracticeViewModel
     let onBack: () -> Void
+    @FocusState private var destinationFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             TripPlannerTopBar(title: PracticeScreen.ForYouLabels.journeyPlanner, onBack: onBack)
-
             VStack(alignment: .leading, spacing: TTSpacing.md) {
-                Button {
-                    if viewModel.step == .tapToAndTypeDestination {
-                        viewModel.completeCurrentStep()
+                Label(PracticeScreen.DestinationSearchLabels.searchDestination, systemImage: "magnifyingglass")
+                    .font(TTFont.headline())
+                TextField("Type a place or station", text: $viewModel.destinationSearchQuery)
+                    .font(TTFont.body())
+                    .textFieldStyle(.roundedBorder)
+                    .autocorrectionDisabled()
+                    .focused($destinationFocused)
+                    .submitLabel(.done)
+                    .onSubmit { submitDestination() }
+                    .accessibilityLabel(PracticeScreen.DestinationSearchLabels.searchDestination)
+                    .practiceTarget(PracticeScreen.DestinationSearchLabels.searchDestination,
+                                    active: viewModel.step == .tapToAndTypeDestination)
+                    .frame(minHeight: 44)
+                Text("Include the city if the place name could mean more than one location.")
+                    .font(.body).foregroundStyle(.secondary)
+                if viewModel.step == .tapToAndTypeDestination {
+                    Button(action: submitDestination) {
+                        Label("Continue", systemImage: "arrow.right")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                } label: {
-                    HStack(spacing: TTSpacing.sm) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundStyle(Color.secondary)
-                        Text(viewModel.destinationSearchQuery.isEmpty ? PracticeScreen.DestinationSearchLabels.searchDestination : viewModel.destinationSearchQuery)
-                            .font(TTFont.body())
-                            .foregroundStyle(viewModel.destinationSearchQuery.isEmpty ? Color.secondary : Color.primary)
-                        Spacer()
-                        if !viewModel.destinationSearchQuery.isEmpty {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(Color.secondary)
-                        }
-                    }
-                    .padding(TTSpacing.md)
-                    .background(Color(.secondarySystemBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(viewModel.step == .tapToAndTypeDestination ? Color.accentColor : Color(.separator), lineWidth: viewModel.step == .tapToAndTypeDestination ? 2 : 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(viewModel.step != .tapToAndTypeDestination)
-                .practiceTarget(PracticeScreen.DestinationSearchLabels.searchDestination, active: viewModel.step == .tapToAndTypeDestination)
-
-                if viewModel.step == .selectingDestination {
-                    Text("Train")
-                        .font(TTFont.caption())
-                        .foregroundStyle(Color.secondary)
-                        .padding(.top, TTSpacing.sm)
-
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!viewModel.canContinueDestination)
+                } else {
                     Button {
+                        destinationFocused = false
                         viewModel.completeCurrentStep()
                     } label: {
-                        HStack(spacing: TTSpacing.md) {
-                            Image(systemName: "tram.fill")
-                                .foregroundStyle(Color.accentColor)
-                                .frame(width: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(PracticeScreen.DestinationSearchLabels.station(viewModel.destinationDisplayName))
-                                    .font(TTFont.headline())
-                                    .foregroundStyle(Color.primary)
-                                Text("Practice destination")
-                                    .font(TTFont.caption())
-                                    .foregroundStyle(Color.secondary)
-                            }
-                            Spacer()
-                        }
-                        .padding(TTSpacing.md)
-                        .background(Color.accentColor.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(Color.accentColor, lineWidth: 2)
-                        )
+                        Label(PracticeScreen.DestinationSearchLabels.station(viewModel.destinationDisplayName),
+                              systemImage: "checkmark")
+                            .frame(maxWidth: .infinity, minHeight: 44)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!viewModel.canContinueDestination)
                     .practiceTarget(PracticeScreen.DestinationSearchLabels.station(viewModel.destinationDisplayName), active: true)
+                    Text("Google Maps will find this place. Check that it selects the right location.")
+                        .font(.body).foregroundStyle(.secondary)
                 }
-
-                Spacer()
             }
             .padding(TTSpacing.lg)
-
-            Spacer()
         }
-        .background(Color(.systemBackground).ignoresSafeArea())
+        .background(Color(.systemBackground))
+    }
+
+    private func submitDestination() {
+        guard viewModel.canContinueDestination else { return }
+        destinationFocused = false
+        if viewModel.step == .tapToAndTypeDestination { viewModel.completeCurrentStep() }
     }
 }

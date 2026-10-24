@@ -144,7 +144,10 @@ final class VoiceReviewTests: XCTestCase {
         guard let practice = engine.tripPlannerPracticeViewModel else { return XCTFail("No practice") }
         let slowerValuesAtPracticeStart = output.slowerValues.count
         output.suspend = true
-        while practice.step != .showingResults { practice.completeCurrentStep() }
+        practice.fromFieldText = "Central"
+        practice.destinationSearchQuery = "Town Hall"
+        for _ in PracticeStep.allCases { practice.completeCurrentStep() }
+        XCTAssertEqual(practice.step, .showingResults)
         await eventually { output.pending != nil }
         for command in [" Slower! ", "Repeat.", "Where should I tap?"] {
             engine.userTappedToTalk()
@@ -767,7 +770,10 @@ final class VoiceReviewTests: XCTestCase {
         engine.repeatPracticeCaption()
         await eventually { output.pending != nil }
         engine.stopPracticeSpeech()
-        while practice.step != .showingResults { practice.completeCurrentStep() }
+        practice.fromFieldText = "Central"
+        practice.destinationSearchQuery = "Town Hall"
+        for _ in PracticeStep.allCases { practice.completeCurrentStep() }
+        XCTAssertEqual(practice.step, .showingResults)
         await eventually { output.pending != nil }
         engine.stopPracticeSpeech()
         try? await Task.sleep(for: .milliseconds(450))

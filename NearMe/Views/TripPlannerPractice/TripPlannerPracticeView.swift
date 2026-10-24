@@ -45,11 +45,11 @@ struct TripPlannerPracticeView: View {
         case .forYou:
             TripPlannerForYouView(onTapJourneyPlanner: { viewModel.completeCurrentStep() })
         case .journeyPlanner:
-            TripPlannerJourneyPlannerView(viewModel: viewModel, onTapDestinationField: { viewModel.completeCurrentStep() })
+            TripPlannerJourneyPlannerView(viewModel: viewModel, onTapDestinationField: viewModel.editDestination)
         case .destinationSearch:
-            TripPlannerDestinationSearchView(viewModel: viewModel, onBack: { })
+            TripPlannerDestinationSearchView(viewModel: viewModel, onBack: viewModel.backToPlanner)
         case .results:
-            TripPlannerResultsView(origin: viewModel.originDisplayName, destination: viewModel.destinationDisplayName)
+            TripPlannerResultsView(viewModel: viewModel, onOpenMaps: engine.stopPracticeSpeech, onDone: engine.endSession)
         }
     }
 }
