@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (Mac check pending) |
 | Window | Sat 24 Oct |
 | Depends on | P07b |
 | Assignee | codex |
@@ -53,3 +53,8 @@ Mac check: each practice step's ring pulses 3 times then holds still; Repeat pul
   5. In Settings > Accessibility > Display & Text Size, turn Increase Contrast on. Check the ring remains 8 pt with Reduce Motion both on and off; pulsing changes opacity only. Restore the preferred accessibility settings afterward.
   6. Relaunch the app and reveal Debug info before submitting a request: understanding must show Pending. Submit a request and confirm the badge changes to the actual understanding source. The unit tests cover unavailable-assets and cancellation mapping without downloading model assets.
 - Not done / risks / questions: Mac compilation, default test execution, visual pulse timing, accessibility rendering and real voice checks remain the owner's gate. No unrelated work or changes to the specification, plan, build settings, secrets, or generated Xcode project. Commit attempt follows this report; if the sandbox denies `.git` writes, the manager must commit the handoff.
+
+## Review (round 1)
+- Date: 2026-10-24 18:14 AEDT
+- Verdict: PASS (static). Merged to main; owner Mac check folded into the P07b/P07c phone check.
+- Pure PracticeHighlightState: 3 pulses per new target id or Repeat revision, 0 with Reduce Motion, layout updates do not restart; pulse task cancels on change (no repeatForever); Repeat restarts from an opaque ring. Nits done (Pending start source, unused case removed, comments, generalStuck, assetsUnavailable as model not ready, cancelled outcome). Default-argument scan clean.
