@@ -23,7 +23,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P02c](../tasks/P02c-model-calls-eval.md) | Bounded model calls (fresh session, token cap, 10 s timeout), latency in badge, model eval behind NEARME_MODEL_EVAL, `eval` mode | P02a | codex | done (Mac compile pending) |
 | [P02b](../tasks/P02b-onboarding-text-copy.md) | Onboarding at largest text sizes; honest explainer copy; `quick` mode in mac-run.sh | P02c | codex | done (Mac compile pending) |
 | [P03](../tasks/P03-generic-trip-planner.md) | Rebrand practice screens to a generic Trip planner with Sydney places | P02b | codex | done (Mac compile pending) |
-| [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | todo (after owner's Mac check of P02c, P02b, P03) |
+| [P04](../tasks/P04-elevenlabs-voice.md) | ElevenLabs voice (cache, prefetch, 2.5 s fallback) and rough edges | P03 | codex | in_progress |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo |
 | [P06](../tasks/P06-core-ai.md) | Core AI: task router, grounded help, wrong-tap help, tap and hold, privacy screen | P05 | codex | todo |
 
@@ -45,6 +45,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): new tasks P04 (ElevenLabs voice and rough edges), P05 (consented family voice), P06 (Core AI: router, grounded help, wrong-tap help, tap and hold, privacy). Start P04 once the current Mac check passes; stop after each task for the owner's Mac check. Gate for each: `bash scripts/mac-run.sh quick` builds and launches and default tests pass.
 - 2026-10-24 (owner): all P04 to P06 brief choices approved. Voice input is always on-device (ElevenLabs speech-to-text removed, in P04), because recorded speech must not leave the phone. Settings toggle "Natural voice (online)": off means only the system voice and nothing leaves the phone (logic in P04, toggle in P05). P06 privacy copy is the owner's exact wording, naming place names sent to ElevenLabs.
 - 2026-10-24 (owner): Apple speech must run strictly on-device (requiresOnDeviceRecognition = true or SpeechAnalyzer); if on-device recognition is unavailable for the locale, show Type instead, never a server. Added to P04.
+- 2026-10-24 (owner): start P04 now without waiting for the P02c/P02b/P03 retest (running in parallel). Retest issues become P03a, done right after P04. Stop after P04 for the owner's Mac check.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).

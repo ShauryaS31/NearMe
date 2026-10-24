@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | todo (starts after the owner's Mac check of P02c, P02b and P03 passes) |
+| Status | in_progress |
 | Window | Sat 24 Oct |
 | Depends on | P03 |
 | Assignee | codex |
