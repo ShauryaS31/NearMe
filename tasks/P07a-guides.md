@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (owner verify-step check pending) |
 | Window | Sat 24 Oct, in parallel with P03a |
 | Depends on | - |
 | Assignee | codex (git worktree, parallel to P03a) |
@@ -137,3 +137,11 @@ python scripts/validate-guides.py
 | `whatsapp_voice_message` | 4 | Upward gesture from microphone to padlock starts locked recording. |
 | `whatsapp_voice_message` | 5 | Timer advances while the message is spoken with hands free. |
 | `whatsapp_voice_message` | 6 | Paper plane icon sends the recording; no missing stop/preview action. |
+
+## Review (round 1)
+- Date: 2026-10-24 17:06 AEDT
+- Verdict: PASS. Content only; merged to main. Owner checks the 36 `verify: true` steps on the iPhone (list in the Dev Report above).
+- Manager read all 15 guides: one action per step, plain words, exact quoted labels, honest verify flags, Hinglish aliases on every guide, public URL schemes only (whatsapp://, sms:), no private Settings links, Wi-Fi password step as specified.
+- Sources checked live: all 16 cited Apple and WhatsApp support URLs return 200 and resolve to the matching article (for example "Set an alarm in Clock on iPhone", "Use Unified layout in the Phone app on iPhone", "How to send voice messages | WhatsApp Help Center").
+- `python scripts/validate-guides.py`: 15 guides, 0 problems.
+- Nit for P07: a few "tap the name or chat" steps reuse a nearby label as `ui_label_hint` (connect_wifi step 4 "Wi-Fi", WhatsApp step 3 "Chats"); the coach must not tell the user to tap that label in those steps.
