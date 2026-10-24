@@ -135,3 +135,16 @@ Fixes (address every one):
   6. Click Next step then immediately Clear ring, and separately switch target apps during a pending request. Verify no late ring appears. Click a highlighted control yourself and confirm click-through and that the overlay does not take focus. Confirm blank fields/timings use "-" and no em dash appears in authored UI strings.
   7. Check an unavailable Foundation Models configuration or a failed model call leaves a visible error without crashing. Record the real System Settings kill-rule result and latency in docs/LOG.md within the original 60-minute Mac gate.
 - Not done / risks / questions: This machine has no Swift or Xcode; GitHub CI is the compile gate. No Swift tests, app build, real AX fixture, watchdog runtime, model inference or ring placement/focus test passed here. Descendant label probes count toward the same 400-visit budget as traversal, so a node can consume another visit when walked later; this is conservative but can shorten a partial snapshot. Synchronous AX calls remain subject to OS scheduling and cannot be forcibly interrupted; the 50 ms headroom avoids the normal equal-deadline race, not every possible stalled IPC. Same-app window changes during inference remain outside N01. Commit is attempted after this report; if .git is read-only, the manager must commit the uncommitted changes.
+
+## Review (round 2)
+- Date: 2026-10-24 12:44 AEDT
+- Verdict: CHANGES (one owner request; round 1 fixes 1 to 7 all verified in the diff)
+- CI run 40051038146 green: 8 tests passed, BUILD SUCCEEDED.
+
+Fixes:
+1. Owner decision (PLAN.md Decisions): the AX to AppKit flip stays ONE public function, `ScreenCoordinates.appKitRect(fromAX:mainScreenHeight:)` in NearMeCore, where mainScreenHeight is the primary display height. Do not change its signature or formula. Move it into its own file `NearMeCore/Sources/NearMeCore/ScreenCoordinates.swift` (out of StepValidator.swift). Add a separate test file `NearMeCore/Tests/NearMeCoreTests/ScreenCoordinatesTests.swift` with three named @Test functions. Each test states the display layout in a comment and checks the exact converted rect AND that it lies inside the expected display's AppKit frame (`appKitDisplayFrame.contains(result)`). Primary display is 1440 x 900, AppKit frame (0, 0, 1440, 900), AX frame (0, 0, 1440, 900):
+   a. `mainDisplay`: AX (100, 50, 200, 40) gives AppKit (100, 810, 200, 40), inside (0, 0, 1440, 900).
+   b. `secondDisplayAbove`: 1920 x 1080 display above the primary, AX frame (0, -1080, 1920, 1080), AppKit frame (0, 900, 1920, 1080). AX (300, -1000, 200, 50) gives AppKit (300, 1850, 200, 50), inside the second display and not inside the primary.
+   c. `secondDisplayLeft`: 1920 x 1080 display left of the primary with bottoms aligned, AX frame (-1920, -180, 1920, 1080), AppKit frame (-1920, 0, 1920, 1080). AX (-1800, 100, 200, 50) gives AppKit (-1800, 750, 200, 50), inside the second display and not inside the primary.
+   Keep or fold in the existing coordinate test; no duplicate assertions needed.
+2. Optional: replace the three `unsafeBitCast` uses CI warns about (AXReader.swift:85, :126, :127) with `unsafeDowncast(_:to:)` only if it compiles cleanly for CF types; otherwise leave them.
