@@ -122,3 +122,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:27 AEDT | P13 | owner | decision | explainer copy approved with tweak; loopback fallback approved; signed spike build tonight or Sun 10:00
 - 2026-10-24 19:29 AEDT | P13 | codex | dev-report r1 | Spike only: broadcast target, signed App Group configuration, native picker and JSON heartbeat; static checks passed, Mac/device gate pending; commit 17440c1.
 - 2026-10-24 19:30 AEDT | P13 | claude | review r1 spike PASS | merged to main for the owner's signed device build; round 2 after App Group result
+- 2026-10-24 19:32 AEDT | P13b | owner | decision | P13 round 2 replaced by P13b observe-recheck loop (YouTube only), overnight, ScreenSnapshotSource protocol; honest copy per handoff (no unverified claims)

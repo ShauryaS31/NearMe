@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress (round 1 = spike) |
+| Status | done (spike); round 2 replaced by P13b |
 | Window | Sat 24 Oct tonight; owner tests Sun 25 Oct 10:00; kill decision 11:00 |
 | Depends on | P07e, P11 |
 | Assignee | codex (main folder), then owner on a real iPhone |
@@ -23,7 +23,7 @@ Swift 6.4 rules: default arguments must not construct NearMe or test types or re
 - [ ] S4. Minimal hand-off: the extension writes one small JSON heartbeat `{timestamp, frameCount}` to the App Group container every second (NO frames or images, delete the prototype's frame saving); the app reads it and the Debug badge shows "Screen: broadcast on, last update N s ago" or "Screen: off"
 - [ ] S5. Dev Report: the exact owner Mac steps to confirm App Group signing with the Personal Team (device build), what to look for, and the fallback if App Groups cannot be signed: the extension sends the same JSON to the app over a loopback TCP connection (127.0.0.1, app listening while guiding and alive in the background), no entitlement needed. Do not implement the fallback in the spike
 
-## Round 2: feature (after the owner confirms the spike; brief kept here so the plan is visible)
+## Round 2: SUPERSEDED by tasks/P13b-observe-recheck.md (owner, 24 Oct)
 1. Extension: about once per second, downscale the latest frame (long side about 1000 px), run Vision `VNRecognizeTextRequest` (recognitionLevel .fast, languages en), drop secrets (password, code of 4 to 8 digits, card numbers, email addresses, phone numbers, anything in or next to a field labelled password or passcode), write `{timestamp, lines: [{text, box}]}` (normalised boxes, at most 60 lines) to the App Group. Keep peak memory well under the broadcast extension limit (about 50 MB): reuse one request, release buffers, autoreleasepool, skip frames while busy. Never save frames or images
 2. App: while a guide runs and the broadcast is on, keep the app alive with the existing audio session (UIBackgroundModes audio; keep the session active, silent when not speaking), read the latest screen text every second, and determine the screen state with the on-device model (P02c rules: new session, token cap, 10 s deadline, fallback to rules) plus guide hints: which app (from `app_signature` words) and whether the current step's `expect_text` is visible
 3. Guide schema: per step optional `expect_text` (text that appears when the step is done, for example "Search YouTube" after tapping the search icon) and per guide `app_signature` (words that show the app is open, for example YouTube: "Home", "Shorts", "Subscriptions", "You"). Validator and GUIDES.md updated; filled for `youtube_play_song` and `whatsapp_send_photo`
