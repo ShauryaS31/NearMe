@@ -64,3 +64,6 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 17:01 AEDT | P04a | claude | macfix review | 5cd50e5 compile-only, OK
 - 2026-10-24 17:01 AEDT | P03a | claude | review r1 PASS | static; merged to main; Mac check pending
 - 2026-10-24 17:02 AEDT | P04b | claude | dispatch r1 | tap to finish, word-based backup stop 1.5 s, 12 s cap, voice processing, barge-in, no-words message; branch task/P04b-tap-to-finish
+- 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema and validator; 0 problems, 56 regression checks passed; 36 phone checks listed; uncommitted because sandbox blocked git index.lock, manager commits
+- 2026-10-24 17:05 AEDT | P07a | codex | dev-report r1 | 15 guides, schema doc, validator 0 problems, 36 verify flags (committed by manager)
+- 2026-10-24 17:06 AEDT | P07a | claude | review r1 PASS | read all 15 guides; 16 source URLs live and matching; validator 0 problems; merged to main; 36 verify steps for owner

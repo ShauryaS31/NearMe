@@ -1,0 +1,35 @@
+{
+  "id": "iphone_text_bigger",
+  "title": "Make the writing bigger on iPhone",
+  "app": "Settings",
+  "aliases": [
+    "how do i make the writing bigger",
+    "bigger text",
+    "make the letters larger on my phone",
+    "i cannot read the small writing",
+    "increase the text size",
+    "make my iphone easier to read",
+    "text bada karna hai",
+    "phone ki writing badi karo"
+  ],
+  "steps": [
+    {
+      "instruction": "Open \"Settings\".",
+      "ui_label_hint": "Settings"
+    },
+    {
+      "instruction": "Tap \"Display & Brightness\".",
+      "ui_label_hint": "Display & Brightness"
+    },
+    {
+      "instruction": "Tap \"Text Size\".",
+      "ui_label_hint": "Text Size"
+    },
+    {
+      "instruction": "Drag the slider to the right until the sample writing is easy to read.",
+      "ui_label_hint": "text size slider"
+    }
+  ],
+  "source_note": "Settings on iOS 26/27, English, October 2026 documentation review. Uses Display & Brightness > Text Size. For even larger writing, the alternative is Accessibility > Display & Text Size > Larger Text. Some apps do not follow the system text size. Not checked on a phone. Source: https://support.apple.com/guide/iphone/iphd6804774e/26/ios/26",
+  "last_checked": "2026-10-24"
+}

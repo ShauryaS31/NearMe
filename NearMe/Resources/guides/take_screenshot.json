@@ -1,0 +1,33 @@
+{
+  "id": "take_screenshot",
+  "title": "Take a picture of your screen",
+  "app": "iPhone",
+  "aliases": [
+    "how do i take a screenshot",
+    "screenshot",
+    "save a picture of my screen",
+    "capture what is on my phone",
+    "take a screen photo",
+    "keep a copy of this screen",
+    "screen ki photo leni hai",
+    "screenshot kaise lete hain"
+  ],
+  "steps": [
+    {
+      "instruction": "Give the side button and volume up button one quick press together, releasing straight away.",
+      "ui_label_hint": "side button and volume up button"
+    },
+    {
+      "instruction": "Tap the tick icon in the screen picture that appears.",
+      "ui_label_hint": "tick icon",
+      "verify": true
+    },
+    {
+      "instruction": "Tap \"Save to Photos\".",
+      "ui_label_hint": "Save to Photos",
+      "verify": true
+    }
+  ],
+  "source_note": "iPhone screenshot controls on iOS 26/27, English, October 2026 documentation review. Start on the screen to capture. Main path: Face ID iPhone with full-screen previews enabled. Home button iPhones use side button + Home instead of side button + volume up. If thumbnail previews are enabled, the image saves automatically. Check the tick menu and Save to Photos wording. The first hint names physical buttons, not an on-screen label. Not checked on a phone. Source: https://support.apple.com/en-au/guide/iphone/iphc872c0115/26/ios/26",
+  "last_checked": "2026-10-24"
+}
