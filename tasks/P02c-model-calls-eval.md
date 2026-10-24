@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | done (Mac compile pending) |
 | Window | Sat 24 Oct, now, before P02b |
 | Depends on | P02a |
 | Assignee | codex |
@@ -72,3 +72,9 @@ bash scripts/mac-run.sh eval --current   # 3 EVAL lines, each under 20 s
   5. On any observed slow/error model response, confirm timeout/error is logged with the call kind and that the planner continues via keywords after about 10 seconds instead of waiting for the generation to finish. The default deadline regression test separately covers a fake operation that ignores cancellation, so a naturally slow model is not required for deterministic coverage.
   6. In Xcode select the NearMe scheme, Edit Scheme > Run > Info > Build Configuration > Release; run on the simulator and confirm the source/latency badge is absent. Restore Debug afterward.
 - Not done / risks / questions: Swift API/macro/concurrency compatibility, XCTest execution, actual model latency, and UI behavior remain unverified until the Mac gate. Cancellation is cooperative: an underlying framework generation may keep running after the caller has timed out, but its late result is discarded and cannot update the planner. The deadline assumes the executor remains responsive; it cannot preempt synchronous framework code that blocks the main actor. The shell mock also exposed an existing behavior: a failing python3 simulator-selector subprocess can leave an empty destination because command-substitution error handling continues; no change was made outside this task's scope. No protected project documents, build settings, secrets, or generated Xcode project were changed.
+
+## Review (round 1)
+- Date: 2026-10-24 15:18 AEDT
+- Verdict: PASS (static). Mac compile and `eval` run pending (owner).
+- Sessions: four local `let session = LanguageModelSession(` lines, one per call, nothing stored. Greedy sampling and token caps 120/40/60/60; shorter instructions and 5-word place guides. PlannerCallDeadline returns at 10 s even if generation ignores cancellation (late result discarded), covered by a fake-operation test. Latency logged per call (kind, outcome, ms; values private) and shown in the Debug badge. Default tests use stubs; only ModelEvalTests builds the real brain, skipped unless NEARME_MODEL_EVAL=1, 3 sentences, 20 s each, EVAL lines printed. `eval` mode passes TEST_RUNNER_NEARME_MODEL_EVAL=1 with -only-testing.
+- Follow-up moved to P02b: a failing simulator selector inside $(...) does not stop the script (errexit is not inherited by command substitution).
