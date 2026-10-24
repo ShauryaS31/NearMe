@@ -133,3 +133,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 21:10 AEDT | P13b | claude | review r2 PASS | merged to main; P13c next, then P09
 - 2026-10-24 21:10 AEDT | P13c | claude | dispatch r1 | hands-free voice commands on top of P13b
 - 2026-10-24 21:37 AEDT | P13d | codex | dev-report r1 | Added bounded screen-question voice answers, evidence-grounded uncertainty and explicit eight-second Check & listen fallback; inherited P13c preserved separately; static checks passed, Mac/device validation pending.
+- 2026-10-24 22:00 AEDT | N10a | codex | dev-report r1 | Added conversational Ask NearMe widget with background recording intent, automatic follow-ups, one silence check-in, bounded waits and guide-preserving Stop; commit 4134b11; static checks passed, Swift/Mac/iPhone acceptance pending.
+- 2026-10-24 22:08 AEDT | N04c | codex | dev-report r1 | Fixed ordinary app/widget/guide/practice and cold Live Activity speech to Apple system voice, ignoring legacy cloud preferences/configuration; commit 63361ad; static audit passed, Swift/audio/network checks pending on Mac.
