@@ -42,7 +42,6 @@ final class Overlay {
             window.ignoresMouseEvents = true
             window.level = .screenSaver
             window.hidesOnDeactivate = false
-            window.isFloatingPanel = true
             window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
             window.contentView = RingView(frame: CGRect(origin: .zero, size: frame.size))
             panel = window

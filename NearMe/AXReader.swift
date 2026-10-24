@@ -24,15 +24,18 @@ enum AXReadError: LocalizedError {
 
 enum AXReader {
     static func read(processID: pid_t) async throws -> AXSnapshot {
+        let start = ContinuousClock.now
         // Only Sendable value snapshots leave the worker. AX references remain on that worker.
         let (stream, continuation) = AsyncStream<Result<AXSnapshot, AXReadError>>.makeStream()
         let worker = Task.detached(priority: .userInitiated) {
-            let result = AXTraversal().read(processID: processID)
+            let result = AXTraversal(start: start).read(processID: processID)
             continuation.yield(result)
             continuation.finish()
         }
         let timeout = Task.detached {
-            do { try await Task.sleep(for: .milliseconds(300)) } catch { return }
+            do {
+                try await Task.sleep(until: start.advanced(by: .milliseconds(300)), clock: .continuous)
+            } catch { return }
             continuation.yield(.failure(.timedOut))
             continuation.finish()
             worker.cancel()
@@ -51,7 +54,7 @@ enum AXReader {
 
 /// Synchronous, private to one detached task, with a deadline before every AX message.
 private final class AXTraversal {
-    private let start = ContinuousClock.now
+    private let start: ContinuousClock.Instant
     private var visitedNodes = 0
     private var truncated = false
     private var elements: [ScreenElement] = []
@@ -60,27 +63,41 @@ private final class AXTraversal {
         "AXRow", "AXCell", "AXLink", "AXTab", "AXTextField", "AXSlider"
     ]
 
+    init(start: ContinuousClock.Instant) {
+        self.start = start
+    }
+
     private var remainingSeconds: Double {
-        0.300 - milliseconds(start.duration(to: .now)) / 1_000
+        // Leave 50 ms to return a partial snapshot before the shared-start watchdog fires.
+        0.250 - milliseconds(start.duration(to: .now)) / 1_000
     }
 
     func read(processID: pid_t) -> Result<AXSnapshot, AXReadError> {
         let app = AXUIElementCreateApplication(processID)
         guard let rawWindow = attribute(app, kAXFocusedWindowAttribute),
               CFGetTypeID(rawWindow) == AXUIElementGetTypeID() else {
-            return .failure(remainingSeconds <= 0 ? .timedOut : .noFocusedWindow)
+            if remainingSeconds <= 0, !Task.isCancelled {
+                truncated = true
+                return snapshot(windowTitle: "")
+            }
+            return .failure(.noFocusedWindow)
         }
         let window = unsafeBitCast(rawWindow, to: AXUIElement.self)
         let title = string(window, kAXTitleAttribute)
-        walk(window, depth: 0, parents: [], insideRow: false, parentEnabled: true)
-        return .success(AXSnapshot(windowTitle: title, list: ElementList(elements),
-                                   visitedNodes: visitedNodes, wasTruncated: truncated,
-                                   milliseconds: milliseconds(start.duration(to: .now))))
+        walk(window, depth: 0, parentLabel: "", insideRow: false)
+        return snapshot(windowTitle: title)
+    }
+
+    private func snapshot(windowTitle: String) -> Result<AXSnapshot, AXReadError> {
+        .success(AXSnapshot(windowTitle: windowTitle, list: ElementList(elements),
+                            visitedNodes: visitedNodes, wasTruncated: truncated,
+                            milliseconds: milliseconds(start.duration(to: .now))))
     }
 
     private func prepare(_ element: AXUIElement) -> Bool {
+        guard !Task.isCancelled else { return false }
         let remaining = remainingSeconds
-        guard remaining > 0, !Task.isCancelled else {
+        guard remaining > 0 else {
             truncated = true
             return false
         }
@@ -93,7 +110,7 @@ private final class AXTraversal {
         guard prepare(element) else { return nil }
         var value: CFTypeRef?
         let status = AXUIElementCopyAttributeValue(element, name as CFString, &value)
-        if status == .cannotComplete { truncated = true }
+        if status == .cannotComplete, !Task.isCancelled { truncated = true }
         return status == .success ? value : nil
     }
 
@@ -117,43 +134,82 @@ private final class AXTraversal {
         return CGRect(origin: point, size: dimensions)
     }
 
-    private func walk(_ element: AXUIElement, depth: Int, parents: [String], insideRow: Bool,
-                      parentEnabled: Bool, knownRole: String? = nil) {
-        guard depth <= 25, visitedNodes < 400, prepare(element) else {
+    private func visit(_ element: AXUIElement, depth: Int) -> Bool {
+        guard !Task.isCancelled else { return false }
+        guard depth <= 25, visitedNodes < 400 else {
             truncated = true
-            return
+            return false
         }
+        guard prepare(element) else { return false }
         visitedNodes += 1
-        let role = knownRole ?? string(element, kAXRoleAttribute)
-        let subrole = string(element, kAXSubroleAttribute)
-        // Secure controls and their descendants never enter the snapshot. AXValue is never queried.
-        guard role != "AXSecureTextField", subrole != "AXSecureTextField" else { return }
+        return true
+    }
+
+    private func visibleLabel(_ element: AXUIElement, role: String) -> String {
+        // Only static text exposes AXValue as visible label text. Never query control values.
+        if role == "AXStaticText" { return string(element, kAXValueAttribute) }
         let title = string(element, kAXTitleAttribute)
-        let label = title.isEmpty ? string(element, kAXDescriptionAttribute) : title
-        let localEnabled = attribute(element, kAXEnabledAttribute) as? Bool
-        let enabled = parentEnabled && (localEnabled ?? true)
-        if roles.contains(role) || (role == "AXStaticText" && insideRow) {
-            if let rect = frame(element) {
-                // Unknown enabled state is not safe for a proposed actionable control.
-                elements.append(ScreenElement(role: role, label: label, frame: rect,
-                                              isEnabled: enabled && (localEnabled ?? (role == "AXStaticText")),
-                                              breadcrumb: parents.suffix(3).joined(separator: " > ")))
+        return title.isEmpty ? string(element, kAXDescriptionAttribute) : title
+    }
+
+    private func children(of element: AXUIElement) -> [AXUIElement] {
+        guard !Task.isCancelled else { return [] }
+        guard visitedNodes < 400 else { truncated = true; return [] }
+        guard prepare(element) else { return [] }
+        var count: CFIndex = 0
+        let countStatus = AXUIElementGetAttributeValueCount(element, kAXChildrenAttribute as CFString, &count)
+        if countStatus == .cannotComplete, !Task.isCancelled { truncated = true }
+        guard countStatus == .success, count > 0, prepare(element) else { return [] }
+        let limit = min(count, 400 - visitedNodes)
+        if limit < count { truncated = true }
+        var rawChildren: CFArray?
+        let childrenStatus = AXUIElementCopyAttributeValues(element, kAXChildrenAttribute as CFString, 0, limit, &rawChildren)
+        if childrenStatus == .cannotComplete, !Task.isCancelled { truncated = true }
+        guard childrenStatus == .success else { return [] }
+        return rawChildren as? [AXUIElement] ?? []
+    }
+
+    private func firstStaticTextLabel(in element: AXUIElement, depth: Int, levelsRemaining: Int) -> String? {
+        guard levelsRemaining > 0 else { return nil }
+        for child in children(of: element) {
+            // Label probes share both the traversal's message deadline and its node budget.
+            guard visit(child, depth: depth + 1) else { return nil }
+            let role = string(child, kAXRoleAttribute)
+            let subrole = string(child, kAXSubroleAttribute)
+            guard role != "AXSecureTextField", subrole != "AXSecureTextField" else { continue }
+            if role == "AXStaticText" { return visibleLabel(child, role: role) }
+            if let label = firstStaticTextLabel(in: child, depth: depth + 1, levelsRemaining: levelsRemaining - 1) {
+                return label
             }
         }
+        return nil
+    }
+
+    private func walk(_ element: AXUIElement, depth: Int, parentLabel: String, insideRow: Bool,
+                      knownRole: String? = nil) {
+        guard visit(element, depth: depth) else { return }
+        let role = knownRole ?? string(element, kAXRoleAttribute)
+        let subrole = string(element, kAXSubroleAttribute)
+        // Secure controls and their descendants never enter the snapshot or label lookup.
+        guard role != "AXSecureTextField", subrole != "AXSecureTextField" else { return }
+        var label = visibleLabel(element, role: role)
+        if label.isEmpty, role == "AXRow" || role == "AXCell" {
+            label = firstStaticTextLabel(in: element, depth: depth, levelsRemaining: min(3, 25 - depth)) ?? ""
+        }
+        let enabled = (attribute(element, kAXEnabledAttribute) as? Bool) ?? true
+        if roles.contains(role) || (role == "AXStaticText" && insideRow) {
+            if let rect = frame(element) {
+                elements.append(ScreenElement(role: role, label: label, frame: rect,
+                                              isEnabled: enabled, breadcrumb: parentLabel))
+            }
+        }
+        guard !Task.isCancelled else { return }
         guard depth < 25, visitedNodes < 400 else {
             truncated = true
             return
         }
-        guard prepare(element) else { return }
-        var count: CFIndex = 0
-        guard AXUIElementGetAttributeValueCount(element, kAXChildrenAttribute as CFString, &count) == .success,
-              count > 0, prepare(element) else { return }
-        let limit = min(count, 400 - visitedNodes)
-        if limit < count { truncated = true }
-        var rawChildren: CFArray?
-        guard AXUIElementCopyAttributeValues(element, kAXChildrenAttribute as CFString, 0, limit, &rawChildren) == .success,
-              let children = rawChildren as? [AXUIElement] else { return }
-        let ancestry = label.isEmpty ? parents : Array((parents + [label]).suffix(3))
+        let children = self.children(of: element)
+        let ancestry = label.isEmpty ? parentLabel : label
         // Visit the window's content containers before its toolbar/window buttons. Within
         // those containers keep native depth-first order (including sidebar/main content).
         // ElementList itself never reorders the resulting traversal when applying its cap.
@@ -163,7 +219,7 @@ private final class AXTraversal {
             var preferred: [(element: AXUIElement, role: String?)] = []
             var other: [(element: AXUIElement, role: String?)] = []
             for child in children {
-                guard remainingSeconds > 0, !Task.isCancelled else { truncated = true; break }
+                guard prepare(child) else { break }
                 let childRole = string(child, kAXRoleAttribute)
                 if contentRoles.contains(childRole) { preferred.append((child, childRole)) }
                 else { other.append((child, childRole)) }
@@ -171,12 +227,14 @@ private final class AXTraversal {
             ordered = preferred + other
         }
         for child in ordered {
-            guard visitedNodes < 400, remainingSeconds > 0, !Task.isCancelled else {
+            guard !Task.isCancelled else { break }
+            guard visitedNodes < 400 else {
                 truncated = true
                 break
             }
-            walk(child.element, depth: depth + 1, parents: ancestry,
-                 insideRow: insideRow || role == "AXRow", parentEnabled: enabled, knownRole: child.role)
+            guard prepare(child.element) else { break }
+            walk(child.element, depth: depth + 1, parentLabel: ancestry,
+                 insideRow: insideRow || role == "AXRow", knownRole: child.role)
         }
     }
 }

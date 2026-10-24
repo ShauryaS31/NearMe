@@ -10,9 +10,9 @@ final class DebugViewModel {
     private(set) var isBusy = false
     private(set) var accessibilityStatus = "Checking..."
     private(set) var modelStatus = "Checking..."
-    private(set) var windowTitle = "—"
+    private(set) var windowTitle = "-"
     private(set) var elementCount = 0
-    private(set) var chosenElement = "—"
+    private(set) var chosenElement = "-"
     private(set) var instruction = ""
     private(set) var status = "Select a target app, return here, then choose Next step."
     private(set) var error: String?
@@ -65,9 +65,9 @@ final class DebugViewModel {
 
     private func resetResult() {
         error = nil
-        windowTitle = "—"
+        windowTitle = "-"
         elementCount = 0
-        chosenElement = "—"
+        chosenElement = "-"
         instruction = ""
         axMilliseconds = nil
         modelMilliseconds = nil
@@ -107,7 +107,7 @@ final class DebugViewModel {
             axMilliseconds = snapshot.milliseconds
             windowTitle = snapshot.windowTitle.isEmpty ? "(untitled)" : snapshot.windowTitle
             elementCount = snapshot.list.elements.count
-            readDetails = "\(snapshot.visitedNodes) AX nodes visited" + (snapshot.wasTruncated ? " · partial read (budget or traversal limit)" : "")
+            readDetails = "\(snapshot.visitedNodes) AX nodes visited" + (snapshot.wasTruncated ? " · truncated read (budget or traversal limit)" : "")
             guard elementCount > 0 else {
                 error = "No labelled, framed controls were available. Make the target window visible and try again."
                 status = "Nothing to plan."
@@ -136,7 +136,7 @@ final class DebugViewModel {
                 return
             }
             let element = snapshot.list.elements[step.elementIndex]
-            chosenElement = "\(step.elementIndex): \(element.role) — \(element.label.isEmpty ? "(unlabelled)" : element.label)"
+            chosenElement = "\(step.elementIndex): \(element.role) - \(element.label.isEmpty ? "(unlabelled)" : element.label)"
             guard step.action != .none else { status = "No action suggested; no ring drawn."; return }
             overlay.show(axFrame: element.frame)
             status = "Suggested action: \(step.action.rawValue). You perform the action."

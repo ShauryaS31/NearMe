@@ -20,7 +20,7 @@ struct ContentView: View {
                     if model.isBusy { ProgressView().controlSize(.small) }
                 }
                 Grid(alignment: .leading, horizontalSpacing: 20, verticalSpacing: 10) {
-                    row("Target app", model.target.app?.name ?? "None — activate System Settings first")
+                    row("Target app", model.target.app?.name ?? "None - activate System Settings first")
                     row("Window", model.windowTitle)
                     row("Accessibility", model.accessibilityStatus)
                     row("Foundation Models", model.modelStatus)
@@ -63,6 +63,6 @@ struct ContentView: View {
     }
 
     private func timing(_ value: Double?) -> String {
-        value.map { String(format: "%.0f ms", $0) } ?? "—"
+        value.map { String(format: "%.0f ms", $0) } ?? "-"
     }
 }

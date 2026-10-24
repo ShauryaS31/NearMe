@@ -91,3 +91,47 @@ Fixes (address every one):
 5. Breadcrumb: keep only the nearest labelled ancestor (one level) to keep the prompt well under the on-device context limit.
 6. Remove every em dash character (U+2014) from code and UI strings (DebugViewModel.swift:13, :15, :139; ContentView.swift:23, :66). Use "-" for blank values.
 7. Add unit tests if any NearMeCore behaviour changes. Nits, optional: drop `isFloatingPanel`; don't set `truncated` on cancellation.
+
+## Dev Report (round 2)
+- Date: 2026-10-24 12:41 AEDT
+- Changed files: NearMe/AXReader.swift; NearMe/ContentView.swift; NearMe/DebugViewModel.swift; NearMe/Overlay.swift; NearMeCore/Sources/NearMeCore/ElementList.swift; NearMeCore/Sources/NearMeCore/StepValidator.swift; NearMeCore/Tests/NearMeCoreTests/GuidanceTests.swift; tasks/N01-spike.md. docs/LOG.md is to be appended after a successful commit, per the requested order.
+- What I did (Review round 1, every numbered fix):
+  1. Kept Foundation and added CoreGraphics to ElementList.swift, StepValidator.swift and GuidanceTests.swift. Read all 14 Swift files, including the package manifest and both targets, for additional compile problems; none further identified by inspection. Compilation is still unverified.
+  2. Captured one ContinuousClock start before launching either detached task. The traversal uses a 250 ms deadline from that start; the watchdog sleeps until start + 300 ms. Budget exhaustion returns the accumulated snapshot with wasTruncated, including an empty snapshot if the budget expires before a window is available. The debug panel explicitly displays "truncated read". The watchdog remains a backstop for a worker that does not return.
+  3. AXEnabled now defaults to true when absent. Only an explicit false on the element disables it; removed the previous missing-attribute and inherited-state restrictions.
+  4. AXStaticText labels come from AXValue. The sole kAXValueAttribute read is guarded by that role; no other role's value is queried. Empty-title/description AXRow and AXCell labels use their first static-text descendant in native depth-first order, at most three levels down. Lookup shares the 250 ms deadline, per-message timeout, 400 visit budget and overall depth-25 bound. Both traversal and label lookup skip secure controls and their descendants.
+  5. Replaced the three-label ancestor chain with one nearest labelled ancestor. Unlabelled intermediate containers preserve that nearest label.
+  6. Replaced every U+2014 in Swift source/UI strings with ASCII hyphens, including blank values, target guidance and chosen-element text.
+  7. NearMeCore behavior did not change: only imports and the snapshot documentation changed. Existing rendering/capping, validator and coordinate tests remain applicable; no new core behavior requires tests. Removed isFloatingPanel and separated cancellation exits from truncation conditions, including AX cannotComplete handling.
+- Acceptance criteria (implementation coverage, not a claim of runtime success):
+  1. AXPermission still checks AXIsProcessTrustedWithOptions and opens the Accessibility Privacy pane when needed; unchanged.
+  2. AXReader still walks the remembered target's focused window off the main thread, keeps the specified roles/frames, and bounds depth and visits. The reviewed 250/300 ms deadlines, static-text-only value exception, row/cell labels, enabled default and nearest-ancestor breadcrumb are implemented above.
+  3. ElementList retains its 120-item cap, compact rendering and snapshot indices. Window content-container preference remains in AXReader.
+  4. StepPlanner retains fresh tool-free Foundation Models sessions and the specified @Generable step/action types; unchanged.
+  5. StepValidator still rejects absent/negative indices, disabled elements and unsupported actions; CoreGraphics import fixes its geometry dependency.
+  6. Overlay retains a borderless transparent click-through .screenSaver panel and primary-screen AX-to-AppKit conversion; removed only the redundant floating-panel setting.
+  7. Goal entry, Next step, element count, chosen element and total latency remain available; blank values now use "-".
+  8. Last external app tracking, target app display and window title display remain unchanged.
+  9. Empty-label-first capping, traversal order and contiguous zero-based indices remain unchanged and covered by existing tests.
+  10. Prompt still contains goal/app/window and ElementList rendering with list-only selection and clarification instructions. Reader breadcrumbs now contain a single ancestor label.
+  11. ScreenCoordinates.appKitRect remains a pure core function; both Foundation and CoreGraphics are imported explicitly.
+  12. All eight existing core test functions are retained, with the missing CoreGraphics test import added. They could not run on this machine.
+  13. Role/label/instruction, separate AX/model timings, Clear ring and caught model errors remain. Partial snapshots now show an explicit truncated-read notice.
+  14. Overlay still cannot become key/main and ignores mouse events; static scan found no AX action execution or attribute-setting APIs.
+  15. Owner gate remains pending: no Mac/System Settings result or measured model latency is claimed.
+- Verify commands run and results:
+  - `swift test --package-path NearMeCore`: could not execute; swift is not installed/recognized.
+  - `xcodegen`: could not execute; command is unavailable.
+  - `xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build`: could not execute; command is unavailable. Generation and build were attempted separately in PowerShell.
+  - `git diff --check`: passed after the code changes.
+  - PowerShell static source assertions across all 14 Swift files: passed for required core geometry imports, absence of forbidden core framework imports, absence of U+2014 and AX action APIs, force-operation scan, the single role-guarded AXValue read, shared-start/deadline markers, lookup depth/node bounds, enabled default, single breadcrumb, truncation notice and nonactivating/click-through overlay settings. These are source checks, not Swift tests.
+  - `git branch --show-current`: task/N01-spike. Initial working tree was clean; edits are limited to this review's N01 files. Git emitted a warning about an inaccessible global ignore file during status inspection.
+- Mac test steps for the owner:
+  1. Check out the manager's N01 round 2 commit on Apple silicon with macOS 26, Xcode 26 and Apple Intelligence ready. Run `swift test --package-path NearMeCore`; require all eight test functions to pass.
+  2. Run `xcodegen && xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build`. Open the generated NearMe.xcodeproj, select NearMe / My Mac and run. Do not commit the generated project.
+  3. Click Open Accessibility Settings, grant NearMe access and relaunch if requested. Place System Settings and NearMe side by side on one display. Activate System Settings, return to NearMe, enter `make text bigger` and click Next step. Confirm the target/window, count <= 120, real chosen role/label, sensible instruction and ring alignment. Record AX/model/total ms and success/failure in docs/LOG.md.
+  4. In Xcode, add a source breakpoint on the return expression in AXTraversal.snapshot(windowTitle:). Repeat Next step with the System Settings sidebar visible. Inspect `elements`: rows/cells with no own title/description should use their first static-text descendant within three levels; each breadcrumb should be one nearest labelled ancestor. Use Accessibility Inspector to compare source labels and enabled attributes. Missing AXEnabled must produce isEnabled=true; an explicit false must produce false. Remove/disable the breakpoint before timing checks, because pausing would trip the watchdog.
+  5. On a large accessible window, repeat Next step without breakpoints. A read that exhausts the 250 ms walk budget should show "truncated read" and keep any collected elements, permitting planning if nonempty. A genuinely stalled worker may still show the 300 ms timeout error. Record whether budget exhaustion was observed and its AX ms; do not mark this case passed if it was not exercised.
+  6. Click Next step then immediately Clear ring, and separately switch target apps during a pending request. Verify no late ring appears. Click a highlighted control yourself and confirm click-through and that the overlay does not take focus. Confirm blank fields/timings use "-" and no em dash appears in authored UI strings.
+  7. Check an unavailable Foundation Models configuration or a failed model call leaves a visible error without crashing. Record the real System Settings kill-rule result and latency in docs/LOG.md within the original 60-minute Mac gate.
+- Not done / risks / questions: This machine has no Swift or Xcode; GitHub CI is the compile gate. No Swift tests, app build, real AX fixture, watchdog runtime, model inference or ring placement/focus test passed here. Descendant label probes count toward the same 400-visit budget as traversal, so a node can consume another visit when walked later; this is conservative but can shorten a partial snapshot. Synchronous AX calls remain subject to OS scheduling and cannot be forcibly interrupted; the 50 ms headroom avoids the normal equal-deadline race, not every possible stalled IPC. Same-app window changes during inference remain outside N01. Commit is attempted after this report; if .git is read-only, the manager must commit the uncommitted changes.

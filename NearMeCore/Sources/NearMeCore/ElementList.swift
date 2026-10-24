@@ -1,6 +1,7 @@
+import CoreGraphics
 import Foundation
 
-/// A value-free snapshot. Indices belong to one capped list, not to a live AX object.
+/// A snapshot of visible labels, excluding editable values. Indices belong to one capped list.
 public struct ScreenElement: Equatable, Sendable {
     public let role: String
     public let label: String
