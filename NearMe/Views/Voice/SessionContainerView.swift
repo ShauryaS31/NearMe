@@ -5,7 +5,6 @@ import SwiftUI
 struct SessionContainerView: View {
     @StateObject private var engine: TaskPlannerEngine
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var didRestore = false
     @MainActor
     init(userName: String) {
@@ -38,18 +37,9 @@ struct SessionContainerView: View {
         .preferredColorScheme(nil)
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
-            ScrollView {
-                Text(engine.debugBadge.text)
-                    .font(.caption)
-                    .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            if engine.showsDebugInfo {
+                SessionDebugBadgeView(badge: engine.debugBadge)
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(height: dynamicTypeSize.isAccessibilitySize ? 84 : 48)
-            .background(.background)
         }
         #endif
         .onAppear {
@@ -64,3 +54,25 @@ struct SessionContainerView: View {
     }
 
 }
+
+#if DEBUG
+private struct SessionDebugBadgeView: View {
+    let badge: SessionDebugBadge
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            ForEach(badge.lines, id: \.self) { line in
+                Text(line)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+        }
+        .font(.caption)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.background)
+    }
+}
+#endif

@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct HelpHomeView: View {
     @ObservedObject var engine: TaskPlannerEngine
@@ -8,8 +7,10 @@ struct HelpHomeView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                // Reserved for P05's Settings gear in the top trailing area.
-                Color.clear.frame(height: 44).accessibilityHidden(true)
+                #if DEBUG
+                SessionDebugMenu(engine: engine)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                #endif
                 Text("NearMe").font(.largeTitle)
                 Button(action: engine.userTappedToTalk) {
                     Label("What do you need help with?", systemImage: "mic.fill")
@@ -58,52 +59,19 @@ struct HelpHomeView: View {
 
 struct CoachView: View {
     @ObservedObject var engine: TaskPlannerEngine
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 ScrollView {
                     if let session = engine.coach {
-                        VStack(alignment: .leading, spacing: 20) {
-                            Text(session.guide?.title ?? "Phone help").font(.title)
-                            Text("Step \(session.stepIndex + 1) of \(session.count)").font(.body)
-                            if session.isGeneral {
-                                Label("General guidance: your screen may look different", systemImage: "info.circle")
-                            }
-                            #if DEBUG
-                            if session.needsScreenCheck {
-                                Label("Check on your screen", systemImage: "checkmark.rectangle").font(.caption)
-                            }
-                            #endif
-                            if engine.plannerState == .thinking {
-                                Label("Preparing your step", systemImage: "hourglass")
-                            } else if engine.plannerState == .listening {
-                                Label("Listening", systemImage: "mic.fill")
-                                Text(engine.liveTranscript)
-                            } else if engine.plannerState == .finishing {
-                                Label("Finishing", systemImage: "hourglass")
-                            } else if engine.isStartingListening || engine.isPreparingSpeech {
-                                Label("Getting speech ready", systemImage: "mic")
-                            } else {
-                                Label(engine.isVoiceOutputActive ? "Speaking" : "Ready",
-                                      systemImage: engine.isVoiceOutputActive ? "speaker.wave.2" : "checkmark.circle")
-                            }
-                            action("Done / Next", symbol: "checkmark", command: .next)
-                            action("I'm stuck", symbol: "questionmark.circle", command: .stuck)
-                            if let guide = session.guide, let url = launchURL(guide) {
-                                Button { UIApplication.shared.open(url) } label: {
-                                    Label("Open \(guide.app)", systemImage: "arrow.up.forward.app")
-                                        .frame(minWidth: 44, minHeight: 44)
-                                }
-                                .buttonStyle(.bordered)
-                            }
-                        }
-                        .font(.body)
-                        .padding()
-                        .frame(maxWidth: 600, alignment: .leading)
-                        .frame(maxWidth: .infinity)
+                        CoachStepContent(session: session, onCommand: engine.coachCommand)
+                            .id(session.stepIndex)
+                            .transition(.opacity)
                     }
                 }
+                .animation(stepAnimation, value: engine.coach?.stepIndex)
                 if let session = engine.coach {
                     SessionDock(engine: engine, instruction: session.text,
                                 targetLabel: session.guide?.steps[session.stepIndex].uiLabelHint,
@@ -114,16 +82,65 @@ struct CoachView: View {
         .background(Color(.systemBackground))
     }
 
-    private func action(_ title: String, symbol: String, command: CoachCommand) -> some View {
-        Button { engine.coachCommand(command) } label: {
-            Label(title, systemImage: symbol).frame(minWidth: 44, minHeight: 44)
+    private var stepAnimation: Animation? {
+        if reduceMotion { return nil }
+        return .easeInOut(duration: 0.2)
+    }
+}
+
+/// Presentation shared by the card and its default-run assertions.
+struct CoachStepPresentation {
+    let session: CoachSession
+
+    var countText: String { "Step \(session.stepIndex + 1) of \(session.count)" }
+    var doneTitle: String { "Done" }
+    var instruction: AttributedString {
+        var text = AttributedString(session.text)
+        if let label = session.guide?.steps[session.stepIndex].uiLabelHint,
+           let range = text.range(of: label) {
+            text[range].swiftUI.font = .title2.bold()
         }
-        .buttonStyle(.bordered)
+        return text
+    }
+}
+
+struct CoachStepContent: View {
+    let session: CoachSession
+    let onCommand: (CoachCommand) -> Void
+
+    private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(presentation.countText)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Text(presentation.instruction)
+                .font(.title2)
+                .fixedSize(horizontal: false, vertical: true)
+            Button { onCommand(.next) } label: {
+                Label(presentation.doneTitle, systemImage: "checkmark")
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            secondaryActions
+        }
+        .padding(24)
+        .frame(maxWidth: 600, alignment: .leading)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20))
+        .padding(16)
+        .frame(maxWidth: .infinity)
     }
 
-    private func launchURL(_ guide: HelpGuide) -> URL? {
-        guard let scheme = guide.appURLScheme, ["whatsapp://", "sms:"].contains(scheme),
-              let url = URL(string: scheme), UIApplication.shared.canOpenURL(url) else { return nil }
-        return url
+    private var secondaryActions: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button { onCommand(.repeatStep) } label: {
+                Label("Repeat", systemImage: "arrow.counterclockwise").minimumTapTarget()
+            }
+            Button { onCommand(.stuck) } label: {
+                Label("I'm stuck", systemImage: "questionmark.circle").minimumTapTarget()
+            }
+        }
+        .buttonStyle(.bordered)
     }
 }

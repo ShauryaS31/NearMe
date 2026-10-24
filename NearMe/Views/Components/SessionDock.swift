@@ -1,5 +1,3 @@
-// Adapted from a prior prototype, used with permission.
-
 import SwiftUI
 
 enum SessionDockAction: String, CaseIterable, Identifiable {
@@ -63,87 +61,120 @@ struct SessionDock: View {
     private var styledInstruction: AttributedString {
         var text = AttributedString(instruction)
         if let targetLabel, let range = text.range(of: targetLabel) {
-            text[range].font = .title3.bold()
+            text[range].swiftUI.font = .title3.bold()
         }
         return text
     }
 
     var body: some View {
         VStack(spacing: 8) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(styledInstruction)
-                        .font(.title3)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if let error = engine.lastErrorMessage {
-                        Text(error).font(.body).fixedSize(horizontal: false, vertical: true)
-                    }
-                    if engine.isTyping {
-                        TextField("Type your answer", text: $typedText)
-                            .font(.body)
-                            .textFieldStyle(.roundedBorder)
-                            .focused($entryFocused)
-                            .submitLabel(.send)
-                            .onSubmit(send)
-                        Button(action: send) {
-                            Label("Send", systemImage: "paperplane.fill").minimumTapTarget()
-                        }
-                        .disabled(!canSend)
-                    }
-                }
-                .padding(4)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-            }
-            .scrollBounceBehavior(.basedOnSize)
-            .defaultScrollAnchor(engine.isTyping ? .bottom : .top)
-            .frame(height: min(contentHeight, max(44, availableHeight * 0.4 - controlsHeight - 32)))
-            .id(instruction)
-
-            HStack(spacing: 12) {
-                Button {
-                    entryFocused = false
-                    engine.userTappedToTalk()
-                } label: {
-                    Image(systemName: state.micState.symbolName)
-                        .font(.system(size: 22, weight: .semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel(state.micState.accessibilityLabel)
-                .accessibilityHint(state.instruction)
-                .disabled(state.micDisabled)
-                Spacer(minLength: 0)
-                if state.showsStop {
-                    Button(action: engine.stopSessionSpeech) {
-                        Label("Stop", systemImage: "stop.fill")
-                            .minimumTapTarget()
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("Stop guidance")
-                }
-                Menu {
-                    ForEach(SessionDockAction.allCases) { action in
-                        Button { engine.performDockAction(action) } label: {
-                            Label(action.title, systemImage: action.symbol)
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                        .font(.system(size: 22, weight: .semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .accessibilityLabel("More")
-            }
-            .buttonStyle(.plain)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { controlsHeight = $0 }
+            instructionArea
+            controls
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 12)
         .background(Color(.systemBackground))
         .overlay(alignment: .top) { Divider() }
         .onChange(of: engine.isTyping) { _, typing in entryFocused = typing }
+    }
+
+    private var instructionArea: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(styledInstruction)
+                    .font(.title3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // Only the caption changes identity; typing focus and draft survive.
+                    .id(instruction)
+                if engine.plannerState == .listening && !engine.liveTranscript.isEmpty {
+                    Text(engine.liveTranscript)
+                        .font(.title3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                if let error = engine.lastErrorMessage {
+                    Text(error).font(.body).fixedSize(horizontal: false, vertical: true)
+                }
+                if engine.isTyping { typedEntry }
+            }
+            .padding(4)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .defaultScrollAnchor(engine.isTyping ? .bottom : .top)
+        .frame(height: min(contentHeight, max(44, availableHeight * 0.4 - controlsHeight - 32)))
+    }
+
+    private var typedEntry: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextField("Type your answer", text: $typedText)
+                .font(.body)
+                .textFieldStyle(.roundedBorder)
+                .focused($entryFocused)
+                .submitLabel(.send)
+                .onSubmit(send)
+            Button(action: send) {
+                Label("Send", systemImage: "paperplane.fill").minimumTapTarget()
+            }
+            .disabled(!canSend)
+        }
+    }
+
+    private var controls: some View {
+        HStack(spacing: 12) {
+            microphone
+            Text(state.instruction)
+                .font(.callout)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            if state.showsStop { stopButton }
+            moreMenu
+        }
+        .buttonStyle(.plain)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { controlsHeight = $0 }
+    }
+
+    private var microphone: some View {
+        Button {
+            entryFocused = false
+            engine.userTappedToTalk()
+        } label: {
+            Image(systemName: state.micState.symbolName)
+                .font(.system(size: 22, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel(state.micState.accessibilityLabel)
+        .accessibilityHint(state.instruction)
+        .disabled(state.micDisabled)
+    }
+
+    private var stopButton: some View {
+        Button(action: engine.stopSessionSpeech) {
+            Label("Stop", systemImage: "stop.fill")
+                .minimumTapTarget()
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("Stop")
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            ForEach(SessionDockAction.allCases) { action in
+                Button { engine.performDockAction(action) } label: {
+                    Label(action.title, systemImage: action.symbol)
+                }
+            }
+            #if DEBUG
+            Toggle("Show debug info", isOn: $engine.showsDebugInfo)
+            #endif
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .font(.system(size: 22, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("More")
     }
 
     private var canSend: Bool {

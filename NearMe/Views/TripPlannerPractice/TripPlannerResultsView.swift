@@ -8,13 +8,9 @@ struct TripPlannerResultsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TripPlannerTopBar(title: PracticeLabels.journeyPlanner)
+            TripPlannerTopBar(title: PracticeScreen.ForYouLabels.journeyPlanner)
 
             VStack(alignment: .leading, spacing: TTSpacing.xs) {
-                Text(PracticeLabels.tripOptions)
-                    .font(.title2.bold())
-                    .padding()
-                    .practiceTarget(PracticeLabels.tripOptions, active: true)
                 Text("\(origin) \u{2192} \(destination)")
                     .font(TTFont.headline())
                     .foregroundStyle(Color.primary)
@@ -30,7 +26,7 @@ struct TripPlannerResultsView: View {
                                     .padding(.top, 2)
 
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text("Trip option \(number) (example)")
+                                    Text(PracticeScreen.ResultsLabels.tripOption(number))
                                         .font(TTFont.headline())
                                         .foregroundStyle(Color.primary)
                                     Text("Times show here in the real app")
@@ -47,6 +43,8 @@ struct TripPlannerResultsView: View {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .strokeBorder(Color(.separator), lineWidth: 1)
                             )
+                            .accessibilityElement(children: .combine)
+                            .practiceTarget(PracticeScreen.ResultsLabels.tripOption(number), active: number == 1, cornerRadius: 14)
                         }
                     }
                     .padding(TTSpacing.lg)

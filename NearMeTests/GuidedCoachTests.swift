@@ -393,7 +393,8 @@ final class GuidedCoachTests: XCTestCase {
             voiceOutput: output ?? CoachTestOutput(), permissions: PermissionsManager(), userName: "",
             permissionCheck: { true }, settleBeforeListening: {},
             guides: guides, helpRouter: HelpRouter(guides: guides, service: service, useEmbeddings: false),
-            coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults))
+            coachService: service, coachStore: store ?? CoachProgressStore(defaults: defaults),
+            appOpener: UnavailableCoachAppOpener())
     }
 
     private func eventually(_ condition: () -> Bool) async {

@@ -21,24 +21,14 @@ struct TripPlannerPracticeView: View {
                             scroll.scrollTo(viewModel.step.targetLabel(destination: viewModel.destinationDisplayName), anchor: .center)
                         }
                     }
-                    .overlayPreferenceValue(PracticeTargetPreference.self) { targets in
-                        GeometryReader { proxy in
-                            let label = viewModel.step.targetLabel(destination: viewModel.destinationDisplayName)
-                            if let target = targets[label] {
-                                PracticeHighlight(frame: proxy[target.bounds], cornerRadius: target.cornerRadius)
-                            }
-                        }
-                        .allowsHitTesting(false)
-                        .accessibilityHidden(true)
-                    }
                     .clipped()
                     TripPlannerTabBar(selected: viewModel.step.screen == .forYou ? .forYou : .plan)
-                        .overlay {
-                            Color.black.opacity(0.25)
-                                .allowsHitTesting(false)
-                                .accessibilityHidden(true)
-                        }
                 }
+                .overlayPreferenceValue(PracticeTargetPreference.self) { targets in
+                    PracticeHighlightLayer(targets: targets,
+                        label: viewModel.step.targetLabel(destination: viewModel.destinationDisplayName))
+                }
+                .clipped()
 
                 SessionDock(engine: engine, instruction: viewModel.currentCaption,
                             targetLabel: nil, availableHeight: geometry.size.height)

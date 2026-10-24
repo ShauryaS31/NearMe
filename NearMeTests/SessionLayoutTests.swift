@@ -84,6 +84,8 @@ final class SessionLayoutTests: XCTestCase {
         XCTAssertTrue(engine.isTyping)
         XCTAssertFalse(engine.isVoiceOutputActive)
         XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(engine.plannerState, .guiding(practice.step))
+        XCTAssertTrue(engine.canSubmitTypedInput)
         engine.submitTypedInput("repeat")
         await eventually { output.pending != nil }
         engine.performDockAction(.endSession)
@@ -120,21 +122,24 @@ final class SessionLayoutTests: XCTestCase {
     }
 
     func testEveryPracticeStepTargetsALabelOnItsScreen() {
-        let table: [(PracticeStep, PracticeScreen, String)] = [
-            (.forYouOpened, .forYou, "Journey Planner"),
-            (.tapFrom, .journeyPlanner, "Choose origin"),
-            (.typeOrigin, .journeyPlanner, "Choose destination"),
-            (.tapToAndTypeDestination, .destinationSearch, "Search for a destination"),
-            (.selectingDestination, .destinationSearch, "Town Hall Station"),
-            (.readyToSearch, .journeyPlanner, "Search"),
-            (.showingResults, .results, "Trip options")
-        ]
-        XCTAssertEqual(table.map { $0.0 }, PracticeStep.allCases)
-        for (step, screen, label) in table {
-            XCTAssertEqual(step.screen, screen)
-            XCTAssertEqual(step.targetLabel(destination: "Town Hall"), label)
+        for destination in ["Town Hall", "Holsworthy"] {
+            for step in PracticeStep.allCases {
+                let label = step.targetLabel(destination: destination)
+                let screenLabels = step.screen.targetLabels(destination: destination)
+                XCTAssertTrue(screenLabels.contains(label), "\(step): \(label) must exist on \(step.screen)")
+                XCTAssertTrue(step.caption(origin: "Central", destination: destination).contains(label),
+                              "\(step): the instruction must name its target")
+            }
         }
         XCTAssertEqual(PracticeStep.selectingDestination.targetLabel(destination: "Holsworthy"), "Holsworthy Station")
+    }
+
+    func testResultsTargetNamesTheFirstTripRow() {
+        let label = PracticeScreen.ResultsLabels.tripOption(1)
+        XCTAssertEqual(label, "Trip option 1 (example)")
+        XCTAssertEqual(PracticeScreen.results.targetLabels(destination: "Town Hall"), [label])
+        XCTAssertEqual(PracticeStep.showingResults.targetLabel(destination: "Town Hall"), label)
+        XCTAssertTrue(PracticeStep.showingResults.caption(origin: "Central", destination: "Town Hall").contains(label))
     }
 
     func testRestartKeepsBareDestinationInRealKeywordTripRouter() async {
@@ -176,6 +181,42 @@ final class SessionLayoutTests: XCTestCase {
         XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
         XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
         XCTAssertEqual(practice.fromFieldText, "Central")
+        engine.endSession()
+    }
+
+    func testTypingDuringPracticePreservesGuidingStateAfterSpeechCancellation() async throws {
+        let input = LayoutInput()
+        let output = LayoutOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.useTypedInput()
+        engine.submitTypedInput("from Central to Town Hall")
+        await eventually { engine.tripPlannerPracticeViewModel != nil && !engine.isVoiceOutputActive }
+        let practice = try XCTUnwrap(engine.tripPlannerPracticeViewModel)
+        practice.completeCurrentStep()
+        practice.completeCurrentStep()
+        await eventually { engine.plannerState == .guiding(.typeOrigin) && !engine.isVoiceOutputActive }
+
+        output.suspend = true
+        engine.repeatPracticeCaption()
+        await eventually { output.pending != nil }
+        engine.useTypedInput()
+        XCTAssertTrue(engine.isTyping)
+        XCTAssertTrue(engine.canSubmitTypedInput)
+        XCTAssertNil(output.pending)
+        XCTAssertFalse(engine.isVoiceOutputActive)
+        XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
+        await Task.yield()
+        XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
+        XCTAssertTrue(engine.tripPlannerPracticeViewModel === practice)
+        XCTAssertEqual(practice.fromFieldText, "Central")
+
+        engine.userTappedToTalk()
+        await eventually { input.pending != nil }
+        engine.useTypedInput()
+        await Task.yield()
+        XCTAssertNil(input.pending)
+        XCTAssertEqual(engine.plannerState, .guiding(.typeOrigin))
+        XCTAssertTrue(engine.canSubmitTypedInput)
         engine.endSession()
     }
 
@@ -233,7 +274,8 @@ final class SessionLayoutTests: XCTestCase {
         return TaskPlannerEngine(brain: brain ?? KeywordFallbackBrain(), voiceInput: input ?? LayoutInput(),
             voiceOutput: output ?? LayoutOutput(), permissions: PermissionsManager(), userName: "",
             permissionCheck: { true }, settleBeforeListening: {}, guides: library,
-            helpRouter: router ?? HelpRouter(guides: library, service: service, useEmbeddings: false), coachService: service)
+            helpRouter: router ?? HelpRouter(guides: library, service: service, useEmbeddings: false), coachService: service,
+            appOpener: UnavailableCoachAppOpener())
     }
 
     private func submit(_ text: String, to engine: TaskPlannerEngine) async {

@@ -5,6 +5,7 @@ Run from any working directory. Editorial and on-device checks are documented in
 docs/design/GUIDES.md; heuristics here cannot establish real-world UI accuracy.
 """
 
+from datetime import date
 import json
 from pathlib import Path
 import re
@@ -121,8 +122,13 @@ def validate_guide(data, path):
         if guide_id in EXPECTED_APPS and data.get("app") != EXPECTED_APPS[guide_id]:
             problem("app", f"must be {EXPECTED_APPS[guide_id]!r} for this guide")
 
-    if data.get("last_checked") != "2026-10-24":
-        problem("last_checked", "must be 2026-10-24 for P07a")
+    checked = data.get("last_checked")
+    try:
+        if not isinstance(checked, str) or not re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", checked):
+            raise ValueError("invalid date format")
+        date.fromisoformat(checked)
+    except ValueError:
+        problem("last_checked", "must be a valid YYYY-MM-DD date")
 
     if "app_url_scheme" in data:
         expected_scheme = None

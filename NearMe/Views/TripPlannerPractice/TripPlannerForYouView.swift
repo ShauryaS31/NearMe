@@ -28,7 +28,7 @@ struct TripPlannerForYouView: View {
                                 .clipShape(Circle())
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(PracticeLabels.journeyPlanner)
+                                Text(PracticeScreen.ForYouLabels.journeyPlanner)
                                     .font(TTFont.headline())
                                     .foregroundStyle(Color.primary)
                                 Text("Practise planning a public transport trip")
@@ -50,7 +50,8 @@ struct TripPlannerForYouView: View {
                         )
                     }
                     .buttonStyle(.plain)
-                    .practiceTarget(PracticeLabels.journeyPlanner, active: true, cornerRadius: 14)
+                    .accessibilityHint("Opens the journey planner practice.")
+                    .practiceTarget(PracticeScreen.ForYouLabels.journeyPlanner, active: true, cornerRadius: 14)
 
                     ForEach(["Home", "Work", "Your location"], id: \.self) { row in
                         HStack {

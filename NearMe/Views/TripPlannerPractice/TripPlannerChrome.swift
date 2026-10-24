@@ -65,7 +65,7 @@ enum TripPlannerTab: CaseIterable {
         switch self {
         case .forYou: return "For you"
         case .plan: return "Plan"
-        case .search: return PracticeLabels.search
+        case .search: return PracticeScreen.JourneyPlannerLabels.search
         case .alerts: return "Alerts"
         case .settings: return "Settings"
         }
@@ -79,7 +79,7 @@ struct TripPlannerTabBar: View {
 
     var body: some View {
         Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if dynamicTypeSize >= .xLarge {
                 ScrollView(.horizontal) {
                     tabs
                 }
@@ -107,8 +107,8 @@ struct TripPlannerTabBar: View {
                     VStack(spacing: 3) {
                         Image(systemName: tab.symbol).font(.body)
                         Text(tab.label)
-                            .font(.body.weight(.medium))
-                            .fixedSize(horizontal: false, vertical: true)
+                            .font(.footnote.weight(.medium))
+                            .fixedSize(horizontal: true, vertical: true)
                     }
                     .frame(maxWidth: .infinity)
                     .minimumTapTarget()

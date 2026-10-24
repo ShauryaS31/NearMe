@@ -23,10 +23,16 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var isStartingListening = false
     @Published private(set) var coach: CoachSession?
     @Published private(set) var isHome = true
+    #if DEBUG
+    @Published var showsDebugInfo = false
+    #endif
     private let guides: [HelpGuide]
     private let helpRouter: any HelpRouting
     private let coachService: CoachModelService
     private let coachStore: CoachProgressStore
+    private let appOpener: any CoachAppOpening
+    private var pendingAppOpen: UUID?
+    private var resumeAfterAppOpen = false
     private var tripRouteActive = false
     private var coachReplySource: BrainSource = .template
     private var preparedStep: (index: Int, task: Task<BrainAnswer<String>, Never>)?
@@ -81,13 +87,15 @@ final class TaskPlannerEngine: ObservableObject {
          userName: String, permissionCheck: (() async -> Bool)? = nil,
          settleBeforeListening: (() async throws -> Void)? = nil,
          guides: [HelpGuide]? = nil, helpRouter: (any HelpRouting)? = nil,
-         coachService: CoachModelService? = nil, coachStore: CoachProgressStore? = nil) {
+         coachService: CoachModelService? = nil, coachStore: CoachProgressStore? = nil,
+         appOpener: (any CoachAppOpening)? = nil) {
         let library = guides ?? GuideLibrary.bundled()
         let service = coachService ?? CoachModelService.makeDefault()
         self.guides = library
         self.coachService = service
         self.helpRouter = helpRouter ?? HelpRouter(guides: library, service: service)
         self.coachStore = coachStore ?? CoachProgressStore()
+        self.appOpener = appOpener ?? SystemCoachAppOpener()
         self.brain = brain
         self.latestBrainSource = brain.initialSource
         self.voiceInput = voiceInput
@@ -157,7 +165,11 @@ final class TaskPlannerEngine: ObservableObject {
         isPreparingSpeech = false
         isTyping = true
         liveTranscript = ""
-        plannerState = .idle
+        if let practice = tripPlannerPracticeViewModel {
+            plannerState = .guiding(practice.step)
+        } else {
+            plannerState = .idle
+        }
         // Keep pendingClarification and its retry count when changing input mode.
     }
 
@@ -210,6 +222,7 @@ final class TaskPlannerEngine: ObservableObject {
     /// "cancel" — stops whatever NearMe is currently doing and returns to a
     /// neutral, tappable idle state rather than silently continuing.
     func cancelCurrentAction() {
+        resetDebugInfo()
         clearCoach()
         isHome = true
         tripRouteActive = false
@@ -229,6 +242,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// End all guidance and return to the help home screen.
     func endSession() {
+        resetDebugInfo()
         clearCoach()
         isHome = true
         tripRouteActive = false
@@ -698,6 +712,10 @@ final class TaskPlannerEngine: ObservableObject {
         isHome = false
         // The card explicitly selects practiceTripPlanner; no router/model call is needed.
         tripRouteActive = true
+        latestBrainSource = .practiceCard
+        latestBrainLatencyMilliseconds = nil
+        latestReplySource = .template
+        latestVoice = nil
         currentIntent.intent = .planJourney
         let generation = sessionGeneration
         Task { await proceedAfterIntentUpdate(generation: generation) }
@@ -708,7 +726,49 @@ final class TaskPlannerEngine: ObservableObject {
         coach = CoachSession(guide: guide, request: request, person: PersonNormalization.normalize(person),
                              generalSteps: [], stepIndex: 0, text: CoachText.fallback(step: guide.steps[0], person: person))
         if let coach { coachStore.save(coach) }
+        if await autoOpenCoachApp(generation: generation) { return }
         await presentCoachStep(generation: generation)
+    }
+
+    /// The spoken announcement must finish before handing off to another app.
+    private func autoOpenCoachApp(generation: Int) async -> Bool {
+        guard let session = coach, session.stepIndex == 0, let guide = session.guide,
+              let url = CoachAppLaunch.url(for: guide), appOpener.canOpen(url) else { return false }
+        let announcement = "I'll open \(guide.app) for you now."
+        coach?.text = announcement
+        await speak(announcement, generation: generation)
+        guard isCurrent(generation), coach?.id == session.id else {
+            // Stop or a mode change cancels the handoff and restores the normal step.
+            if coach?.id == session.id, coach?.stepIndex == 0, coach?.text == announcement {
+                coach?.text = session.text
+            }
+            return true
+        }
+
+        // Persist before open can background the app. A failed open rolls this back.
+        coach?.stepIndex = 1
+        coach?.text = CoachText.fallback(step: guide.steps[1], person: session.person)
+        if let coach { coachStore.save(coach) }
+        plannerState = .idle
+        pendingAppOpen = session.id
+        let opened = await appOpener.open(url)
+        guard pendingAppOpen == session.id, coach?.id == session.id else { return true }
+        pendingAppOpen = nil
+        let shouldResume = resumeAfterAppOpen
+        resumeAfterAppOpen = false
+        // Do not overwrite a step the user advanced while the system was opening.
+        if !opened, coach?.stepIndex == 1 {
+            coach?.stepIndex = 0
+            coach?.text = session.text
+            if let coach { coachStore.save(coach) }
+        }
+        guard !wasBackgrounded else { return true }
+        if shouldResume {
+            resumeCoach()
+        } else if isCurrent(generation) {
+            await presentCoachStep(generation: generation)
+        }
+        return true
     }
 
     private func startGeneral(request: String, generation: Int) async {
@@ -823,6 +883,8 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func clearCoach() {
+        pendingAppOpen = nil
+        resumeAfterAppOpen = false
         preparedStep?.task.cancel()
         preparedStep = nil
         coach = nil
@@ -856,6 +918,10 @@ final class TaskPlannerEngine: ObservableObject {
     func appBecameActive() {
         guard wasBackgrounded else { return }
         wasBackgrounded = false
+        if pendingAppOpen != nil {
+            resumeAfterAppOpen = true
+            return
+        }
         if coach != nil { resumeCoach() }
     }
 
@@ -864,5 +930,11 @@ final class TaskPlannerEngine: ObservableObject {
         if preparedStep == nil { prepareNextCoachStep() }
         let generation = sessionGeneration
         Task { await speakCoach(generation: generation, welcome: true) }
+    }
+
+    private func resetDebugInfo() {
+        #if DEBUG
+        showsDebugInfo = false
+        #endif
     }
 }
