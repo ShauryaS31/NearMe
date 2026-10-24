@@ -8,8 +8,9 @@ nonisolated enum CoachDeepLink: Equatable, Sendable {
     static func parse(_ url: URL, savedSessionID: UUID?) -> Self {
         guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
               parts.scheme?.lowercased() == "nearme" else { return .ignored }
-        if let host = parts.host, !host.isEmpty, host != "coach" { return .ignored }
-        guard parts.host == "coach", parts.path.isEmpty, parts.fragment == nil,
+        let host = parts.host?.lowercased()
+        if let host, !host.isEmpty, host != "coach" { return .ignored }
+        guard host == "coach", parts.path.isEmpty, parts.fragment == nil,
               parts.user == nil, parts.password == nil, parts.port == nil,
               let items = parts.queryItems, items.count == 1, items[0].name == "session",
               let value = items[0].value, let id = UUID(uuidString: value), id == savedSessionID

@@ -29,6 +29,8 @@ enum CoachActivityLifecycle {
     }
 }
 
+#if !NEARME_LIVE_ACTIVITY_EXTENSION
+// All ActivityKit mutations belong to the app, including background intent execution.
 @MainActor
 final class CoachActivityUpdater: CoachActivityUpdating {
     static let shared = CoachActivityUpdater()
@@ -87,3 +89,4 @@ final class CoachActivityUpdater: CoachActivityUpdating {
         }
     }
 }
+#endif

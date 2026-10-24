@@ -30,17 +30,15 @@ struct SessionContainerView: View {
         }
         #endif
         .onAppear {
-            guard !didRestore else { return }
-            didRestore = true
-            PlannerModelAccess().prewarm()
-            if !handlePendingCoachURL() { engine.restoreCoach() }
+            if scenePhase == .active { activateSession() }
         }
         .onChange(of: coordinator.pendingCoachURL) { _, _ in
-            _ = handlePendingCoachURL()
+            if scenePhase == .active { activateSession() }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background { engine.appEnteredBackground() }
-            if phase == .active { engine.appBecameActive() }
+            if phase == .inactive { engine.appBecameInactive() }
+            if phase == .active { activateSession() }
         }
     }
 
@@ -63,11 +61,20 @@ struct SessionContainerView: View {
     }
 
     private func handlePendingCoachURL() -> Bool {
-        guard let request = coordinator.pendingCoachURL else { return false }
+        guard scenePhase == .active, let request = coordinator.pendingCoachURL else { return false }
         didRestore = true
         coordinator.pendingCoachURL = nil
         engine.openCoachURL(request.url)
         return true
+    }
+
+    private func activateSession() {
+        engine.appBecameActive()
+        if handlePendingCoachURL() { return }
+        guard !didRestore else { return }
+        didRestore = true
+        PlannerModelAccess().prewarm()
+        engine.restoreCoach()
     }
 
 }

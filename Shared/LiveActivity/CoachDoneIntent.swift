@@ -33,7 +33,7 @@ enum CoachDoneAction {
 /// including background launch; ordinary AppIntent would not provide that guarantee.
 nonisolated struct CoachDoneIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Mark step done"
-    static let openAppWhenRun = false
+    static let supportedModes: IntentModes = .background
     static let isDiscoverable = false
 
     @Parameter(title: "Session") var sessionID: String
@@ -48,11 +48,14 @@ nonisolated struct CoachDoneIntent: LiveActivityIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
+        #if !NEARME_LIVE_ACTIVITY_EXTENSION
         guard let id = UUID(uuidString: sessionID) else { return .result() }
         let updater = CoachActivityUpdater.shared
         _ = CoachDoneAction.perform(sessionID: id, expectedRevision: expectedRevision,
             store: CoachProgressStore(), guides: CoachActivityGuide.bundled(), updater: updater)
         await updater.flush()
+        #endif
+        // The extension only supplies Button(intent:) metadata; execution is in the app.
         return .result()
     }
 }

@@ -43,9 +43,11 @@ private struct CoachLockScreen: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(context.attributes.guideTitle).font(.headline)
             Text(context.state.instruction)
-                .font(.headline)
+                .font(.body)
                 .fixedSize(horizontal: false, vertical: true)
-            CoachActivityActions(context: context, linkTitle: "Resume")
+            if !context.state.isComplete {
+                CoachActivityActions(context: context, linkTitle: "Resume")
+            }
         }
         .foregroundStyle(.primary)
         .padding()

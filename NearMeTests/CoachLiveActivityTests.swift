@@ -153,6 +153,9 @@ final class CoachLiveActivityTests: XCTestCase {
         let url = try XCTUnwrap(CoachDeepLink.url(sessionID: id))
         XCTAssertEqual(url.absoluteString, "nearme://coach?session=\(id.uuidString)")
         XCTAssertEqual(CoachDeepLink.parse(url, savedSessionID: id), .coach(id))
+        let mixedCase = try XCTUnwrap(URL(string: "NearMe://CoAcH?session=\(id.uuidString)"))
+        XCTAssertEqual(CoachDeepLink.parse(mixedCase, savedSessionID: id), .coach(id))
+        XCTAssertEqual(CoachDeepLink.parse(mixedCase, savedSessionID: nil), .home)
         XCTAssertEqual(CoachDeepLink.parse(url, savedSessionID: nil), .home)
         XCTAssertEqual(CoachDeepLink.parse(url, savedSessionID: UUID()), .home)
         let malformed = ["nearme://coach", "nearme://coach?session=", "nearme://coach?session=nope",

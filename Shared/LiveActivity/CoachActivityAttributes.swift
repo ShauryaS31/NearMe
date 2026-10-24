@@ -16,7 +16,7 @@ nonisolated struct CoachActivityAttributes: ActivityAttributes, Sendable {
     }
 }
 
-/// Decodes only editorial guide content from the app bundle, never a model rewrite.
+/// Only editorial guide content from the app bundle, never a model rewrite.
 nonisolated struct CoachActivityGuide: Decodable, Sendable {
     let id: String
     let title: String
@@ -26,15 +26,11 @@ nonisolated struct CoachActivityGuide: Decodable, Sendable {
         let instruction: String
     }
 
-    static func bundled() -> [CoachActivityGuide] {
-        guard let directory = Bundle.main.url(forResource: "guides", withExtension: nil),
-              let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
-        else { return [] }
-        return files.filter { $0.pathExtension == "json" }.compactMap { file in
-            guard let data = try? Data(contentsOf: file) else { return nil }
-            return try? JSONDecoder().decode(CoachActivityGuide.self, from: data)
-        }
-    }
+    #if !NEARME_LIVE_ACTIVITY_EXTENSION
+    // Reuse the validated library decoded at app launch, including for every Done tap.
+    private static let bundledGuides: [CoachActivityGuide] = GuideLibrary.bundled().map { $0.activityGuide }
+    static func bundled() -> [CoachActivityGuide] { bundledGuides }
+    #endif
 }
 
 nonisolated struct CoachActivitySnapshot: Sendable {

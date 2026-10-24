@@ -41,6 +41,7 @@ final class TaskPlannerEngine: ObservableObject {
     private var coachReplySource: BrainSource = .template
     private var preparedStep: (index: Int, task: Task<BrainAnswer<String>, Never>)?
     private var wasBackgrounded = false
+    private var isSceneActive = false
     private var playbackGeneration = 0
     private let settleBeforeListening: () async throws -> Void
 
@@ -206,7 +207,6 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// Silence immediately, retaining the current practice or coach step.
     func stopSessionSpeech() {
-        if let coach { activityUpdater.enqueue(.stop(coach.id)) }
         if tripPlannerPracticeViewModel != nil {
             stopPracticeSpeech()
             return
@@ -819,7 +819,9 @@ final class TaskPlannerEngine: ObservableObject {
         guard isCurrent(generation) else { return }
         coachReplySource = answer.source == .keywordFallback ? .template : answer.source
         voiceOutput.setSlower(false)
-        activityUpdater.enqueue(.stop(nil))
+        if let coach, coach.guide != nil {
+            activityUpdater.enqueue(.stop(coach.id))
+        }
         coachStore.clear()
         coach = CoachSession(guide: nil, request: request, person: nil, generalSteps: answer.value,
                              stepIndex: 0, text: answer.value.first ?? CoachText.generalFallback)
@@ -827,8 +829,14 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func coachCommand(_ command: CoachCommand) {
+        guard let displayedSession = coach else { return }
         synchronizeSavedCoach()
-        guard coach != nil else { return }
+        guard let currentSession = coach else { return }
+        // A tap on the old card must not consume the revision an intent just saved.
+        if command == .next,
+           displayedSession.id != currentSession.id || displayedSession.revision != currentSession.revision {
+            return
+        }
         lastErrorMessage = nil
         sessionGeneration += 1
         voiceInput.stopListening()
@@ -947,7 +955,9 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func clearCoach(clearProgress: Bool = true) {
         if clearProgress {
-            activityUpdater.enqueue(.stop(coach?.id))
+            if let coach, coach.guide != nil {
+                activityUpdater.enqueue(.stop(coach.id))
+            }
             coachStore.clear()
         }
         finishingCoachID = nil
@@ -963,14 +973,15 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func restoreCoach() {
-        guard coach == nil, isHome, let restored = coachStore.restore(guides: guides) else { return }
+        guard isSceneActive, coach == nil, isHome,
+              let restored = coachStore.restore(guides: guides) else { return }
         coach = restored
         isHome = false
         publishCoach(startIfNeeded: true)
         resumeCoach()
     }
 
-    private func persistCoach(startIfNeeded: Bool = false) {
+    private func persistCoach(startIfNeeded: Bool = true) {
         guard let coach else { return }
         coachStore.save(coach)
         publishCoach(startIfNeeded: startIfNeeded)
@@ -1012,14 +1023,19 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func openCoachURL(_ url: URL) {
+        guard isSceneActive else { return }
         guard CoachDeepLink.parse(url, savedSessionID: nil) != .ignored else { return }
-        wasBackgrounded = false
         let restored = coachStore.restore(guides: guides)
         switch CoachDeepLink.parse(url, savedSessionID: restored?.id) {
         case .ignored: return
         case .home:
             returnHome(clearingProgress: false)
-        case .coach:
+        case .coach(let sessionID):
+            if coach?.id == sessionID {
+                synchronizeSavedCoach()
+                isHome = false
+                return
+            }
             returnHome(clearingProgress: false)
             coach = restored
             isHome = false
@@ -1029,6 +1045,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func appEnteredBackground() {
+        isSceneActive = false
         wasBackgrounded = true
         sessionGeneration += 1
         voiceInput.stopListening()
@@ -1042,6 +1059,7 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func appBecameActive() {
+        isSceneActive = true
         synchronizeSavedCoach()
         guard wasBackgrounded else { return }
         wasBackgrounded = false
@@ -1053,10 +1071,18 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     private func resumeCoach() {
+        guard isSceneActive else { return }
         sessionGeneration += 1
         if preparedStep == nil { prepareNextCoachStep() }
         let generation = sessionGeneration
-        Task { await speakCoach(generation: generation, welcome: true) }
+        Task {
+            guard self.isSceneActive else { return }
+            await speakCoach(generation: generation, welcome: true)
+        }
+    }
+
+    func appBecameInactive() {
+        isSceneActive = false
     }
 
     private func resetDebugInfo() {

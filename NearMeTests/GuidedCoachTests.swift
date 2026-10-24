@@ -338,6 +338,7 @@ final class GuidedCoachTests: XCTestCase {
         store.save(CoachSession(guide: photo, request: "send a photo to Mum", person: "Mum", generalSteps: [], stepIndex: 2, text: "private"))
         let output = CoachTestOutput()
         let engine = try makeEngine(output: output, store: store)
+        engine.appBecameActive()
         engine.restoreCoach()
         await eventually { engine.coach?.stepIndex == 2 && engine.plannerState == .idle && !output.lines.isEmpty }
         XCTAssertNil(engine.coach?.person)
