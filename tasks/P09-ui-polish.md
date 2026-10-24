@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | review passed, awaiting owner merge and Mac gate (branch task/P09-ui-polish) |
+| Status | done (device test Sun 10:00) |
 | Window | Sat 24 Oct evening, after P07b, before P10 |
 | Depends on | P07b |
 | Assignee | codex |
@@ -527,3 +527,9 @@ Swift 6.4 rules: default arguments must not construct NearMe or test types or re
 - Intended commit: `P09: Restore orb home and apply purple UI revision`. Commit disposition is recorded below after the requested Git write attempt.
 
 - Commit disposition: **UNCOMMITTED; manager must commit.** Explicit staging of the 19 revision paths succeeded; `git diff --cached --check` reported no whitespace errors. `git commit -m "P09: Restore orb home and apply purple UI revision"` failed (exit 1): `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/worktrees/NearMe-p09trial/index.lock': Permission denied`. The sandbox cannot write the required Git metadata. Per the owner's instruction, no retry or escalation was attempted. The implementation, assets, tests and initial report are staged; this disposition append is unstaged. The manager should stage the updated task file and commit with the intended P09 message. No merge or push; stopped after recording this failure.
+
+## Review (manager, final)
+- Date: 2026-10-24 21:23 AEDT
+- Verdict: PASS (static). Merged to main after P13b and P13c (owner order).
+- Owner revision checked: separate home page removed (no HelpHomeView left), launch goes to the orb screen, one idle line plus the YouTube hint, one listening label, Cancel only while listening, More menu (screen sharing, Practice mode, Type instead, Settings, End session, Show debug info in DEBUG only), purple tokens and violet accent with no hard-coded blue; the step icon on the coach card.
+- Merges with main resolved: P13b behaviour kept (sharing offer with Not now, picker log and fallback sentence, Manual mode label, the approved explainer copy) with P09 structure and styling; P13c's command status line moved into CoachStepContent (git had placed it in CoachHelpSheet, which would not compile). No conflict markers, braces balanced, default-argument and DEBUG-guard scans clean.
