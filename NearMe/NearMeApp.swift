@@ -6,6 +6,6 @@ struct NearMeApp: App {
         WindowGroup("NearMe") {
             ContentView()
         }
-        .defaultSize(width: 560, height: 320)
+        .defaultSize(width: 680, height: 660)
     }
 }
