@@ -59,6 +59,12 @@ Out of scope: the practice screens' own content (they imitate a trip planner app
 - [ ] Existing tests still pass; add a test that Theme exposes the tokens above and that `PrimaryButton` uses the stacked layout at an accessibility size (view-model or layout helper level, no snapshot library)
 - [ ] Debug-only SwiftUI previews for Home, conversation (each state), coach card and onboarding at default size and `.accessibility5`, light and dark
 
+### 9. Owner additions (2026-10-24, from iPhone screenshots)
+- [ ] A. No separate listening screen. Tapping the Home talk button listens in place on Home: the button becomes "Listening... tap when you're done" with a small waveform symbol (`waveform`), a bordered "Cancel" (`xmark`) appears under it, and the live transcript shows under a "You said" label. No purple orb, no uppercase tracked labels and no black cancel bar anywhere in the app (grep the Dev Report for evidence). Same P04b toggle behaviour and VoiceOver labels ("Start listening" / "Stop listening"); Cancel stops listening without submitting
+- [ ] B. A reply that is not a guide step (the `CoachText.generalFallback` "I'm not sure about that one" reply, errors, the no-words message) never shows as a coach card, never shows "Step 1 of 1" and never shows Done. It shows on Home in the reply area under the "NearMe" label, with prominent "Try again" (`mic.fill`, starts listening) and bordered "Type instead" (`keyboard`). General guidance with real steps (one or more steps that are not the fallback text) still uses the coach card with its "General guidance: your screen may look different" label. Implement the decision as a pure presentation helper in Views (for example `CoachPresentation.kind(for:)`) using existing engine state and existing public commands. Only if that is impossible: a minimal additive engine change (new computed property or method, no change to existing logic), listed line by line in the Dev Report, because P11 is editing `TaskPlannerEngine.swift` in parallel. Tests: fallback session gives the Home reply kind; a general session with real steps and a guide session give the coach card kind
+- [ ] C. Home looks designed, not blank: `systemGroupedBackground` page, content cards on `secondarySystemGroupedBackground` with the 20 pt continuous radius, the talk button as the clear hero (largest element, top of the content), Practice mode as a full row card with `tram.fill`, title, one-line explanation and a trailing `chevron.right`, spacing only from the 20/24/12 pt tokens. The coach card gets the same page and card treatment
+- [ ] Scope rule update: the owner allows engine changes for presentation state only, under the conditions in B. All other P11 exclusions stay
+
 ## Verify (Mac)
 ```
 bash scripts/mac-run.sh test --current
@@ -164,3 +170,4 @@ Exact command: `git diff --stat main`. Output captured before appending this rep
 ```
 
 The docs/PLAN.md and docs/LOG.md rows are differences already present between this lane's HEAD and main; the working-tree scope check against HEAD is empty for both. Untracked additions are not included in git diff --stat: `NearMe/Views/Components/UIPolishPreviews.swift` and `NearMeTests/UIPolishTests.swift` (confirmed with `git ls-files --others --exclude-standard`). This report and its lane-log entry are also additional to the captured snapshot.
+- 2026-10-24 18:33 AEDT | P09 | owner | decision | additions A (listen in place on Home), B (non-step replies on Home, not a coach card), C (grouped Home and coach card) added as section 9; for round 2
