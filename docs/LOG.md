@@ -23,3 +23,5 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 14:04 AEDT | - | claude | decision | owner: PIVOT to iPhone; macOS main archived to archive/mac-nearme (04a69d2); repo stays private (recreate deferred); CI manual only
 - 2026-10-24 14:04 AEDT | N10 | codex | dev-report r1 | iOS prototype imported (48 Swift, 15 assets, name check clean); committed by manager (sandbox blocked .git)
 - 2026-10-24 14:04 AEDT | P01 | claude | import | N10 tree moved to repo root as NearMe/Shared/NearMeBroadcastExtension/NearMeTests; macOS code and tasks N00 to N11 removed; project.yml, mac-run.sh (sim, device, test, report), manual CI, SPEC v2, PLAN rewritten; names clean; Mac pending (P02)
+- 2026-10-24 14:15 AEDT | P01 | owner | mac gate PASS | Xcode 27.1, iOS 27.1 sim (iPhone Duo): 4/4 JourneyIntent tests pass; P01 done
+- 2026-10-24 14:15 AEDT | P01 | claude | fix | Simulator.app gone in Xcode 27 (DeviceHub.app): mac-run.sh opens DeviceHub else Simulator, never fails; MAC-TESTING.md updated to Xcode 27.1 / iOS 27.1 / DeviceHub
