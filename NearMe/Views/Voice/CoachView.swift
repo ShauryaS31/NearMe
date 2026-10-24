@@ -10,10 +10,18 @@ struct CoachView: View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 ScrollView {
-                    if let session = engine.coach {
-                        CoachStepContent(session: session, onCommand: command)
-                            .id(session.stepIndex)
-                            .transition(.opacity)
+                    VStack(spacing: 12) {
+                        if engine.offersScreenSharing {
+                            ScreenSharingOffer(onNotNow: engine.declineScreenSharing)
+                        } else if let session = engine.coach {
+                            CoachStepContent(session: session, onCommand: command,
+                                             manualMode: session.guide?.id == "youtube_play_song" && engine.screenManualMode)
+                                .id(session.stepIndex)
+                                .transition(.opacity)
+                        }
+                        if !engine.offersScreenSharing {
+                            ScreenBroadcastButton().padding(.horizontal)
+                        }
                     }
                 }
                 .animation(stepAnimation, value: engine.coach?.stepIndex)
@@ -82,6 +90,7 @@ struct CoachStepContent: View {
     @ScaledMetric(relativeTo: .title2) private var scaledIconSize: CGFloat = 60
     let session: CoachSession
     let onCommand: (CoachCommand) -> Void
+    var manualMode = false
 
     private var presentation: CoachStepPresentation { CoachStepPresentation(session: session) }
 
@@ -102,6 +111,11 @@ struct CoachStepContent: View {
             }
             if presentation.hasKnownTotal {
                 progress
+            }
+            if manualMode {
+                Text("Manual mode")
+                    .font(TTFont.body())
+                    .foregroundStyle(TTColor.textSecondary)
             }
             stepIcon
             Text(presentation.instruction)

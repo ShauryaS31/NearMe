@@ -125,3 +125,10 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 19:32 AEDT | P13b | owner | decision | P13 round 2 replaced by P13b observe-recheck loop (YouTube only), overnight, ScreenSnapshotSource protocol; honest copy per handoff (no unverified claims)
 - 2026-10-24 19:34 AEDT | P07e | owner | iPhone PASS | YouTube guide, song in steps, auto-open, Island over YouTube, asks which song
 - 2026-10-24 19:36 AEDT | P13 | owner | device build | App Group signs (Personal Team), appex embedded; heartbeat result pending; tests at d93ffe7: 204 run, 198 pass, 3 skip, 3 fail (SessionLayoutTests guide count 15 vs 16, two more names pending)
+- 2026-10-24 19:40 AEDT | P09 | owner | decision | remove the home page; orb screen is home; More menu; purple theme; P13b first; sharing offer at guide start goes to P13b review round
+- 2026-10-24 19:47 AEDT | P13b | codex | dev-report r1 | Filtered OCR snapshots and YouTube observe/recheck loop, manual fallback, honest copy and 19 fake tests authored; static checks passed, Mac/device gate pending; commit blocked by .git/index.lock permission denied, uncommitted for manager.
+- 2026-10-24 19:48 AEDT | P13c | owner | decision | spike phone test: nothing happened in YouTube (expected); heartbeat not recorded; P13c hands-free voice commands after P13b
+- 2026-10-24 19:59 AEDT | P13b | claude | review r1 CHANGES | static screens go stale, own-screen reading, home wording, audio lease (A2DP, interruptions, grace), LA Done without song, OCR lang; plus sharing offer, picker fallback, 3 failing tests; dispatch r2
+- 2026-10-24 21:09 AEDT | P13b | codex | dev-report r2 | Addressed review items 1-11: static heartbeat, retained external observation, audio recovery, sharing offer and picker fallback, intent wording and test expectations; static checks passed, Mac/device gate pending; commit 3925c9f.
+- 2026-10-24 21:10 AEDT | P13b | claude | review r2 PASS | merged to main; P13c next, then P09
+- 2026-10-24 21:10 AEDT | P13c | claude | dispatch r1 | hands-free voice commands on top of P13b

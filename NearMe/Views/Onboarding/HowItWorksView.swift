@@ -33,7 +33,7 @@ struct HowItWorksContent: View {
             Label("Tell NearMe what you want to do", systemImage: "mic.fill")
             Label("Follow one step at a time", systemImage: "list.number")
             Label("You stay in control", systemImage: "hand.raised")
-            Text("NearMe guides you. You do the tapping.")
+            Text(ScreenSharingCopy.explanation)
             Text("You can also practise a train trip safely inside NearMe.")
         }
         .font(TTFont.body())

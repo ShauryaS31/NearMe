@@ -37,7 +37,7 @@ struct SessionContainerView: View {
         #if DEBUG
         .safeAreaInset(edge: .top, spacing: 0) {
             if engine.showsDebugInfo {
-                SessionDebugBadgeView(badge: engine.debugBadge)
+                SessionDebugBadgeView(badge: engine.debugBadge, song: engine.coach?.song)
             }
         }
         #endif
@@ -101,6 +101,7 @@ struct SessionContainerView: View {
 #if DEBUG
 private struct SessionDebugBadgeView: View {
     let badge: SessionDebugBadge
+    let song: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -109,7 +110,7 @@ private struct SessionDebugBadgeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            ScreenBroadcastDebugLine()
+            ScreenBroadcastDebugLine(song: song)
         }
         .font(.caption)
         .foregroundStyle(.primary)

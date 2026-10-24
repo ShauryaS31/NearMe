@@ -37,9 +37,10 @@ nonisolated struct CoachActivitySnapshot: Sendable {
     let attributes: CoachActivityAttributes
     let state: CoachActivityAttributes.ContentState
 
-    static func build(progress: CoachProgress, guide: CoachActivityGuide, completed: Bool = false) -> Self? {
+    static func build(progress: CoachProgress, guide: CoachActivityGuide, completed: Bool = false,
+                      observedInstruction: String? = nil) -> Self? {
         guard guide.id == progress.guideID, guide.steps.indices.contains(progress.stepIndex) else { return nil }
-        let instruction = completed ? "Done, well done" : guide.steps[progress.stepIndex].instruction
+        let instruction = completed ? "Done, well done" : (observedInstruction ?? guide.steps[progress.stepIndex].instruction)
         // Bound characters AND UTF-8 bytes (a single grapheme may contain many scalars).
         let title = bounded(guide.title)
         let state = CoachActivityAttributes.ContentState(stepNumber: progress.stepIndex + 1,

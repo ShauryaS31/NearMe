@@ -381,7 +381,7 @@ final class SessionLayoutTests: XCTestCase {
             let guide = try XCTUnwrap(guides.first { $0.id == id })
             for step in guide.steps where step.labelIsNearby == true && CoachText.sentences(step.instruction).count == 2 {
                 let text = CoachText.fallback(step: step, person: nil)
-                XCTAssertTrue(text.contains(step.instruction))
+                XCTAssertTrue(text.localizedCaseInsensitiveContains(step.instruction))
                 XCTAssertEqual(CoachText.sentences(text).count, 2)
             }
         }
@@ -409,7 +409,9 @@ final class SessionLayoutTests: XCTestCase {
         try FileManager.default.copyItem(at: source, to: directory)
         defer { try? FileManager.default.removeItem(at: directory) }
         try Data("notes".utf8).write(to: directory.appendingPathComponent("README.md"))
-        XCTAssertEqual(try GuideLibrary.load(directory: directory).count, 15)
+        let files = try FileManager.default.contentsOfDirectory(at: source, includingPropertiesForKeys: nil)
+        let jsonCount = files.filter { $0.pathExtension.lowercased() == "json" }.count
+        XCTAssertEqual(try GuideLibrary.load(directory: directory).count, jsonCount)
         let file = directory.appendingPathComponent("connect_wifi.json")
         let original = try String(contentsOf: file, encoding: .utf8)
         for date in ["2025-10-24", "2028-02-29", "2027-01-01"] {
