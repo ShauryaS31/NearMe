@@ -10,7 +10,7 @@ nonisolated enum NearMeAudioSession {
     /// voice conversation. Safe to call repeatedly, and safe to call from
     /// any thread — only does real work once per app launch (and will
     /// retry if an earlier attempt failed).
-    static func configureIfNeeded() {
+    static func configureIfNeeded() throws {
         lock.lock()
         let alreadyConfigured = isConfigured
         lock.unlock()
@@ -28,9 +28,11 @@ nonisolated enum NearMeAudioSession {
             isConfigured = true
             lock.unlock()
         } catch {
+            VoiceDiagnostics.log(error)
             // Leave isConfigured false so the next attempt (the next time
             // speak() or startListening() is called) tries again rather
             // than silently giving up for the rest of the app's lifetime.
+            throw VoiceInputError.audioEngineFailed(error)
         }
     }
 }

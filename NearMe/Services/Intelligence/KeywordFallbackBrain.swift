@@ -3,15 +3,16 @@
 import Foundation
 
 struct KeywordFallbackBrain: TaskPlannerBrain {
+    let initialSource: BrainSource = .keywordFallback
     private let transportModes = ["train", "tram", "bus", "vline", "v/line"]
 
-    func extractIntent(from utterance: String) async throws -> JourneyIntent {
+    func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         let lowered = " \(utterance.lowercased()) " // pad so " to "/" from " matches at the edges too
 
         guard lowered.contains("catch") || lowered.contains("train") || lowered.contains("tram")
                 || lowered.contains("bus") || lowered.contains(" to ") || lowered.contains("get to")
                 || lowered.contains("travel") || lowered.contains("go to") else {
-            return JourneyIntent(intent: .unknown, destination: nil, origin: nil, mode: nil)
+            return BrainAnswer(value: .empty, source: .keywordFallback)
         }
 
         let mode = transportModes.first { lowered.contains($0) }
@@ -19,23 +20,36 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
         let origin = firstPhrase(after: " from ", in: utterance, stoppingAt: [" to "])
 
         guard destination != nil || origin != nil else {
-            return JourneyIntent(intent: .unknown, destination: nil, origin: nil, mode: mode)
+            return BrainAnswer(value: JourneyIntent(intent: .unknown, destination: nil, origin: nil, mode: mode), source: .keywordFallback)
         }
 
-        return JourneyIntent(intent: .planJourney, destination: destination, origin: origin, mode: mode)
+        return BrainAnswer(value: JourneyIntent(intent: .planJourney, destination: destination, origin: origin, mode: mode), source: .keywordFallback)
     }
 
-    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> String {
+    func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
+        var place = trimEdges(answer)
+        let prefixes = ["I'm leaving from", "I’m leaving from", "I am leaving from",
+                        "I'm at", "I’m at", "I am at", "from", "to", "it's", "it’s", "it is", "um", "uh", "er"]
+        while let prefix = prefixes.first(where: {
+            place.lowercased() == $0.lowercased() || place.lowercased().hasPrefix($0.lowercased() + " ")
+                || place.lowercased().hasPrefix($0.lowercased() + ",")
+        }) {
+            place = trimEdges(String(place.dropFirst(prefix.count)))
+        }
+        return BrainAnswer(value: stripTrailingFiller(place), source: .keywordFallback)
+    }
+
+    func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {
         switch missing {
         case .origin:
-            return "Sure! Where are you leaving from?"
+            return BrainAnswer(value: "Sure! Where are you leaving from?", source: .keywordFallback)
         case .destination:
-            return "Got it — and where are you headed?"
+            return BrainAnswer(value: "Got it — and where are you headed?", source: .keywordFallback)
         }
     }
 
-    func confirmationLine(for intent: JourneyIntent) async throws -> String {
-        "Great! I'll help you plan that journey."
+    func confirmationLine(for intent: JourneyIntent) async throws -> BrainAnswer<String> {
+        BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
     }
 
     /// Finds the LAST occurrence of `marker` (e.g. " to ") and returns
@@ -67,7 +81,22 @@ struct KeywordFallbackBrain: TaskPlannerBrain {
             }
         }
 
-        let trimmed = slice.trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".!?")))
-        return trimmed.isEmpty ? nil : trimmed
+        return stripTrailingFiller(String(slice))
+    }
+
+    private func trimEdges(_ text: String) -> String {
+        text.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
+    }
+
+    private func stripTrailingFiller(_ text: String) -> String? {
+        var place = trimEdges(text)
+        let fillers = ["please", "thanks", "thank you", "um", "uh", "er"]
+        while let filler = fillers.first(where: {
+            place.lowercased() == $0 || place.lowercased().hasSuffix(" " + $0)
+                || place.lowercased().hasSuffix("," + $0)
+        }) {
+            place = trimEdges(String(place.dropLast(filler.count)))
+        }
+        return place.isEmpty ? nil : place
     }
 }

@@ -34,7 +34,10 @@ nonisolated final class AudioFileRecorder {
         // FIX: was a per-call setCategory/setActive here — see
         // NearMeAudioSession.swift. The session is configured once for the
         // whole conversation rather than being switched on every turn.
-        NearMeAudioSession.configureIfNeeded()
+        guard AVAudioApplication.shared.recordPermission == .granted else {
+            throw VoiceInputError.microphonePermissionDenied
+        }
+        try NearMeAudioSession.configureIfNeeded()
 
         let inputNode = engine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
@@ -51,7 +54,12 @@ nonisolated final class AudioFileRecorder {
         }
 
         engine.prepare()
-        try engine.start()
+        do {
+            try engine.start()
+        } catch {
+            inputNode.removeTap(onBus: 0)
+            throw VoiceInputError.audioEngineFailed(error)
+        }
     }
 
     /// Ends recording. If a completion is still pending — this was called
@@ -63,7 +71,11 @@ nonisolated final class AudioFileRecorder {
     }
 
     private func process(buffer: AVAudioPCMBuffer, url: URL) {
-        try? audioFile?.write(from: buffer)
+        do {
+            try audioFile?.write(from: buffer)
+        } catch {
+            VoiceDiagnostics.log(error)
+        }
 
         let level = rmsLevel(of: buffer)
         onAmplitude?(level)

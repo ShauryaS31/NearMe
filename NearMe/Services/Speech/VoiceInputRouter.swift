@@ -7,6 +7,7 @@ final class VoiceInputRouter: VoiceInputService {
     private let elevenLabs: ElevenLabsScribeService
     private let appleFallback: AppleSpeechFallbackService
     private var activeService: VoiceInputService?
+    private var listeningGeneration = 0
 
     init(elevenLabs: ElevenLabsScribeService? = nil,
          appleFallback: AppleSpeechFallbackService? = nil) {
@@ -19,6 +20,8 @@ final class VoiceInputRouter: VoiceInputService {
     }
 
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
+        listeningGeneration += 1
+        let generation = listeningGeneration
         if APIKeys.hasElevenLabsKey {
             activeService = elevenLabs
             do {
@@ -26,6 +29,8 @@ final class VoiceInputRouter: VoiceInputService {
             } catch VoiceInputError.noSpeechDetected {
                 throw VoiceInputError.noSpeechDetected
             } catch {
+                VoiceDiagnostics.log(error)
+                guard generation == listeningGeneration else { throw CancellationError() }
                 // Network hiccup, bad key, etc. — fall back rather than fail the session.
                 activeService = appleFallback
                 return try await appleFallback.startListening(onPartialTranscript: onPartialTranscript)
@@ -37,6 +42,7 @@ final class VoiceInputRouter: VoiceInputService {
     }
 
     func stopListening() {
+        listeningGeneration += 1
         activeService?.stopListening()
     }
 }

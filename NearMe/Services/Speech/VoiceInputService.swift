@@ -1,15 +1,72 @@
 // Adapted from a prior prototype, used with permission.
 
 import Foundation
+import OSLog
 
-enum VoiceInputError: Error, LocalizedError {
+nonisolated enum VoiceDiagnostics {
+    static let logger = Logger(subsystem: "au.nearme.ios", category: "voice")
+
+    static func log(_ error: Error) {
+        let nsError = error as NSError
+        logger.error("Voice error type=\(String(reflecting: type(of: error)), privacy: .public) domain=\(nsError.domain, privacy: .public) code=\(nsError.code, privacy: .public) description=\(nsError.localizedDescription, privacy: .public)")
+        if let inputError = error as? VoiceInputError {
+            switch inputError {
+            case .network(let underlying), .audioEngineFailed(let underlying): log(underlying)
+            default: break
+            }
+        }
+    }
+
+    static func message(for error: Error) -> String {
+        var message: String
+        if let inputError = error as? VoiceInputError {
+            switch inputError {
+            case .microphonePermissionDenied:
+                message = "Allow NearMe to use the microphone in Settings > Privacy & Security > Microphone. You can type instead."
+            case .speechPermissionDenied:
+                message = "Allow NearMe to use speech recognition in Settings > Privacy & Security > Speech Recognition. You can type instead."
+            case .microphoneUnavailable, .audioEngineFailed:
+                message = "NearMe can't hear the microphone right now"
+            case .recognizerUnavailable:
+                message = "Speech recognition isn't available right now. You can type instead."
+            case .noSpeechDetected:
+                message = "I didn't catch that. Please try again or type instead."
+            default:
+                message = "NearMe couldn't hear your request. Please try again or type instead."
+            }
+        } else {
+            message = "NearMe couldn't hear your request. Please try again or type instead."
+        }
+        #if DEBUG
+        var detail = error as NSError
+        if let inputError = error as? VoiceInputError {
+            switch inputError {
+            case .network(let underlying), .audioEngineFailed(let underlying): detail = underlying as NSError
+            default: break
+            }
+        }
+        message += " (\(detail.domain), \(detail.code))"
+        #endif
+        return message
+    }
+}
+
+nonisolated enum VoiceInputError: Error, LocalizedError {
+    case microphonePermissionDenied
+    case speechPermissionDenied
     case microphoneUnavailable
+    case recognizerUnavailable
+    case audioEngineFailed(Error)
     case noSpeechDetected
     case network(Error)
     case transcriptionFailed(String)
 
     var errorDescription: String? {
         switch self {
+        case .microphonePermissionDenied: return "Microphone permission denied."
+        case .speechPermissionDenied: return "Speech recognition permission denied."
+        case .recognizerUnavailable: return "Speech recognizer unavailable."
+        case .audioEngineFailed(let error): return "Audio engine failed: \(error.localizedDescription)"
         case .microphoneUnavailable:
             return "NearMe couldn't access the microphone."
         case .noSpeechDetected:

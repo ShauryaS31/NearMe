@@ -39,6 +39,18 @@ struct SessionContainerView: View {
                 })
             }
         }
+        #if DEBUG
+        .safeAreaInset(edge: .top, spacing: 0) {
+            Text(engine.latestBrainSource.label)
+                .font(.caption)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background(Color(uiColor: .systemBackground))
+                .accessibilityLabel("Brain source: \(engine.latestBrainSource.label)")
+        }
+        #endif
         .onAppear { engine.beginSession() }
         .animation(.easeInOut(duration: 0.2), value: isGuiding)
     }

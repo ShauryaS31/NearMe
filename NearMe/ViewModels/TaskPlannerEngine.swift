@@ -2,6 +2,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 @MainActor
 final class TaskPlannerEngine: ObservableObject {
@@ -12,6 +13,8 @@ final class TaskPlannerEngine: ObservableObject {
     @Published var liveTranscript: String = ""
     @Published var lastErrorMessage: String?
     @Published private(set) var hasCompletedAtLeastOneJourney = false
+    @Published private(set) var latestBrainSource: BrainSource
+    @Published private(set) var isTyping = false
 
     private let brain: TaskPlannerBrain
     private let voiceInput: VoiceInputService
@@ -20,6 +23,7 @@ final class TaskPlannerEngine: ObservableObject {
     private let userName: String
 
     private var pendingClarification: MissingSlot?
+    private var clarificationFailures = 0
     /// Guards against overlapping listen/speak loops if the user mashes buttons.
     private var sessionGeneration = 0
 
@@ -29,6 +33,7 @@ final class TaskPlannerEngine: ObservableObject {
          permissions: PermissionsManager,
          userName: String) {
         self.brain = brain
+        self.latestBrainSource = brain.initialSource
         self.voiceInput = voiceInput
         self.voiceOutput = voiceOutput
         self.permissions = permissions
@@ -46,8 +51,33 @@ final class TaskPlannerEngine: ObservableObject {
     /// User tapped the orb from an idle state to speak again.
     func userTappedToTalk() {
         sessionGeneration += 1
+        isTyping = false
+        lastErrorMessage = nil
         let generation = sessionGeneration
-        Task { await listenAndHandle(generation: generation) }
+        Task {
+            guard await ensurePermissions(generation: generation), isCurrent(generation) else { return }
+            await listenAndHandle(generation: generation)
+        }
+    }
+
+    func useTypedInput() {
+        sessionGeneration += 1
+        voiceInput.stopListening()
+        voiceOutput.stop()
+        isTyping = true
+        liveTranscript = ""
+        plannerState = .idle
+        // Keep pendingClarification and its retry count when changing input mode.
+    }
+
+    func submitTypedInput(_ text: String) {
+        let transcript = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard isTyping, !transcript.isEmpty, case .idle = plannerState else { return }
+        sessionGeneration += 1
+        let generation = sessionGeneration
+        lastErrorMessage = nil
+        plannerState = .thinking
+        Task { await receive(transcript: transcript, generation: generation) }
     }
 
     /// "cancel" — stops whatever NearMe is currently doing and returns to a
@@ -57,6 +87,7 @@ final class TaskPlannerEngine: ObservableObject {
         voiceInput.stopListening()
         voiceOutput.stop()
         pendingClarification = nil
+        clarificationFailures = 0
         currentIntent = .empty
         ptvSimulationViewModel = nil
         plannerState = .idle
@@ -76,20 +107,23 @@ final class TaskPlannerEngine: ObservableObject {
     // MARK: - Greeting
 
     private func runGreeting(generation: Int) async {
-        guard await ensurePermissions() else { return }
+        guard await ensurePermissions(generation: generation) else { return }
         guard isCurrent(generation) else { return }
         await speak("Hi, what can we help you with?", generation: generation)
         guard isCurrent(generation) else { return }
         await listenAndHandle(generation: generation)
     }
 
-    private func ensurePermissions() async -> Bool {
+    private func ensurePermissions(generation: Int) async -> Bool {
         let didPromptJustNow = !permissions.isFullyAuthorized
         if didPromptJustNow {
             await permissions.requestAll()
         }
+        guard isCurrent(generation) else { return false }
         if !permissions.isFullyAuthorized {
-            lastErrorMessage = "NearMe needs microphone access to listen for your requests. You can enable it in Settings > Privacy > Microphone."
+            let error: VoiceInputError = permissions.microphoneAuthorized ? .speechPermissionDenied : .microphonePermissionDenied
+            VoiceDiagnostics.log(error)
+            lastErrorMessage = VoiceDiagnostics.message(for: error)
             plannerState = .idle
             return false
         }
@@ -132,48 +166,79 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func listenAndHandle(generation: Int) async {
         guard isCurrent(generation) else { return }
+        if isTyping {
+            plannerState = .idle
+            return
+        }
         plannerState = .listening
         liveTranscript = ""
 
         do {
             let transcript = try await voiceInput.startListening { [weak self] partial in
-                self?.liveTranscript = partial
+                guard let self, self.isCurrent(generation) else { return }
+                self.liveTranscript = partial
             }
             guard isCurrent(generation) else { return }
-            conversation.append(ConversationTurn(speaker: .user, text: transcript))
-            await handle(transcript: transcript, generation: generation)
+            await receive(transcript: transcript, generation: generation)
         } catch VoiceInputError.noSpeechDetected {
+            VoiceDiagnostics.log(VoiceInputError.noSpeechDetected)
             guard isCurrent(generation) else { return }
+            lastErrorMessage = VoiceDiagnostics.message(for: VoiceInputError.noSpeechDetected)
             await speak("Sorry, I didn't catch that — what do you need help with?", generation: generation)
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         } catch {
+            VoiceDiagnostics.log(error)
             guard isCurrent(generation) else { return }
-            // NOTE: deliberately not surfacing `error.localizedDescription` here —
-            // for a bridged system error (e.g. a raw NSError) that reads as
-            // unhelpful, technical text like "The operation couldn't be
-            // completed. (...)" rather than something a end user should see.
-            lastErrorMessage = "Something went wrong with the microphone. Let's try again."
-            await speak("Sorry, something went wrong with the microphone. Let's try again.", generation: generation)
-            guard isCurrent(generation) else { return }
-            await listenAndHandle(generation: generation)
+            lastErrorMessage = VoiceDiagnostics.message(for: error)
+            plannerState = .idle
         }
+    }
+
+    private func receive(transcript: String, generation: Int) async {
+        guard isCurrent(generation) else { return }
+        lastErrorMessage = nil
+        VoiceDiagnostics.logger.debug("User input: \(transcript, privacy: .private)")
+        conversation.append(ConversationTurn(speaker: .user, text: transcript))
+        await handle(transcript: transcript, generation: generation)
     }
 
     private func handle(transcript: String, generation: Int) async {
         guard isCurrent(generation) else { return }
         plannerState = .thinking
 
-        if let missing = pendingClarification {
-            pendingClarification = nil
-            currentIntent = currentIntent.filling(missing, with: transcript)
-            await proceedAfterIntentUpdate(generation: generation)
-            return
-        }
-
         do {
-            let extracted = try await brain.extractIntent(from: transcript)
+            if let missing = pendingClarification {
+                let answer = try await brain.extractPlace(from: transcript, for: missing)
+                guard isCurrent(generation) else { return }
+                latestBrainSource = answer.source
+                guard let place = answer.value?.trimmingCharacters(in: .whitespacesAndNewlines), !place.isEmpty else {
+                    clarificationFailures += 1
+                    let question: String
+                    if clarificationFailures == 1 {
+                        question = "Sorry, which station or suburb?"
+                    } else {
+                        pendingClarification = nil
+                        clarificationFailures = 0
+                        currentIntent = .empty
+                        question = "Let's start again. Where would you like to go?"
+                    }
+                    await speak(question, generation: generation)
+                    guard isCurrent(generation) else { return }
+                    await listenAndHandle(generation: generation)
+                    return
+                }
+                pendingClarification = nil
+                clarificationFailures = 0
+                currentIntent = currentIntent.filling(missing, with: place)
+                await proceedAfterIntentUpdate(generation: generation)
+                return
+            }
+
+            let answer = try await brain.extractIntent(from: transcript)
             guard isCurrent(generation) else { return }
+            latestBrainSource = answer.source
+            let extracted = answer.value
 
             guard extracted.kind == .planJourney else {
                 await speak("I can help you plan a PTV journey — try telling me where you'd like to go, like \"I need to get to Melbourne Central.\"", generation: generation)
@@ -200,10 +265,17 @@ final class TaskPlannerEngine: ObservableObject {
 
         if let missing = currentIntent.firstMissingSlot {
             pendingClarification = missing
-            let question = (try? await brain.clarifyingQuestion(for: missing, currentIntent: currentIntent))
-                ?? (missing == .origin ? "Sure! Where are you leaving from?" : "And where are you headed?")
+            clarificationFailures = 0
+            let answer: BrainAnswer<String>
+            do {
+                answer = try await brain.clarifyingQuestion(for: missing, currentIntent: currentIntent)
+            } catch {
+                PlannerDiagnostics.fallback(after: error)
+                answer = BrainAnswer(value: missing == .origin ? "Sure! Where are you leaving from?" : "And where are you headed?", source: .keywordFallback)
+            }
             guard isCurrent(generation) else { return }
-            await speak(question, generation: generation)
+            latestBrainSource = answer.source
+            await speak(answer.value, generation: generation)
             guard isCurrent(generation) else { return }
             await listenAndHandle(generation: generation)
         } else {
@@ -215,8 +287,16 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func openPTVAndGuide(generation: Int) async {
         guard isCurrent(generation) else { return }
-        let confirmation = (try? await brain.confirmationLine(for: currentIntent)) ?? "Great! I'll help you plan that journey."
-        await speak(confirmation, generation: generation)
+        let answer: BrainAnswer<String>
+        do {
+            answer = try await brain.confirmationLine(for: currentIntent)
+        } catch {
+            PlannerDiagnostics.fallback(after: error)
+            answer = BrainAnswer(value: "Great! I'll help you plan that journey.", source: .keywordFallback)
+        }
+        guard isCurrent(generation) else { return }
+        latestBrainSource = answer.source
+        await speak(answer.value, generation: generation)
         guard isCurrent(generation) else { return }
 
         plannerState = .openingApp
