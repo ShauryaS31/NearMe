@@ -27,6 +27,40 @@ struct PracticeOnlyTestRouter: HelpRouting {
 
 @MainActor
 final class GuidedCoachTests: XCTestCase {
+    func testWidgetTurnRestoresSavedCoachAndRoutesSpeechWithoutStartingOrdinaryMicrophone() async throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "AskGuideTests.\(UUID().uuidString)"))
+        let store = CoachProgressStore(defaults: defaults)
+        let guide = try guide("whatsapp_send_photo")
+        let progress = CoachProgress(guideID: guide.id, stepIndex: 2, sessionID: UUID(), revision: 2)
+        store.save(progress)
+        let input = CoachTestInput()
+        let output = CoachTestOutput()
+        let engine = try makeEngine(output: output, input: input, store: store)
+        engine.beginWidgetTurn()
+        engine.appEnteredBackground()
+        await engine.receiveWidgetTranscript("repeat")
+        XCTAssertEqual(engine.coach?.id, progress.sessionID)
+        XCTAssertEqual(engine.coach?.stepIndex, 2)
+        XCTAssertTrue(engine.conversation.contains { $0.speaker == .user && $0.text == "repeat" })
+        XCTAssertFalse(output.lines.isEmpty)
+        XCTAssertEqual(input.starts, 0)
+        engine.cancelWidgetTurn()
+        XCTAssertEqual(store.load()?.sessionID, progress.sessionID)
+        XCTAssertEqual(store.load()?.stepIndex, 2)
+    }
+
+    func testWidgetQuestionDefersFollowUpToTheWidgetOwnedMicrophone() async throws {
+        let input = CoachTestInput()
+        let output = CoachTestOutput()
+        let engine = try makeEngine(output: output, input: input)
+        engine.beginWidgetTurn()
+        await engine.receiveWidgetTranscript("play a song on youtube")
+        XCTAssertTrue(engine.isAwaitingSong)
+        XCTAssertTrue(output.lines.contains("Which song would you like to play?"))
+        XCTAssertEqual(input.starts, 0)
+        engine.cancelWidgetTurn()
+    }
+
     func testYouTubeRoutesAndSongRewriteWithFakeModelAndKeywordFallback() async throws {
         let guides = try GuideLibrary.load()
         let youtube = try guide("youtube_play_song")
@@ -674,10 +708,12 @@ private final class CountingJourneyBrain: TaskPlannerBrain {
 
 @MainActor
 private final class CoachTestInput: VoiceInputService {
+    var starts = 0
     var acceptsTranscript: () -> Bool = { true }
     var isListening = false
     var nextTranscript: String?
     func startListening(onPartialTranscript: @escaping (String) -> Void) async throws -> String {
+        starts += 1
         guard let nextTranscript else { throw VoiceInputError.noSpeechDetected }
         self.nextTranscript = nil
         return nextTranscript

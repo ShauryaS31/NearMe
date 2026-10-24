@@ -97,6 +97,7 @@ struct VoiceSessionView: View {
         .sheet(item: $sheet) { destination in
             switch destination {
             case .screen: ScreenBroadcastPickerSheet()
+            case .widget: AskWidgetSetupView()
             case .settings: VoiceSettingsSheet()
             }
         }
@@ -134,6 +135,9 @@ struct VoiceSessionView: View {
             sheet = .screen
         case .practice: engine.startPractice()
         case .type: type()
+        case .widget:
+            textEntryFocused = false
+            sheet = .widget
         case .settings:
             textEntryFocused = false
             sheet = .settings

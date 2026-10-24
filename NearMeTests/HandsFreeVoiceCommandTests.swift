@@ -6,6 +6,162 @@ import XCTest
 
 @MainActor
 final class HandsFreeVoiceCommandTests: XCTestCase {
+    func testInterruptionClosesWindowAndRequiresForegroundResume() {
+        let f = CommandFixture()
+        f.start()
+        f.listener.requestAudioWindow()
+        f.input.onCaptureLost?()
+        XCTAssertEqual(f.listener.status, .paused)
+        XCTAssertFalse(f.input.capturing)
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.update(guideID: f.guide, sharing: true, foreground: false)
+        f.listener.requestAudioWindow()
+        f.listener.resume()
+        XCTAssertFalse(f.input.capturing)
+        f.start()
+        f.listener.resume()
+        XCTAssertTrue(f.input.capturing)
+        f.listener.stop()
+    }
+
+    func testExplicitAudioWindowRequiresPrefixAndExactCommandAndAcceptsOnlyOnce() async {
+        let f = CommandFixture()
+        f.listener.requestAudioWindow()
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.input.otherAudio = true
+        f.question = .playback
+        f.start()
+        f.listener.requestAudioWindow()
+        XCTAssertTrue(f.input.allowsOtherAudio)
+        XCTAssertEqual(f.listener.status, .commandWindow)
+        for text in ["stop", "yes", "music near me stop", "NearMe please stop", "NearMe next week"] {
+            f.input.emit(text, final: true)
+            await settle()
+        }
+        XCTAssertTrue(f.commands.isEmpty)
+        XCTAssertTrue(f.answers.isEmpty)
+        f.input.emit("NEAR ME, repeat!", final: true)
+        await settle()
+        XCTAssertEqual(f.commands, [.repeatStep])
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        XCTAssertEqual(f.listener.status, .waitingForAudio)
+        f.input.emit("NearMe yes", final: true)
+        await settle()
+        XCTAssertTrue(f.answers.isEmpty)
+        f.listener.requestAudioWindow()
+        f.input.emit("NearMe yes", final: true)
+        await settle()
+        XCTAssertEqual(f.answers, ["yes"])
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.stop()
+    }
+
+    func testAudioWindowExpiresAndClosesOnSpeechSharingLossAndSessionChange() async {
+        let f = CommandFixture()
+        f.input.otherAudio = true
+        f.start()
+        f.listener.requestAudioWindow()
+        f.now += 8
+        f.input.emit("NearMe stop", final: true)
+        await settle()
+        XCTAssertTrue(f.commands.isEmpty)
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.requestAudioWindow()
+        f.listener.setSpeaking(true)
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.setSpeaking(false)
+        f.now += 0.2
+        f.listener.requestAudioWindow()
+        f.listener.update(guideID: f.guide, sharing: false, foreground: false)
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.requestAudioWindow()
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        f.listener.update(guideID: f.guide, sharing: true, foreground: false)
+        f.listener.requestAudioWindow()
+        XCTAssertTrue(f.input.allowsOtherAudio)
+        f.listener.update(guideID: UUID(), sharing: true, foreground: false)
+        XCTAssertFalse(f.input.allowsOtherAudio)
+        XCTAssertFalse(f.input.capturing)
+        f.listener.stop()
+    }
+
+    func testAnswersAreBoundedAndOnlyAcceptedForThePendingQuestion() async {
+        let f = CommandFixture()
+        f.start()
+        f.input.emit("yes", final: true)
+        await settle()
+        XCTAssertTrue(f.answers.isEmpty)
+        f.question = .playback
+        f.listener.tick()
+        f.input.emit("NO, it isn't!", final: true)
+        await settle()
+        XCTAssertEqual(f.answers, ["no"])
+        f.input.emit("a random song lyric", final: true)
+        await settle()
+        XCTAssertEqual(f.answers, ["no"])
+        f.question = .description
+        f.listener.tick()
+        f.input.emit("I can see a keyboard", final: false)
+        f.now += 1.19
+        f.listener.tick()
+        XCTAssertEqual(f.answers.count, 1)
+        f.now += 0.02
+        f.listener.tick()
+        await settle()
+        XCTAssertEqual(f.answers.last, "I can see a keyboard")
+        for unsafe in [String(repeating: "a", count: 161), "password sunflower", "code 123456", "me@example.test"] {
+            XCTAssertNil(ScreenVoiceAnswer.bounded(unsafe, question: .description))
+        }
+        let prefixedSecret = VoiceCommand.prefixedPayload("NearMe, me@example.test")
+        XCTAssertEqual(prefixedSecret, "me@example.test")
+        XCTAssertNil(prefixedSecret.flatMap { ScreenVoiceAnswer.bounded($0, question: .description) })
+        f.listener.stop()
+    }
+
+    func testQuestionChangeOtherAudioAndNearMeSpeechDiscardPendingAnswers() async {
+        let f = CommandFixture()
+        f.question = .playback
+        f.start()
+        f.input.emit("yes", final: false)
+        f.question = .reopen
+        f.now += 2
+        f.listener.tick()
+        await settle()
+        XCTAssertTrue(f.answers.isEmpty)
+        f.input.otherAudio = true
+        XCTAssertEqual(f.listener.status, .waitingForAudio)
+        XCTAssertEqual(f.listener.status.text, "Pause other audio, or use Check & listen")
+        f.input.emit("yes", final: true)
+        f.input.otherAudio = false
+        f.listener.setSpeaking(true)
+        f.input.emit("yes", final: true)
+        f.listener.setSpeaking(false)
+        f.now += 0.2
+        f.listener.tick()
+        await settle()
+        XCTAssertTrue(f.answers.isEmpty)
+        f.input.emit("yes please", final: true)
+        await settle()
+        XCTAssertEqual(f.answers, ["yes"])
+        f.listener.stop()
+    }
+
+    func testCompletionCanReleaseMicrophoneWithoutCancellingItsAnswerTask() async {
+        let f = CommandFixture()
+        f.question = .playback
+        var cancelled: Bool?
+        f.listener.onAnswer = { _, _ in
+            f.listener.stop(cancelAction: false)
+            cancelled = Task.isCancelled
+        }
+        f.start()
+        f.input.emit("yes", final: true)
+        await settle()
+        XCTAssertEqual(cancelled, false)
+        XCTAssertFalse(f.input.capturing)
+        XCTAssertEqual(f.listener.status, .off)
+    }
+
     func testEveryPhraseCasePunctuationAndSuffix() {
         let cases: [(String, VoiceCommand)] = [
             ("what's next", .whatsNext), ("what next", .whatsNext), ("what now", .whatsNext),
@@ -222,7 +378,7 @@ final class HandsFreeVoiceCommandTests: XCTestCase {
         let request = OnDeviceCommandSpeechInput.makeRequest()
         XCTAssertTrue(request.requiresOnDeviceRecognition)
         XCTAssertTrue(request.shouldReportPartialResults)
-        XCTAssertEqual(request.contextualStrings, VoiceCommand.phrases)
+        XCTAssertEqual(request.contextualStrings, VoiceCommand.recognitionPhrases)
     }
 
     private func settle() async {
@@ -240,6 +396,8 @@ private final class CommandFixture {
     private let clock = CommandClock()
     let listener: HandsFreeVoiceCommands
     var commands: [VoiceCommand] = []
+    var question: ScreenCoachLoop.Question?
+    var answers: [String] = []
     var now: TimeInterval {
         get { clock.now }
         set { clock.now = newValue }
@@ -248,14 +406,18 @@ private final class CommandFixture {
         let clock = self.clock
         listener = HandsFreeVoiceCommands(input: input, now: { clock.now })
         listener.onCommand = { [weak self] in self?.commands.append($0) }
+        listener.pendingQuestion = { [weak self] in self?.question }
+        listener.onAnswer = { [weak self] answer, _ in self?.answers.append(answer) }
     }
     func start() { listener.update(guideID: guide, sharing: true, foreground: true) }
 }
 
 @MainActor
 final class FakeCommandSpeechInput: CommandSpeechInput {
+    var allowsOtherAudio = false
     var onResult: ((String, Bool) -> Void)?
     var onFailure: (() -> Void)?
+    var onCaptureLost: (() -> Void)?
     var onAudioHint: (() -> Void)?
     var otherAudio = false { didSet { onAudioHint?() } }
     var capturing = false

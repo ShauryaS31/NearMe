@@ -7,6 +7,7 @@ struct NearMeApp: App {
     @StateObject private var coordinator = AppCoordinator()
 
     init() {
+        AskNearMeRuntime.reconcileAtLaunch()
         // Also runs on a background intent launch; no coach engine is required.
         CoachActivityLifecycle.reconcile(store: CoachProgressStore(), guides: CoachActivityGuide.bundled(),
                                          updater: CoachActivityUpdater.shared)

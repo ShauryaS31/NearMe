@@ -64,11 +64,12 @@ nonisolated struct ScreenCoachLoop {
         }
         otherSince = nil
         offeredReopen = false
+        if !pageChanged, !changed, question != nil, !recheck { return nil }
         question = nil
         let next = observedInstruction(snapshot: snapshot, reading: current, song: song,
                                        allowsSongQuestion: allowsSongQuestion)
         let actionChanged = previousInstruction != next
-        if wasManual || pageChanged || (changed && actionChanged) || recheck {
+        if wasManual || pageChanged || actionChanged || recheck {
             previousInstruction = next
             lastPrompt = now
             return simplify ? simpler(next, snapshot: snapshot) : next
@@ -82,6 +83,10 @@ nonisolated struct ScreenCoachLoop {
     }
 
     mutating func answered() { question = nil }
+
+    /// Keep follow-up answers scoped to the question actually spoken, even when
+    /// the underlying page has not changed (for example playback -> description).
+    mutating func awaitAnswer(_ next: Question) { question = next }
 
     mutating func captureDidStart() { hasSeenCapture = true }
 
@@ -107,7 +112,8 @@ nonisolated struct ScreenCoachLoop {
             }) {
                 return instruction("Tap the magnifying glass at the \(search.box.position).", step: 1)
             }
-            return instruction("Tap the magnifying glass at the top right.", step: 1)
+            question = .description
+            return instruction("I can see YouTube's home page, but I can't locate Search. What buttons can you see?", step: 1)
         case .searchOpen:
             guard let song else {
                 guard allowsSongQuestion else { return instruction("Type the song name.", step: 2) }
@@ -127,7 +133,8 @@ nonisolated struct ScreenCoachLoop {
             if let row = ScreenInterpreter.songRow(in: snapshot, song: song) {
                 return instruction("Tap the matching song result at the \(row.box.position).", step: 4)
             }
-            return instruction("Tap the first result.", step: 4)
+            question = .description
+            return instruction("I can see results, but I can't identify your song. What titles can you see?", step: nil)
         case .watching:
             question = .playback
             return instruction("It should be playing. Is the song playing?", step: 5,

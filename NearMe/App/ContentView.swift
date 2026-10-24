@@ -18,6 +18,7 @@ struct ContentView: View {
                 SessionContainerView(userName: coordinator.userName)
             }
         }
+        .sheet(isPresented: $coordinator.showsWidgetSetup) { AskWidgetSetupView() }
         .tint(TTColor.accent)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: coordinator.route)
         .onChange(of: coordinator.route, initial: true) { _, route in

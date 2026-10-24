@@ -35,6 +35,9 @@ final class VoiceConnectivity {
 final class ElevenLabsVoiceOutput: VoiceOutputService {
     nonisolated static let playableAudioDeadline: TimeInterval = 2.5
     nonisolated static let modelID = "eleven_flash_v2_5"
+    nonisolated static let demoModelID = "eleven_multilingual_v2"
+    nonisolated static let demoPlayableAudioDeadline: TimeInterval = 8
+    private let demoFamilyVoice: Bool
     private let key: String
     private let voiceID: String
     private let settings: VoiceSettings
@@ -63,7 +66,8 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
          settings: VoiceSettings? = nil, session: VoiceHTTPSession = URLSession.shared,
          cache: VoiceAudioCache? = nil, player: VoiceAudioPlaying? = nil,
          fallback: VoiceOutputService? = nil, isOffline: (() -> Bool)? = nil,
-         deadline: TimeInterval? = nil) {
+         deadline: TimeInterval? = nil, demoFamilyVoice: Bool = false) {
+        self.demoFamilyVoice = demoFamilyVoice
         self.key = key ?? APIKeys.elevenLabsAPIKey
         self.voiceID = voiceID ?? APIKeys.elevenLabsVoiceID
         self.settings = settings ?? VoiceSettings()
@@ -71,7 +75,7 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         self.cache = cache ?? VoiceAudioCache()
         self.player = player ?? VoiceAudioPlayer()
         self.fallback = fallback ?? SystemVoiceOutputService()
-        self.deadline = deadline ?? Self.playableAudioDeadline
+        self.deadline = deadline ?? (demoFamilyVoice ? Self.demoPlayableAudioDeadline : Self.playableAudioDeadline)
         if let isOffline {
             self.isOffline = isOffline
         } else {
@@ -92,17 +96,21 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     }
 
     func speakGreeting(_ text: String) async {
+        if demoFamilyVoice { await speak(text); return }
         stopPlayback()
         await speakSystem(text, reason: settings.naturalVoiceEnabled ? "greeting before speech preparation" : "natural voice off", started: .now)
     }
 
     /// Personal song titles must never enter the persistent audio cache.
     func speakSessionOnly(_ text: String) async {
+        // Demo downloads never read or write the persistent audio cache.
+        if demoFamilyVoice { await speak(text); return }
         stopPlayback()
         await speakSystem(text, reason: "session-only content", started: .now)
     }
 
     func speakAcknowledgement(_ text: String) async {
+        if demoFamilyVoice { await speak(text); return }
         // Never wait for a network request before acknowledging a new request.
         if fallbackReason == nil, cache.audio(for: cacheKey(text)) != nil {
             await speak(text)
@@ -126,16 +134,17 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         }
         guard token == generation, !Task.isCancelled else { return }
         // The preference may have changed while this line was being fetched.
-        if !settings.naturalVoiceEnabled {
+        if !cloudVoiceEnabled {
             player.stop()
             await speakSystem(text, reason: "natural voice off", started: started)
             return
         }
         switch outcome {
         case .ready(let source):
-            lastVoice = "ElevenLabs"
+            let voice = demoFamilyVoice ? "Family voice (cloud)" : "ElevenLabs"
+            lastVoice = voice
             lastFallbackReason = nil
-            onVoiceChanged?("ElevenLabs")
+            onVoiceChanged?(voice)
             log(text, source: source, reason: "none", started: started)
             let success = await player.play()
             if !success, token == generation {
@@ -148,6 +157,8 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     }
 
     func prefetch(_ text: String) {
+        // Send only replies actually requested for playback in the demo.
+        guard !demoFamilyVoice else { return }
         guard fallbackReason == nil else { return }
         let cacheKey = cacheKey(text)
         guard cache.audio(for: cacheKey) == nil else { return }
@@ -167,7 +178,7 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     func stop() {
         queuedPrefetch = nil
         stopPlayback()
-        // Downloads may still populate the cache, but never start playback.
+        // Non-demo downloads may still populate the cache, but never start playback.
     }
 
     func setSlower(_ slower: Bool) {
@@ -177,13 +188,19 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
 
     private func stopPlayback() {
         generation += 1
+        if demoFamilyVoice {
+            for task in downloads.values { task.cancel() }
+            downloads.removeAll()
+        }
         resolveAudio(.stopped)
         player.stop()
         fallback.stop()
     }
 
+    private var cloudVoiceEnabled: Bool { demoFamilyVoice || settings.naturalVoiceEnabled }
+
     private var fallbackReason: String? {
-        if !settings.naturalVoiceEnabled { return "natural voice off" }
+        if !cloudVoiceEnabled { return "natural voice off" }
         if key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "empty key" }
         if voiceID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "empty voice id" }
         if isOffline() { return "offline" }
@@ -191,13 +208,14 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     }
 
     private func cacheKey(_ text: String) -> String {
-        VoiceAudioCache.key(voiceID: voiceID, modelID: Self.modelID, text: text)
+        VoiceAudioCache.key(voiceID: voiceID, modelID: demoFamilyVoice ? Self.demoModelID : Self.modelID, text: text)
     }
 
     private func playableAudio(_ text: String, token: Int) async -> AudioOutcome {
-        let cacheKey = cacheKey(text)
+        // Unique ephemeral keys keep canceled demo tasks from touching a later turn.
+        let cacheKey = demoFamilyVoice ? UUID().uuidString : cacheKey(text)
         let cutoff = ContinuousClock.now.advanced(by: .seconds(deadline))
-        if let data = cache.audio(for: cacheKey) {
+        if !demoFamilyVoice, let data = cache.audio(for: cacheKey) {
             do {
                 try player.prepare(data)
                 return .ready("ElevenLabs cache hit")
@@ -250,6 +268,9 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
     }
 
     private func resolveAudio(_ outcome: AudioOutcome) {
+        if demoFamilyVoice, case .fallback = outcome {
+            for task in downloads.values { task.cancel() }
+        }
         deadlineTask?.cancel()
         deadlineTask = nil
         let pending = pendingAudio
@@ -261,7 +282,7 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
         if let existing = downloads[cacheKey] { return existing }
         let task = Task { [self] in
             defer { downloads[cacheKey] = nil }
-            guard settings.naturalVoiceEnabled else { throw VoicePlaybackError.request }
+            guard cloudVoiceEnabled else { throw VoicePlaybackError.request }
             guard let baseURL = URL(string: "https://api.elevenlabs.io/v1/text-to-speech") else { throw VoicePlaybackError.request }
             var components = URLComponents(url: baseURL.appendingPathComponent(voiceID), resolvingAgainstBaseURL: false)
             components?.queryItems = [URLQueryItem(name: "output_format", value: "mp3_44100_128")]
@@ -271,25 +292,42 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
             request.setValue(key, forHTTPHeaderField: "xi-api-key")
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("audio/mpeg", forHTTPHeaderField: "Accept")
-            request.httpBody = try JSONEncoder().encode(SpeechBody(text: text, model_id: Self.modelID))
+            request.httpBody = try JSONEncoder().encode(SpeechBody(text: text,
+                model_id: demoFamilyVoice ? Self.demoModelID : Self.modelID,
+                voice_settings: demoFamilyVoice ? DemoVoiceSettings() : nil))
             let (data, response) = try await session.audio(for: request)
             guard let response = response as? HTTPURLResponse else { throw VoicePlaybackError.request }
             guard (200..<300).contains(response.statusCode) else { throw VoicePlaybackError.http(response.statusCode) }
-            cache.store(data, for: cacheKey)
+            try Task.checkCancellation()
+            if !demoFamilyVoice { cache.store(data, for: cacheKey) }
             return data
         }
         downloads[cacheKey] = task
         return task
     }
 
-    private struct SpeechBody: Encodable { let text: String; let model_id: String }
+    private struct SpeechBody: Encodable {
+        let text: String
+        let model_id: String
+        let voice_settings: DemoVoiceSettings?
+    }
+
+    /// Matches the approved auditions; no private voice identifier is in source.
+    private struct DemoVoiceSettings: Encodable {
+        let stability = 0.5
+        let similarity_boost = 0.75
+        let style = 0.0
+        let use_speaker_boost = true
+        let speed = 0.92
+    }
 
     private func speakSystem(_ text: String, reason: String, started: ContinuousClock.Instant) async {
         lastVoice = "System voice"
         lastFallbackReason = reason
         onVoiceChanged?("System voice")
         log(text, source: "System voice", reason: reason, started: started)
-        await fallback.speak(text)
+        let line = demoFamilyVoice ? "Family voice is unavailable. This is the device voice. \(text)" : text
+        await fallback.speak(line)
     }
 
     private func log(_ text: String, source: String, reason: String, started: ContinuousClock.Instant) {

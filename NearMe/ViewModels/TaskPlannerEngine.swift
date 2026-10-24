@@ -21,8 +21,12 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var isTyping = false
     @Published private(set) var latestVoice: String?
     @Published private(set) var isVoiceOutputActive = false {
-        didSet { voiceCommands.setSpeaking(isVoiceOutputActive) }
+        didSet {
+            voiceCommands.setSpeaking(isVoiceOutputActive)
+            onWidgetSpeechChanged?(isVoiceOutputActive)
+        }
     }
+    var onWidgetSpeechChanged: ((Bool) -> Void)?
     @Published private(set) var isStartingListening = false
     @Published private(set) var coach: CoachSession?
     @Published private(set) var screenManualMode = true
@@ -61,6 +65,8 @@ final class TaskPlannerEngine: ObservableObject {
     private var preparedStep: (index: Int, task: Task<BrainAnswer<String>, Never>)?
     private var wasBackgrounded = false
     private var isSceneActive = false
+    private var widgetTurnID: UUID?
+    private var widgetTurnActive: Bool { widgetTurnID != nil }
     private var playbackGeneration = 0
     private var acknowledgement: Task<Void, Never>?
     private var acknowledgementGeneration: Int?
@@ -130,7 +136,8 @@ final class TaskPlannerEngine: ObservableObject {
         self.screenObserver = ScreenObserver(source: screenSource ?? AppGroupScreenSnapshotSource(), now: clock,
                                              recheckWait: screenRecheckWait)
         self.screenAudio = screenAudio ?? ScreenGuidanceAudioLease()
-        self.voiceCommands = HandsFreeVoiceCommands(input: commandInput ?? OnDeviceCommandSpeechInput(), now: clock)
+        let commandClock = screenNow ?? { ProcessInfo.processInfo.systemUptime }
+        self.voiceCommands = HandsFreeVoiceCommands(input: commandInput ?? OnDeviceCommandSpeechInput(), now: commandClock)
         let library = guides ?? GuideLibrary.bundled()
         let service = coachService ?? CoachModelService.makeDefault()
         self.guides = library
@@ -164,8 +171,22 @@ final class TaskPlannerEngine: ObservableObject {
             }
         self.voiceOutput.prefetch(Self.acknowledgementLine)
         self.screenObserver.onPoll = { [weak self] in self?.screenPolled() }
-        self.voiceCommands.onStatus = { [weak self] in self?.voiceCommandStatus = $0 }
+        self.voiceCommands.onStatus = { [weak self] status in
+            guard let self else { return }
+            self.voiceCommandStatus = status
+            if self.coach?.guide?.id == "youtube_play_song", self.screenObserver.canSee {
+                self.publishCoach(startIfNeeded: false)
+            }
+        }
         self.voiceCommands.onCommand = { [weak self] in await self?.handleVoiceCommand($0) }
+        self.voiceCommands.pendingQuestion = { [weak self] in
+            guard let self, self.screenObserver.canSee, !self.offersScreenSharing,
+                  !self.screenStarting, self.coach?.guide?.id == "youtube_play_song" else { return nil }
+            return self.screenLoop.question
+        }
+        self.voiceCommands.onAnswer = { [weak self] answer, question in
+            await self?.handleVoiceAnswer(answer, question: question)
+        }
         ScreenCoachIntentRecheck.warmRecheck = { [weak self] progress in
             guard let self, progress.guideID == "youtube_play_song",
                   self.coach?.id == progress.sessionID else { return false }
@@ -185,6 +206,40 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     // MARK: - Entry points
+
+    /// Explicit widget capture owns the audio turn while retaining guide/practice state.
+    func beginWidgetTurn() {
+        stopSessionSpeech()
+        if coach == nil, let saved = coachStore.restore(guides: guides) { coach = saved }
+        widgetTurnID = UUID()
+        isStartingListening = false
+        isHome = false
+        isTyping = false
+    }
+
+    func cancelWidgetTurn() {
+        guard widgetTurnActive else { return }
+        widgetTurnID = nil
+        stopSessionSpeech()
+    }
+
+    func receiveWidgetTranscript(_ transcript: String) async {
+        guard let turnID = widgetTurnID else { return }
+        // Invalidate any older guide speech/task before this conversational turn.
+        stopSessionSpeech()
+        let generation = sessionGeneration
+        spokenInput = true
+        plannerState = .thinking
+        await receive(transcript: transcript, generation: generation)
+        if widgetTurnID == turnID, offersScreenSharing, isCurrent(generation) {
+            await speak("Open NearMe to choose screen sharing, or say not now for manual help.", generation: generation)
+        }
+    }
+
+    func speakWidgetSessionLine(_ text: String) async {
+        guard widgetTurnActive else { return }
+        await speak(text, generation: sessionGeneration)
+    }
 
     func beginSession() {
         isHome = false
@@ -426,6 +481,9 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func listenAndHandle(generation: Int) async {
         guard isCurrent(generation) else { return }
+        // The widget conversation owns one persistent hardware capture and rearms
+        // recognition after replies. Never start the ordinary microphone alongside it.
+        guard !widgetTurnActive else { plannerState = .idle; return }
         if isTyping {
             plannerState = .idle
             return
@@ -1229,8 +1287,10 @@ final class TaskPlannerEngine: ObservableObject {
         guard let coach, let guide = coach.guide else { return }
         let progress = CoachProgress(guideID: guide.id, stepIndex: coach.stepIndex,
                                      sessionID: coach.id, revision: coach.revision)
+        let observedText = screenQuestionActivityText() ?? screenActivityText
+        let canListen = guide.id == "youtube_play_song" && screenObserver.canSee && voiceCommands.hasCapture
         if let snapshot = CoachActivitySnapshot.build(progress: progress, guide: guide.activityGuide,
-                                                       observedInstruction: screenActivityText) {
+                                                       observedInstruction: observedText, canCheckAndListen: canListen) {
             activityUpdater.enqueue(.show(snapshot, startIfNeeded: startIfNeeded))
         }
     }
@@ -1288,6 +1348,7 @@ final class TaskPlannerEngine: ObservableObject {
         isSceneActive = false
         screenObserver.sceneBecameInactive()
         wasBackgrounded = true
+        if widgetTurnActive { return }
         if coach?.guide?.id == "youtube_play_song", screenObserver.canSee {
             voiceInput.stopListening()
             if plannerState == .listening || plannerState == .finishing || isStartingListening {
@@ -1313,6 +1374,7 @@ final class TaskPlannerEngine: ObservableObject {
         isSceneActive = true
         screenObserver.sceneBecameActive()
         synchronizeSavedCoach()
+        if widgetTurnActive { return }
         guard wasBackgrounded else { return }
         wasBackgrounded = false
         if pendingAppOpen != nil {
@@ -1416,6 +1478,30 @@ final class TaskPlannerEngine: ObservableObject {
         }
     }
 
+    private func handleVoiceAnswer(_ answer: String, question: ScreenCoachLoop.Question) async {
+        guard let session = coach, session.guide?.id == "youtube_play_song",
+              screenLoop.question == question else { return }
+        sessionGeneration += 1
+        let generation = sessionGeneration
+        plannerState = .thinking
+        defer { if isCurrent(generation) { plannerState = .idle } }
+        let snapshot: ScreenSnapshot?
+        do { snapshot = try await screenObserver.freshForRecheck() }
+        catch { return }
+        guard isCurrent(generation), coach?.id == session.id, !Task.isCancelled,
+              screenObserver.canSee, let snapshot, screenLoop.question == question else { return }
+        let current = ScreenInterpreter.read(snapshot, guideID: "youtube_play_song", song: session.song)
+        // A delayed yes must not answer a question about a page that has gone away.
+        guard current.page == screenLoop.reading?.page else {
+            if let value = screenLoop.update(snapshot: snapshot, guideID: "youtube_play_song",
+                                             song: session.song, now: screenObserver.observationTime, recheck: true) {
+                await applyScreenInstruction(value, generation: generation)
+            }
+            return
+        }
+        _ = await handleScreenAnswer(answer, generation: generation)
+    }
+
     private func startScreenObservation() {
         guard coach?.guide?.id == "youtube_play_song" else { return }
         screenObserver.poll()
@@ -1457,9 +1543,18 @@ final class TaskPlannerEngine: ObservableObject {
         let fromIntent = screenIntentRecheck
         screenRecheckPending = false
         screenIntentRecheck = false
-        guard let value = screenLoop.update(snapshot: screenObserver.snapshot, guideID: "youtube_play_song",
-                                           song: session.song, now: screenObserver.observationTime, recheck: recheck,
-                                           allowsSongQuestion: !fromIntent) else { return }
+        var instruction = screenLoop.update(snapshot: screenObserver.snapshot, guideID: "youtube_play_song",
+                                            song: session.song, now: screenObserver.observationTime, recheck: recheck,
+                                            allowsSongQuestion: !fromIntent || voiceCommands.hasCapture)
+        if instruction == nil, fromIntent, screenLoop.reading?.page == .otherApp {
+            // The dwell/one-off offer rule normally suppresses repeated speech,
+            // but an explicit Check & listen must still open an answer window.
+            let text = screenLoop.question == .reopen
+                ? "It looks like you've left YouTube. Shall I open it again?"
+                : "It looks like you've left YouTube. I'll check again in a moment."
+            instruction = ScreenCoachInstruction(text: text, stepIndex: nil, activityText: "Return to NearMe for help.")
+        }
+        guard let value = instruction else { return }
         let generation = sessionGeneration
         let actionID = UUID()
         screenActionID = actionID
@@ -1473,11 +1568,20 @@ final class TaskPlannerEngine: ObservableObject {
             }
             guard self.isCurrent(generation), self.coach?.id == session.id, !Task.isCancelled else { return }
             let delivered: ScreenCoachInstruction
-            if fromIntent {
+            if fromIntent, !self.voiceCommands.hasCapture {
                 delivered = ScreenCoachInstruction(text: value.activityText, stepIndex: value.stepIndex,
                                                    activityText: value.activityText)
             } else { delivered = value }
             await self.applyScreenInstruction(delivered, generation: generation)
+            if fromIntent, self.isCurrent(generation), self.coach?.id == session.id,
+               self.screenObserver.canSee, self.voiceCommands.hasCapture {
+                await self.speak("For eight seconds, say NearMe, then your command or answer.", generation: generation)
+                guard self.isCurrent(generation), self.coach?.id == session.id, !Task.isCancelled else { return }
+                self.plannerState = .idle
+                self.screenObserver.poll()
+                guard self.screenObserver.canSee else { return }
+                self.voiceCommands.requestAudioWindow()
+            }
         }
     }
 
@@ -1543,6 +1647,24 @@ final class TaskPlannerEngine: ObservableObject {
             await speakCoach(generation: generation)
         }
         if isCurrent(generation) { plannerState = .idle }
+    }
+
+    /// Generic, bounded copy only. Cold intent launches still use the existing
+    /// return-to-NearMe fallback because they cannot acquire a background mic.
+    private func screenQuestionActivityText() -> String? {
+        if voiceCommandStatus == .paused { return "Voice paused. Open NearMe to resume, or use Done to check." }
+        if voiceCommandStatus == .commandWindow {
+            return "For 8 seconds, say NearMe, then next, repeat, stop or your answer."
+        }
+        guard let question = screenLoop.question else { return nil }
+        if voiceCommandStatus == .waitingForAudio { return "Tap Check & listen, or pause other audio to answer." }
+        guard voiceCommandStatus == .listening else { return nil }
+        switch question {
+        case .playback: return "Say yes if the song is playing, or no for help."
+        case .reopen: return "Say yes to reopen YouTube, or no to stay here."
+        case .song: return "Say the song name."
+        case .description: return "Tell NearMe what you see."
+        }
     }
 
     /// Same supported URL path as auto-open, with no inferred screen transition.
@@ -1618,24 +1740,30 @@ final class TaskPlannerEngine: ObservableObject {
                 await finishObservedCoach(generation: generation)
                 return true
             }
-            screenLoop.answered()
-            await speak(no ? "Okay. What do you see on the player?" : "Is the song playing? Say yes or no.", generation: generation)
+            screenLoop.awaitAnswer(no ? .description : .playback)
+            let text = no ? "Okay. What do you see on the player?" : "Is the song playing? Say yes or no."
+            coach?.text = text
+            screenActivityText = "Return to NearMe to answer."
+            publishCoach(startIfNeeded: false)
+            await speak(text, generation: generation)
         case .description:
             screenLoop.answered()
             let text: String
             if answer.contains("sign in") || answer.contains("sign-in") || answer.contains("permission") {
                 text = "From your description, a prompt is open. If you see \"Not now\", tap it. Otherwise, tell me the buttons you see."
-            } else if answer.contains("search") || answer.contains("keyboard") {
+                screenLoop.awaitAnswer(.description)
+            } else if answer.contains("keyboard") || answer.contains("search is open") || answer.contains("search field") {
                 let song = coach?.song.map { "\"\($0)\"" } ?? "the song name"
-                text = "From your description, search is open. Type \(song), then tap search on the keyboard."
-            } else if answer.contains("magnifying") {
-                text = "From your description, you can see the magnifying glass. Tap it to open search."
+                text = "From your description, search is open. Type \(song)."
+            } else if answer.contains("magnifying") || answer.contains("search") {
+                text = "From your description, you can see Search. Tap it to open search."
             } else {
                 text = "Tell me the words or buttons you can see, such as search or a sign-in box."
+                screenLoop.awaitAnswer(.description)
             }
             // User-described help is never classified as an observed page or persisted as evidence.
             coach?.text = text
-            screenActivityText = "Follow the help in NearMe, then check the screen again."
+            screenActivityText = "Follow the spoken help, then check the screen again."
             publishCoach(startIfNeeded: false)
             await speak(text, generation: generation)
         }
@@ -1646,7 +1774,9 @@ final class TaskPlannerEngine: ObservableObject {
 
     private func finishObservedCoach(generation: Int) async {
         guard let session = coach, let guide = session.guide else { return }
-        voiceCommands.stop()
+        // Release the microphone without cancelling the answer task that still
+        // needs to deliver completion speech and clear this session.
+        voiceCommands.stop(cancelAction: false)
         finishingCoachID = session.id
         screenObserver.stop()
         // Keep mixing/temporary ducking policy through the completion line too.

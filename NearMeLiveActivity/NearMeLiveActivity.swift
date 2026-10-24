@@ -5,7 +5,11 @@ import WidgetKit
 
 @main
 struct NearMeLiveActivityBundle: WidgetBundle {
-    var body: some Widget { CoachLiveActivity() }
+    var body: some Widget {
+        CoachLiveActivity()
+        AskNearMeWidget()
+        AskRecordingLiveActivity()
+    }
 }
 
 struct CoachLiveActivity: Widget {
@@ -81,10 +85,10 @@ private struct CoachActivityActions: View {
         if !context.state.isComplete {
             Button(intent: CoachDoneIntent(sessionID: context.attributes.sessionID,
                                            expectedRevision: context.state.revision)) {
-                Label("Done", systemImage: "checkmark").frame(minHeight: 44)
+                Label(context.state.actionTitle, systemImage: "checkmark").frame(minHeight: 44)
             }
-            .accessibilityLabel("Mark step done")
-            .accessibilityHint("Tell NearMe you completed this step")
+            .accessibilityLabel(context.state.canCheckAndListen == true ? "Check screen and listen" : "Mark step done")
+            .accessibilityHint(context.state.actionHint)
         }
         if let url = CoachDeepLink.url(sessionID: context.attributes.sessionID) {
             Link(destination: url) {

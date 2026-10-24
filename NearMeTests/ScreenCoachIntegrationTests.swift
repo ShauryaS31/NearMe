@@ -4,6 +4,128 @@ import XCTest
 
 @MainActor
 final class ScreenCoachIntegrationTests: XCTestCase {
+    func testWarmIslandCheckAndListenAllowsOnePrefixedAnswerDuringOtherAudio() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.commands.otherAudio = true
+        fixture.show(["Subscribe", "Share", "Comments", "Up next"])
+        fixture.engine.pollScreen()
+        await eventually { fixture.engine.coach?.stepIndex == 5 && fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.activity.actionTitles.last, "Check & listen")
+        let progress = try XCTUnwrap(fixture.store.load())
+        XCTAssertEqual(ScreenCoachIntentRecheck.warmRecheck?(progress), true)
+        await eventually { fixture.engine.voiceCommandStatus == .commandWindow && fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.output.lines.last, "For eight seconds, say NearMe, then your command or answer.")
+        XCTAssertEqual(fixture.activity.instructions.last, "For 8 seconds, say NearMe, then next, repeat, stop or your answer.")
+        fixture.readyCommands()
+        fixture.commands.emit("yes", final: true)
+        await Task.yield()
+        XCTAssertNotNil(fixture.engine.coach)
+        fixture.commands.emit("NearMe yes", final: true)
+        await eventually { fixture.engine.coach == nil }
+        XCTAssertFalse(fixture.commands.allowsOtherAudio)
+        XCTAssertFalse(fixture.commands.capturing)
+    }
+
+    func testBackgroundSpokenYesCompletesWithoutReturningToNearMe() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.show(["Subscribe", "Share", "Comments", "Up next"])
+        fixture.engine.pollScreen()
+        await eventually { fixture.engine.coach?.stepIndex == 5 && fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.activity.instructions.last, "Say yes if the song is playing, or no for help.")
+        fixture.readyCommands()
+        fixture.commands.emit("yes", final: true)
+        await eventually { fixture.engine.coach == nil }
+        XCTAssertEqual(fixture.output.lines.last, "Enjoy your song.")
+        XCTAssertFalse(fixture.commands.capturing)
+    }
+
+    func testPlaybackAudioPausesAnswersAndUserCanPauseMusicThenAnswerInYouTube() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.commands.otherAudio = true
+        fixture.show(["Subscribe", "Share", "Comments", "Up next"])
+        fixture.engine.pollScreen()
+        await eventually { fixture.engine.coach?.stepIndex == 5 && fixture.engine.plannerState == .idle }
+        XCTAssertEqual(fixture.activity.instructions.last, "Tap Check & listen, or pause other audio to answer.")
+        fixture.commands.emit("yes", final: true)
+        await Task.yield()
+        XCTAssertNotNil(fixture.engine.coach)
+        fixture.commands.otherAudio = false
+        fixture.readyCommands()
+        fixture.commands.emit("no", final: true)
+        await eventually { fixture.output.lines.last == "Okay. What do you see on the player?" && fixture.engine.plannerState == .idle }
+        fixture.readyCommands()
+        fixture.commands.emit("a sign in box", final: true)
+        await eventually { fixture.output.lines.last?.hasPrefix("From your description, a prompt is open.") == true && fixture.engine.plannerState == .idle }
+        XCTAssertFalse(fixture.activity.instructions.contains { $0.contains("Tum Hi Ho") || $0.contains("a sign in box") })
+        fixture.readyCommands()
+        fixture.commands.emit("stop", final: true)
+        await eventually { fixture.engine.coach == nil }
+    }
+
+    func testDelayedSpokenYesCannotCompleteAfterPageChanges() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        fixture.show(["Subscribe", "Share", "Comments", "Up next"])
+        fixture.engine.pollScreen()
+        await eventually { fixture.engine.coach?.stepIndex == 5 && fixture.engine.plannerState == .idle }
+        fixture.readyCommands()
+        fixture.waiter.onWait = { fixture.show(["Search YouTube", "space", "return"]) }
+        fixture.commands.emit("yes", final: true)
+        await eventually { fixture.engine.coach?.stepIndex == 2 && fixture.engine.plannerState == .idle }
+        XCTAssertNotNil(fixture.engine.coach)
+        XCTAssertFalse(fixture.output.lines.contains("Enjoy your song."))
+    }
+
+    func testBackgroundReopenQuestionAcceptsSpokenNoThenYesOnAnotherOffer() async throws {
+        let fixture = try ScreenCoachFixture()
+        defer { fixture.cleanUp() }
+        fixture.show(["Home", "Shorts", "Search"])
+        fixture.start()
+        await eventually { fixture.engine.coach?.stepIndex == 1 && fixture.engine.plannerState == .idle }
+        for answer in ["no", "yes"] {
+            fixture.show(["WhatsApp", "Chats", "Calls"])
+            fixture.engine.pollScreen()
+            fixture.now += 3
+            fixture.show(["WhatsApp", "Chats", "Calls"])
+            fixture.engine.pollScreen()
+            await eventually { fixture.output.lines.last == "It looks like you've left YouTube. Shall I open it again?" && fixture.engine.plannerState == .idle }
+            fixture.readyCommands()
+            let opens = fixture.opener.urls.count
+            if answer == "yes" {
+                fixture.commands.otherAudio = true
+                let progress = try XCTUnwrap(fixture.store.load())
+                XCTAssertEqual(ScreenCoachIntentRecheck.warmRecheck?(progress), true)
+                await eventually { fixture.engine.voiceCommandStatus == .commandWindow }
+                fixture.readyCommands()
+                fixture.commands.emit("NearMe yes", final: true)
+            } else { fixture.commands.emit(answer, final: true) }
+            if answer == "no" {
+                await eventually { fixture.output.lines.last == "Okay, we'll stay here." && fixture.engine.plannerState == .idle }
+                XCTAssertEqual(fixture.opener.urls.count, opens)
+                fixture.show(["Home", "Shorts", "Search"])
+                fixture.engine.pollScreen()
+                await eventually { fixture.engine.coach?.text.contains("magnifying") == true && fixture.engine.plannerState == .idle }
+            } else {
+                await eventually { fixture.opener.urls.count == opens + 1 && fixture.engine.plannerState == .idle }
+            }
+        }
+    }
+
     func testHandsFreeStartsBeforeHandoffAndNextHelpRepeatStuckUseObservedPage() async throws {
         let fixture = try ScreenCoachFixture()
         defer { fixture.cleanUp() }
@@ -319,6 +441,7 @@ final class ScreenCoachIntegrationTests: XCTestCase {
                 })
         }
         XCTAssertEqual(done(0), .rechecked)
+        XCTAssertEqual(fixture.activity.actionTitles.last, "Done", "A cold intent must not promise an active microphone")
         XCTAssertEqual(fixture.store.load()?.stepIndex, 1)
         XCTAssertEqual(done(0), .ignored, "Old revision cannot consume a newer recheck")
         fixture.show(["Search YouTube", "space", "return"])
@@ -350,7 +473,7 @@ final class ScreenCoachIntegrationTests: XCTestCase {
         fixture.engine.coachCommand(.next)
         await eventually { fixture.output.lines.count > count && fixture.engine.plannerState == .idle }
         XCTAssertEqual(fixture.engine.coach?.stepIndex, 1)
-        XCTAssertEqual(fixture.engine.coach?.text, "Tap the magnifying glass at the top right.")
+        XCTAssertEqual(fixture.engine.coach?.text, "I can see YouTube's home page, but I can't locate Search. What buttons can you see?")
         XCTAssertFalse(fixture.output.lines.contains { $0.contains("What do you see?") })
         XCTAssertFalse(fixture.engine.screenManualMode)
     }
@@ -415,9 +538,10 @@ final class ScreenCoachIntegrationTests: XCTestCase {
         }
         XCTAssertEqual(done(), .rechecked)
         XCTAssertEqual(done(), .ignored)
-        await eventually { fixture.output.lines.count > count && fixture.engine.plannerState == .idle }
-        XCTAssertEqual(fixture.output.lines.last, "Type the song name.")
-        XCTAssertEqual(fixture.activity.instructions.last, "Type the song name.")
+        await eventually { fixture.output.lines.count > count && fixture.engine.voiceCommandStatus == .commandWindow }
+        XCTAssertTrue(fixture.output.lines.contains("Type the song name."))
+        XCTAssertEqual(fixture.output.lines.last, "For eight seconds, say NearMe, then your command or answer.")
+        XCTAssertEqual(fixture.activity.instructions.last, "For 8 seconds, say NearMe, then next, repeat, stop or your answer.")
         XCTAssertEqual(fixture.engine.coach?.stepIndex, 2)
     }
 
@@ -556,8 +680,12 @@ private final class ScreenTestOpener: CoachAppOpening {
 @MainActor
 private final class ScreenTestActivity: CoachActivityUpdating {
     var instructions: [String] = []
+    var actionTitles: [String] = []
     func enqueue(_ update: CoachActivityUpdate) {
-        if case .show(let snapshot, _) = update { instructions.append(snapshot.state.instruction) }
+        if case .show(let snapshot, _) = update {
+            instructions.append(snapshot.state.instruction)
+            actionTitles.append(snapshot.state.actionTitle)
+        }
     }
     func flush() async {}
 }

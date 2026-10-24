@@ -7,6 +7,7 @@ nonisolated enum NearMeAudioSession {
     private static var isConfigured = false
     private static var screenActive = false
     private static var commandsActive = false
+    private static var widgetActive = false
     private static var guidanceSpeaking = false
 
     static func guidanceOptions(speaking: Bool) -> AVAudioSession.CategoryOptions {
@@ -22,11 +23,19 @@ nonisolated enum NearMeAudioSession {
         try applyGuidanceSession()
     }
 
+    static func setWidgetListeningActive(_ active: Bool) throws {
+        lock.lock()
+        defer { lock.unlock() }
+        widgetActive = active
+        do { try applyGuidanceSession() }
+        catch { widgetActive = false; throw error }
+    }
+
     static func setGuidanceSpeaking(_ speaking: Bool) throws {
         lock.lock()
         defer { lock.unlock() }
         guidanceSpeaking = speaking
-        guard screenActive || commandsActive else { return }
+        guard screenActive || commandsActive || widgetActive else { return }
         try applyGuidanceSession()
     }
 
@@ -40,7 +49,7 @@ nonisolated enum NearMeAudioSession {
 
     private static func applyGuidanceSession() throws {
         let session = AVAudioSession.sharedInstance()
-        if screenActive || commandsActive {
+        if screenActive || commandsActive || widgetActive {
             try session.setCategory(.playAndRecord, mode: .default,
                                     options: guidanceOptions(speaking: guidanceSpeaking))
             try session.setActive(true)

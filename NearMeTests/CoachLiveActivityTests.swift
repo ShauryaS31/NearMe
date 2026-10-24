@@ -38,6 +38,26 @@ private final class FakeCoachProgressStore: CoachProgressStoring {
 
 @MainActor
 final class CoachLiveActivityTests: XCTestCase {
+    func testCheckAndListenMetadataIsOptionalAndScopedToActiveYouTube() throws {
+        let guide = try XCTUnwrap(GuideLibrary.load().first { $0.id == "youtube_play_song" }).activityGuide
+        let progress = CoachProgress(guideID: guide.id, stepIndex: 1, sessionID: UUID(), revision: 0)
+        let warm = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide, canCheckAndListen: true))
+        XCTAssertEqual(warm.state.actionTitle, "Check & listen")
+        XCTAssertTrue(warm.state.actionHint.contains("eight seconds"))
+        let cold = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide))
+        XCTAssertEqual(cold.state.actionTitle, "Done")
+        let completed = try XCTUnwrap(CoachActivitySnapshot.build(progress: progress, guide: guide, completed: true, canCheckAndListen: true))
+        XCTAssertNil(completed.state.canCheckAndListen)
+        var old = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(warm.state)) as? [String: Any])
+        old.removeValue(forKey: "canCheckAndListen")
+        let restored = try JSONDecoder().decode(CoachActivityAttributes.ContentState.self, from: JSONSerialization.data(withJSONObject: old))
+        XCTAssertEqual(restored.actionTitle, "Done")
+        let other = try photoGuide()
+        let otherProgress = CoachProgress(guideID: other.id, stepIndex: 1, sessionID: UUID(), revision: 0)
+        let manual = try XCTUnwrap(CoachActivitySnapshot.build(progress: otherProgress, guide: other, canCheckAndListen: true))
+        XCTAssertEqual(manual.state.actionTitle, "Done")
+    }
+
     func testAlertsRequireAnExistingActivityAndAChangedStep() throws {
         let guide = try photoGuide()
         var progress = CoachProgress(guideID: guide.id, stepIndex: 0, sessionID: UUID(), revision: 0)
@@ -208,11 +228,14 @@ final class CoachLiveActivityTests: XCTestCase {
     func testNormalColdLaunchUsesP07ResumePathOnlyWithValidSavedProgress() throws {
         let guide = try photoGuide()
         let store = FakeCoachProgressStore()
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .welcome)
+        let suite = "AskCoordinatorTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .welcome)
         store.progress = CoachProgress(guideID: guide.id, stepIndex: 2, sessionID: UUID(), revision: 2)
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .session)
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .session)
         store.progress?.stepIndex = 999
-        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide]).route, .welcome)
+        XCTAssertEqual(AppCoordinator(progressStore: store, guides: [guide], defaults: defaults).route, .welcome)
     }
 
     func testURLParserResumesOnlyTheSavedSession() throws {

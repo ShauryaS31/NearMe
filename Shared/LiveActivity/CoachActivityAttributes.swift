@@ -11,6 +11,15 @@ nonisolated struct CoachActivityAttributes: ActivityAttributes, Sendable {
         let instruction: String
         let revision: Int
         let isComplete: Bool
+        /// Optional for decoding activities created by an earlier app version.
+        var canCheckAndListen: Bool? = nil
+
+        var actionTitle: String { canCheckAndListen == true ? "Check & listen" : "Done" }
+        var actionHint: String {
+            canCheckAndListen == true
+                ? "Recheck the screen, then say NearMe and your command or answer within eight seconds. If voice is unavailable, open NearMe."
+                : "Tell NearMe you completed this step"
+        }
 
         func progressText(totalSteps: Int) -> String { "\(stepNumber)/\(totalSteps)" }
     }
@@ -38,13 +47,14 @@ nonisolated struct CoachActivitySnapshot: Sendable {
     let state: CoachActivityAttributes.ContentState
 
     static func build(progress: CoachProgress, guide: CoachActivityGuide, completed: Bool = false,
-                      observedInstruction: String? = nil) -> Self? {
+                      observedInstruction: String? = nil, canCheckAndListen: Bool = false) -> Self? {
         guard guide.id == progress.guideID, guide.steps.indices.contains(progress.stepIndex) else { return nil }
         let instruction = completed ? "Done, well done" : (observedInstruction ?? guide.steps[progress.stepIndex].instruction)
         // Bound characters AND UTF-8 bytes (a single grapheme may contain many scalars).
         let title = bounded(guide.title)
-        let state = CoachActivityAttributes.ContentState(stepNumber: progress.stepIndex + 1,
+        var state = CoachActivityAttributes.ContentState(stepNumber: progress.stepIndex + 1,
             instruction: bounded(instruction), revision: progress.revision, isComplete: completed)
+        state.canCheckAndListen = canCheckAndListen && guide.id == "youtube_play_song" && !completed ? true : nil
         let attributes = CoachActivityAttributes(guideTitle: title, totalSteps: guide.steps.count,
                                                 sessionID: progress.sessionID)
         guard let attributesData = try? JSONEncoder().encode(attributes),

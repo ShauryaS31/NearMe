@@ -97,8 +97,11 @@ final class UIPolishTests: XCTestCase {
         XCTAssertEqual(presentation.totalSteps, 6)
     }
 
-    func testWelcomeMergeRetainsExplainerAndSessionSteps() {
-        let coordinator = AppCoordinator(guides: [])
+    func testWelcomeMergeRetainsExplainerAndSessionSteps() throws {
+        let suite = "NearMe.Onboarding.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let coordinator = AppCoordinator(guides: [], defaults: defaults)
         XCTAssertEqual(coordinator.route, .welcome)
         coordinator.advanceFromWelcome()
         XCTAssertEqual(coordinator.route, .howItWorks)
@@ -288,7 +291,7 @@ final class UIPolishTests: XCTestCase {
 
     func testMoreMenuContainsOwnerActionsAndDebugOnlyInDebugBuilds() {
         let titles: [String] = VoiceMenuAction.items.map { $0.title }
-        var expected = ["Let NearMe see my screen", "Practice mode", "Type instead", "Settings"]
+        var expected = ["Let NearMe see my screen", "Practice mode", "Type instead", "Set up Ask NearMe", "Settings"]
         #if DEBUG
         expected.append("Show debug info")
         #else

@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum VoiceMenuAction: String, Identifiable {
-    case screen, practice, type, settings, endSession
+    case screen, practice, type, widget, settings, endSession
     #if DEBUG
     case debug
     #endif
@@ -9,7 +9,7 @@ enum VoiceMenuAction: String, Identifiable {
     var id: Self { self }
 
     static var items: [Self] {
-        var items: [Self] = [.screen, .practice, .type, .settings]
+        var items: [Self] = [.screen, .practice, .type, .widget, .settings]
         #if DEBUG
         items.append(.debug)
         #endif
@@ -21,6 +21,7 @@ enum VoiceMenuAction: String, Identifiable {
         case .screen: return "Let NearMe see my screen"
         case .practice: return "Practice mode"
         case .type: return "Type instead"
+        case .widget: return "Set up Ask NearMe"
         case .settings: return "Settings"
         case .endSession: return "End session"
         #if DEBUG
@@ -34,6 +35,7 @@ enum VoiceMenuAction: String, Identifiable {
         case .screen: return "rectangle.inset.filled.and.person.filled"
         case .practice: return "tram.fill"
         case .type: return "keyboard"
+        case .widget: return "square.grid.2x2"
         case .settings: return "gearshape"
         case .endSession: return "xmark.circle"
         #if DEBUG
@@ -44,7 +46,7 @@ enum VoiceMenuAction: String, Identifiable {
 }
 
 enum VoiceSessionSheet: String, Identifiable {
-    case screen, settings
+    case screen, widget, settings
     var id: Self { self }
 }
 

@@ -98,6 +98,7 @@ targets:
       - path: NearMeLiveActivity
         excludes:
           - Info.plist
+          - NearMeLiveActivity.entitlements
       - path: Shared/LiveActivity
     configFiles:
       Debug: Config/Base.xcconfig
@@ -114,6 +115,9 @@ targets:
         SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY: YES
         APPLICATION_EXTENSION_API_ONLY: YES
         SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) NEARME_LIVE_ACTIVITY_EXTENSION"
+        NEARME_GROUP_ENTITLEMENTS_YES: NearMeLiveActivity/NearMeLiveActivity.entitlements
+        NEARME_GROUP_ENTITLEMENTS_NO: ""
+        CODE_SIGN_ENTITLEMENTS: "$(NEARME_GROUP_ENTITLEMENTS_$(CODE_SIGNING_ALLOWED))"
         SKIP_INSTALL: YES
         CODE_SIGN_STYLE: Automatic
         MARKETING_VERSION: "0.1.0"

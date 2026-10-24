@@ -3,6 +3,7 @@ CODE_SIGNING_ALLOWED = NO
 DEVELOPMENT_TEAM =
 ELEVENLABS_API_KEY =
 ELEVENLABS_VOICE_ID =
+NEARME_DEMO_FAMILY_VOICE = NO
 SCX_API_KEY =
 
 // Local values override the defaults above. Neither file is required by CI.

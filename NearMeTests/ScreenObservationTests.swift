@@ -73,14 +73,29 @@ final class ScreenObservationTests: XCTestCase {
         XCTAssertEqual(loop.update(snapshot: ScreenSnapshot(timestamp: 100, lines: base + [left]),
             guideID: "youtube_play_song", song: nil, now: 100)?.text, "Tap the magnifying glass at the top left.")
         XCTAssertEqual(loop.update(snapshot: ScreenSnapshot(timestamp: 101, lines: base + [right]),
-            guideID: "youtube_play_song", song: nil, now: 101, recheck: true)?.text, "Tap the magnifying glass at the top right.")
+            guideID: "youtube_play_song", song: nil, now: 101)?.text, "Tap the magnifying glass at the top right.")
         let missing = try XCTUnwrap(loop.update(snapshot: snapshot(["Home", "Shorts"], at: 102),
             guideID: "youtube_play_song", song: nil, now: 102, recheck: true))
-        XCTAssertEqual(missing.text, "Tap the magnifying glass at the top right.")
-        XCTAssertNil(loop.question)
+        XCTAssertTrue(missing.text.contains("I can't locate Search"))
+        XCTAssertFalse(missing.text.contains("top right"))
+        XCTAssertEqual(loop.question, .description)
         let matching = ScreenSnapshot.Line(text: "Tum Hi Ho official", box: ScreenSnapshot.Box(x: 0.1, y: 0.8, width: 0.6, height: 0.04))
         let results = ScreenSnapshot(timestamp: 103, lines: snapshot(["Home", "Shorts", "views", "ago"]).lines + [matching])
         XCTAssertTrue(loop.update(snapshot: results, guideID: "youtube_play_song", song: "Tum Hi Ho", now: 103)?.text.contains("bottom centre") == true)
+        let unmatched = snapshot(["Home", "Shorts", "Another song", "10M views", "2 years ago"], at: 104)
+        let uncertain = loop.update(snapshot: unmatched, guideID: "youtube_play_song", song: "Tum Hi Ho", now: 104)
+        XCTAssertTrue(uncertain?.text.contains("I can't identify your song") == true)
+        XCTAssertNil(uncertain?.stepIndex)
+        XCTAssertEqual(loop.question, .description)
+    }
+
+    func testPlaybackNoFollowUpSurvivesUnchangedPolling() {
+        var loop = ScreenCoachLoop()
+        let texts = ["Subscribe", "Share", "Comments", "Up next"]
+        _ = loop.update(snapshot: snapshot(texts), guideID: "youtube_play_song", song: "Tum Hi Ho", now: 100)
+        loop.awaitAnswer(.description)
+        XCTAssertNil(loop.update(snapshot: snapshot(texts, at: 101), guideID: "youtube_play_song", song: "Tum Hi Ho", now: 101))
+        XCTAssertEqual(loop.question, .description)
     }
 
     func testUnchangedFreshFramesRepromptOnlyEveryFifteenSeconds() {
