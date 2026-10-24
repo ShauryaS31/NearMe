@@ -31,7 +31,7 @@ Gate for every task: the owner's Mac checks pass (simulator, and iPhone when ava
 | [P07](../tasks/P07-guided-coach.md) | Help with any app: guide library (15), router (practice, guide, general), coach session, Open app, new home | P04b, P07a | codex | done (owner compile + 7-phrase check in parallel) |
 | [P07b](../tasks/P07b-session-layout.md) | Session layout: full-screen practice and coach, compact bottom dock, target highlight with dim, two-line Debug badge | P07 | codex | done (owner compile and phrase-1 check pending) |
 | [P07c](../tasks/P07c-pulse.md) | Target pulse: 3 cycles then static, Repeat replays, Reduce Motion static | P07b | codex | done (Mac check pending) |
-| [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | todo |
+| [P09](../tasks/P09-ui-polish.md) | UI polish: semantic colours, native buttons, type and spacing tokens, Home, voice states, coach card, onboarding | P07b | codex | in_progress (lane worker, worktree ../NearMe-p09, task/P09-ui-polish) |
 | [P10](../tasks/P10-ask-widget.md) | "Ask NearMe" widget (Home and Lock Screen) and Siri App Shortcut via nearme://ask | P11 | codex | todo (only if done by Sun 12:00) |
 | [P11](../tasks/P11-live-activity-coach.md) | Live Activity coach: Dynamic Island and Lock Screen step with Done | P07b | codex, owner | in_progress |
 | [P05](../tasks/P05-family-voice.md) | Family voice with consent and "AI voice of" label | P04 | codex | todo (after P11; owner recording the voice clone) |
@@ -72,6 +72,7 @@ Now: owner compiles and retests P02c, P02b and P03 on the Mac. P04 starts when t
 - 2026-10-24 (owner): other owner sessions work in their own git worktree or only write under docs/, never in the main folder while the manager has a task running (see CLAUDE.md).
 - 2026-10-24 (owner): target ring pulses 3 cycles of about 1.2 s when a step's target first appears, then static; Repeat replays the 3 pulses; Reduce Motion static 6 pt from the start (resolves HIG rule 9). Done as P07c right after P07b (P07b used its 3 review rounds). The manager is now the only manager; the other session stood down. Order confirmed: P07b, P07c, P11, P05 with privacy, P09 Sunday morning, P10 if done by Sun 12:00; P06 and P08 dropped.
 - 2026-10-24 (owner): P11 adds nearme:// (nearme://coach?session=<id> resumes, unknown opens Home) and Done while NearMe is not running (intent in app and extension, perform() in the app process against saved progress, no App Group; stop if it would run in the extension). P10 depends on P11, lives in the NearMeLiveActivity extension and uses nearme://ask. The stood-down session's duplicate P07c review (5f50b7d) exists only on the already-merged P07c branch, not on main; its P07c Mac check line is kept; N07b/N07c LOG tags corrected to P07b/P07c.
+- 2026-10-24 (owner): P09 runs in parallel as a separate lane worker in worktree ../NearMe-p09 on task/P09-ui-polish; it does not edit PLAN.md or LOG.md and does not merge. The manager reviews and merges it when it reports done (after P11, or before if P11 is still running), resolving CoachView conflicts at merge. P10 still waits for P11. Order otherwise: P11, P05 with privacy, P10.
 
 ## Mac gate checklist
 - [x] P01: NearMeTests 4/4 pass on Xcode 27.1, iOS 27.1 simulator (owner).

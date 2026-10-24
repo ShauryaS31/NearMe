@@ -101,3 +101,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 18:14 AEDT | P07c | claude | review r1 PASS | static; merged to main; next P11 in parallel with owner's compile and phrase-1 check
 - 2026-10-24 18:15 AEDT | P11 | claude | dispatch r1 | Live Activity coach; owner checks P07b/P07c compile and phrase 1 in parallel (macfix allowed)
 - 2026-10-24 18:21 AEDT | P11 | claude | redispatch | stopped r1 after 1 min (partial saved to logs/P11-r1-partial.patch, discarded); brief gains nearme:// resume and Done-while-not-running; P10 now depends on P11, same extension, nearme://ask; N07b/N07c log tags fixed
+- 2026-10-24 18:24 AEDT | P09 | owner | decision | P09 in parallel as lane worker (worktree ../NearMe-p09, task/P09-ui-polish); manager reviews and merges when it reports done; P10 waits for P11
