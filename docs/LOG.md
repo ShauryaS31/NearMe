@@ -50,3 +50,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:29 AEDT | P04 | codex | dev-report r2 | review fixes 1-6 and owner additions 7-13 (committed by manager, sandbox blocked .git)
 - 2026-10-24 16:34 AEDT | P04 | claude | review r2 CHANGES | 1 compile error (self captured before init), 1 failing test, turn-ending on noise, first-turn Did you mean, unbounded retries, transcriber reuse; dispatch r3 (final)
 - 2026-10-24 16:38 AEDT | P04 | codex | dev-report r3 | review r2 fixes 1-8 (committed by manager if sandbox blocked .git)
+- 2026-10-24 16:38 AEDT | P04 | claude | review r3 PASS | static; merged to main; stopping for owner Mac check

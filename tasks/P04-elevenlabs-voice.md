@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | changes_requested (round 3) |
+| Status | done (Mac check pending) |
 | Window | Sat 24 Oct |
 | Depends on | P03 |
 | Assignee | codex |
@@ -209,3 +209,9 @@ Fixes (address every one; this is the last round):
   7. Use the default fake tests to verify repeated microphone/audio-engine errors stop at idle after the second failure, Type instead works, and no-speech continues retrying. On device, check normal capture, silence retry, Cancel and End without overlapping speech/input. Recheck ElevenLabs with the owner's configured key/voice, cache replay, and airplane-mode system fallback.
 - Not done / risks / questions: Mac compilation, XCTest execution, real microphone/analyzer behavior and visual accessibility checks remain the owner's gate. The new analyzer adapter uses the existing documented APIs but still needs SDK/isolation compilation on the Mac. Deadline tests validate shared completion policy and fake-input planner behavior, not elapsed OS deadlines; source checks confirm wiring in all four production branches. Acoustic noise/quiet-speech thresholds are unchanged and need the device checks above. Optional template relocation and other tasks were not started.
 - Git write result: `git add` succeeded. `git commit -m "P04: Fix final voice review issues and add regression coverage"` failed with `fatal: Unable to create 'C:/Users/User/Desktop/projects/NearMe/.git/index.lock': Permission denied`. Everything remains uncommitted: implementation and report are staged except this final Git-result note. Per the owner's explicit sandbox-failure instruction, stopped for the manager to commit. No post-commit line was appended to `docs/LOG.md` because no commit was created. Suggested manager log line: `- 2026-10-24 16:37 AEDT | P04 | codex | dev-report r3 | Address Review round 2 fixes 1-8: initialization, transcript deadlines, retry cap, fresh analyzers, vocabulary tests and place questions (manager commit; sandbox blocked .git)`.
+
+## Review (round 3)
+- Date: 2026-10-24 16:38 AEDT
+- Verdict: PASS (static). Merged to main; owner Mac check (simulator and real iPhone) pending.
+- Fixes 1 to 8 verified: closures assigned after all members are initialised; one retry line and matching test; turn ends only on silence after a non-empty transcript, every timeout keeps recognised words; first-turn suggestion trigger removed (no places asks the destination template); 2 consecutive input failures go idle with the error and Type instead; fresh SpeechTranscriber and analyzer per listen behind an injectable factory, test asserts setContext with PracticeVocabulary; real "Did you mean <a> or <b>?" question.
+- Known, moved to P03a (owner decision): suggestions still fire for any place outside the practice list.
