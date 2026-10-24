@@ -60,3 +60,4 @@ Format: `- YYYY-MM-DD HH:MM AEDT | Task | actor | event | detail`
 - 2026-10-24 16:56 AEDT | P04a | claude (mac) | macfix | compile-only: ElevenLabsVoiceOutput.swift:81-82 use resolved self.player/self.fallback; VoiceReviewTests makeEngine defaults made optional and built in body (same MainActor default-arg issue); 78 tests, 77 pass, 1 skip
 - 2026-10-24 16:57 AEDT | P03a | claude | dispatch r1 | accept any place, Keep what I said, nil is not a place; branch task/P03a-fixes (rebase onto macfix before merge)
 - 2026-10-24 16:57 AEDT | P07a | claude | dispatch r1 | 15 guide JSON files, schema doc, validator, in worktree ../NearMe-p07a on task/P07a-guides (content only)
+- 2026-10-24 17:01 AEDT | P03a | codex | dev-report r1 | Accept any practice place, add Keep what I said and bounded suggestions, normalize missing places; commit 3919119
