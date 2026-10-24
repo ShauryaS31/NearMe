@@ -1,8 +1,8 @@
 name: CI
 
+# Manual only, to save GitHub macOS minutes. The Mac (scripts/mac-run.sh) is the test gate.
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,11 +12,27 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
-      - name: Test NearMeCore
-        run: swift test --package-path NearMeCore
+      - name: Select newest installed Xcode
+        run: |
+          XCODE_APP="$(ls -d /Applications/Xcode*.app | python3 -c '
+          import plistlib, re, sys
+          from pathlib import Path
+          def version(path):
+              with (Path(path) / "Contents/Info.plist").open("rb") as handle:
+                  value = plistlib.load(handle)["CFBundleShortVersionString"]
+              return tuple(int(part) for part in re.findall(r"\d+", value))
+          print(max((line.strip() for line in sys.stdin if line.strip()), key=version))
+          ')"
+          sudo xcode-select -s "$XCODE_APP/Contents/Developer"
+          xcodebuild -version
+          xcrun simctl list runtimes
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate project
         run: xcodegen
-      - name: Build unsigned app
-        run: xcodebuild -scheme NearMe -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
+      - name: Build unsigned app for simulator
+        run: xcodebuild -scheme NearMe -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+      - name: Test on newest available iPhone simulator
+        run: |
+          UDID="$(xcrun simctl list devices available -j | python3 scripts/newest-iphone.py)"
+          xcodebuild test -scheme NearMe -destination "platform=iOS Simulator,id=$UDID" CODE_SIGNING_ALLOWED=NO

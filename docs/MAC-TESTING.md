@@ -1,16 +1,22 @@
-# Testing on the Mac
+# Testing on the Mac (iPhone app)
 
 ## One-time setup
-1. Install Xcode (App Store), open it once to install components. Turn on Apple Intelligence in System Settings and let it download.
-2. `xcode-select --install` if git is missing. Install Homebrew, then `brew install xcodegen gh`, then `gh auth login` (ShauryaS31).
-3. `git clone https://github.com/ShauryaS31/NearMe.git ~/NearMe && cd ~/NearMe`
-4. Copy `Secrets.xcconfig` from Windows (never via git). Copy `Config/Team.xcconfig.example` to `Config/Team.xcconfig` and set your Team ID (Xcode > Settings > Accounts > your Apple ID > Personal Team; the 10-character ID).
+1. Install Xcode (App Store) and open it once. In Xcode > Settings > Components, install the iOS 26.5 (or newer) platform and simulator runtime. Turn on Apple Intelligence on the Mac so Foundation Models works in the simulator.
+2. Install Homebrew, then `brew install xcodegen gh`, then `gh auth login` (account ShauryaS31; the repo is private).
+3. `git clone https://github.com/ShauryaS31/NearMe.git ~/NearMe && cd ~/NearMe`. If you cloned before the history rewrite, delete that folder and clone again.
+4. Optional: copy `Secrets.xcconfig` from Windows (never via git) for the ElevenLabs key. Without it, speech uses on-device Apple speech.
+5. For a real iPhone only: `cp Config/Team.xcconfig.example Config/Team.xcconfig` and set `DEVELOPMENT_TEAM` to your 10-character Personal Team ID (Xcode > Settings > Accounts > your Apple ID). On the iPhone: Settings > Privacy & Security > Developer Mode on (restart), and turn on Apple Intelligence.
 
 ## Every test run
 ```
-cd ~/NearMe && ./scripts/mac-run.sh
+cd ~/NearMe
+bash scripts/mac-run.sh          # newest iPhone simulator: build, boot, install, launch
+bash scripts/mac-run.sh test     # NearMeTests on the simulator
+bash scripts/mac-run.sh device   # connected iPhone (cable, unlocked, Trust this computer)
 ```
-It pulls main, regenerates the project, builds and launches NearMe. First launch: System Settings > Privacy & Security > Accessibility > enable NearMe. If permission stops working after a rebuild, remove NearMe from the list and add it again.
+Add `--current` to test a task branch you have checked out. Build output is in `build/xcodebuild.log`; errors are printed on failure.
+
+First run on an iPhone with a Personal Team: if launch fails with an untrusted developer message, open Settings > General > VPN & Device Management on the iPhone, trust your Apple Development certificate, then run `bash scripts/mac-run.sh device` again. If signing fails, open the generated `NearMe.xcodeproj`, choose your team under the NearMe target's Signing & Capabilities, build once, and re-run.
 
 ## Reporting results
-Run `./scripts/mac-run.sh report` to create `docs/mac-results/<timestamp>.md` with your machine details, fill in the checklist items you tested (PASS or FAIL, what you saw, latency), then it commits and pushes. Or just paste results to the manager on Windows.
+Run `bash scripts/mac-run.sh report` to create `docs/mac-results/<timestamp>.md` with your machine details, fill in each check (WORKS or BROKEN, what you saw), then it commits and pushes. Or paste results to the manager on Windows.
