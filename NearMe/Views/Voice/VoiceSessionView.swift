@@ -48,9 +48,9 @@ struct VoiceSessionView: View {
                     Label("Getting speech ready...", systemImage: "arrow.down.circle")
                         .font(.body)
                 }
-                if !engine.placeSuggestions.isEmpty {
+                if engine.isShowingPlaceSuggestions {
                     VStack(spacing: 12) {
-                        Text(engine.suggestionTranscript).font(.body)
+                        Text("I heard: \(engine.suggestionTranscript)").font(.body)
                         Text(engine.suggestionQuestion).font(.title)
                         ForEach(engine.placeSuggestions, id: \.self) { place in
                             Button { engine.chooseSuggestedPlace(place) } label: {
@@ -59,8 +59,13 @@ struct VoiceSessionView: View {
                             }
                             .buttonStyle(.bordered)
                         }
+                        Button(action: engine.keepSuggestedPlace) {
+                            Label("Keep what I said", systemImage: "checkmark")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .buttonStyle(.bordered)
                         Button(action: engine.retrySuggestedPlace) {
-                            Label("Neither, say it again", systemImage: "mic")
+                            Label("Say it again", systemImage: "mic")
                                 .frame(minWidth: 44, minHeight: 44)
                         }
                         .buttonStyle(.bordered)

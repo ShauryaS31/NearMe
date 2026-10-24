@@ -84,24 +84,26 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
             answer = try await primary.extractIntent(from: utterance)
         } catch {
             PlannerDiagnostics.fallback(after: error, call: "extractIntent")
-            return try await fallback.extractIntent(from: utterance)
+            let fallbackAnswer = try await fallback.extractIntent(from: utterance)
+            return BrainAnswer(value: fallbackAnswer.value.normalizingPlaces(), source: fallbackAnswer.source,
+                               latencyMilliseconds: fallbackAnswer.latencyMilliseconds)
         }
 
         // Parse every sentence again, filling only absent model values.
-        let keywords = try await fallback.extractIntent(from: utterance).value
-        var intent = answer.value
+        let keywords = try await fallback.extractIntent(from: utterance).value.normalizingPlaces()
+        var intent = answer.value.normalizingPlaces()
         var didFill = false
         if intent.kind == .unknown, keywords.kind == .planJourney,
            keywords.origin != nil || keywords.destination != nil {
             intent.intent = .planJourney
             didFill = true
         }
-        if intent.origin?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+        if intent.origin == nil,
            let origin = keywords.origin {
             intent.origin = origin
             didFill = true
         }
-        if intent.destination?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty != false,
+        if intent.destination == nil,
            let destination = keywords.destination {
             intent.destination = destination
             didFill = true
@@ -124,16 +126,20 @@ final class ResilientTaskPlannerBrain: TaskPlannerBrain, @unchecked Sendable {
             modelAnswer = try await primary.extractPlace(from: answer, for: slot)
         } catch {
             PlannerDiagnostics.fallback(after: error, call: "extractPlace")
-            return try await fallback.extractPlace(from: answer, for: slot)
+            let fallbackAnswer = try await fallback.extractPlace(from: answer, for: slot)
+            return BrainAnswer(value: PlaceNormalization.normalize(fallbackAnswer.value), source: fallbackAnswer.source,
+                               latencyMilliseconds: fallbackAnswer.latencyMilliseconds)
         }
 
         // The model can return a whole sentence rather than just the place.
         var place: String?
-        if let modelPlace = modelAnswer.value {
-            place = try await fallback.extractPlace(from: modelPlace, for: slot).value
+        if let modelPlace = PlaceNormalization.normalize(modelAnswer.value) {
+            let cleaned = try await fallback.extractPlace(from: modelPlace, for: slot).value
+            place = PlaceNormalization.normalize(cleaned)
         }
         if place == nil {
-            place = try await fallback.extractPlace(from: answer, for: slot).value
+            let cleaned = try await fallback.extractPlace(from: answer, for: slot).value
+            place = PlaceNormalization.normalize(cleaned)
         }
         let didFill = place != modelAnswer.value
         if didFill {

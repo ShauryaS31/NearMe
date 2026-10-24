@@ -125,12 +125,16 @@ final class VoiceReviewTests: XCTestCase {
                                  ("to hOLsWorth please", "Holsworthy"), ("CHATSW", "Chatswood")] {
             let suggestions = PracticeVocabulary.closestPlaces(to: text)
             XCTAssertEqual(suggestions.first, expected)
-            XCTAssertEqual(suggestions.count, 2)
-            XCTAssertEqual(Set(suggestions).count, 2)
+            XCTAssertTrue((1...2).contains(suggestions.count))
+            XCTAssertEqual(Set(suggestions).count, suggestions.count)
         }
         XCTAssertTrue(PracticeVocabulary.containsPlace("Go to TOWN HALL, please"))
         XCTAssertFalse(PracticeVocabulary.containsPlace("Centralized"))
-        XCTAssertEqual(PracticeVocabulary.closestPlaces(to: ""), PracticeVocabulary.closestPlaces(to: ""))
+        XCTAssertEqual(PracticeVocabulary.closestPlaces(to: ""), [])
+        XCTAssertEqual(PracticeVocabulary.closestPlaces(to: "zzzzzzzzzzzz"), [])
+        XCTAssertEqual(PracticeVocabulary.closestPlaces(to: "Town Hal or Holsworth"), ["Holsworthy", "Town Hall"])
+        XCTAssertEqual(PracticeVocabulary.closestPlaces(to: "Holsworth"), ["Holsworthy"])
+        XCTAssertTrue(PracticeVocabulary.closestPlaces(to: "Chats").isEmpty, "Four edits exceeds the threshold")
     }
 
     func testGreetingFinishesBeforePreparationAndPreparationRemainsCancellable() async {
@@ -289,8 +293,9 @@ final class VoiceReviewTests: XCTestCase {
         engine.endSession()
     }
 
-    func testUnrecognizedPlaceOffersButtonsAndTapFillsThePendingSlot() async {
+    func testLowConfidencePlaceOffersButtonsAndTapFillsThePendingSlot() async {
         let input = ReviewInput()
+        input.confidence = 0.1
         input.outcomes = [.success("to Town Hall"), .success("Holsworth")]
         let brain = ReviewBrain()
         let output = ReviewOutput()
@@ -305,7 +310,135 @@ final class VoiceReviewTests: XCTestCase {
         await eventually { engine.tripPlannerPracticeViewModel != nil }
         XCTAssertEqual(engine.currentIntent.origin, "Holsworthy")
         XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
-        XCTAssertEqual(brain.placeCalls, 0)
+        XCTAssertEqual(brain.placeCalls, 1)
+        engine.endSession()
+    }
+
+    func testHighConfidenceNewtownIsAcceptedForEitherSlotWithoutSuggestions() async {
+        for firstTurn in ["to Town Hall", "from Central"] {
+            let input = ReviewInput()
+            input.outcomes = [.success(firstTurn), .success("Newtown")]
+            let output = ReviewOutput()
+            let engine = makeEngine(input: input, output: output)
+            engine.beginSession()
+            await eventually { engine.tripPlannerPracticeViewModel != nil }
+            XCTAssertFalse(engine.isShowingPlaceSuggestions)
+            XCTAssertTrue(engine.placeSuggestions.isEmpty)
+            XCTAssertEqual(firstTurn == "to Town Hall" ? engine.currentIntent.origin : engine.currentIntent.destination, "Newtown")
+            XCTAssertFalse(output.lines.contains { $0.hasPrefix("Did you") })
+            engine.endSession()
+        }
+    }
+
+    func testFirstTurnAcceptsCentralToNewtown() async {
+        let input = ReviewInput()
+        input.outcomes = [.success("from Central to Newtown")]
+        let engine = makeEngine(input: input, brain: KeywordFallbackBrain())
+        engine.beginSession()
+        await eventually { engine.tripPlannerPracticeViewModel != nil }
+        XCTAssertEqual(engine.currentIntent.origin, "Central")
+        XCTAssertEqual(engine.currentIntent.destination, "Newtown")
+        XCTAssertFalse(engine.isShowingPlaceSuggestions)
+        engine.endSession()
+    }
+
+    func testKeepWhatISaidUsesExtractedWordsAndDoesNotCorrectThem() async {
+        let input = ReviewInput()
+        input.confidence = 0.1
+        input.outcomes = [.success("to Town Hall"), .success("from Holsworth please")]
+        let engine = makeEngine(input: input, brain: KeywordFallbackBrain())
+        engine.beginSession()
+        await eventually { engine.isShowingPlaceSuggestions && engine.plannerState == .idle }
+        XCTAssertEqual(engine.suggestionTranscript, "from Holsworth please")
+        XCTAssertEqual(engine.placeSuggestions, ["Holsworthy"])
+        engine.keepSuggestedPlace()
+        await eventually { engine.tripPlannerPracticeViewModel != nil }
+        XCTAssertEqual(engine.currentIntent.origin, "Holsworth")
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        XCTAssertFalse(engine.isShowingPlaceSuggestions)
+        XCTAssertEqual(engine.suggestionTranscript, "")
+        engine.endSession()
+    }
+
+    func testNoPlaceOffersSuggestionsWithZeroMatchesAndKeepUsesCleanedTranscript() async {
+        let input = ReviewInput()
+        input.outcomes = [.success("to Town Hall"), .success("  zzzzzzzzzzzz.  ")]
+        let brain = ReviewBrain()
+        brain.placeTransform = { _ in nil }
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output, brain: brain)
+        engine.beginSession()
+        await eventually { engine.isShowingPlaceSuggestions && engine.plannerState == .idle }
+        XCTAssertTrue(engine.placeSuggestions.isEmpty)
+        XCTAssertEqual(engine.suggestionQuestion, "Did you say   zzzzzzzzzzzz.  ?")
+        XCTAssertEqual(output.lines.last, engine.suggestionQuestion)
+        engine.keepSuggestedPlace()
+        await eventually { engine.tripPlannerPracticeViewModel != nil }
+        XCTAssertEqual(engine.currentIntent.origin, "zzzzzzzzzzzz")
+        engine.endSession()
+    }
+
+    func testLowConfidenceNewtownOffersKeepEvenWithoutClosePracticeMatches() async {
+        let input = ReviewInput()
+        input.confidence = 0.1
+        input.outcomes = [.success("from Central"), .success("Newtown")]
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output)
+        engine.beginSession()
+        await eventually { engine.isShowingPlaceSuggestions && engine.plannerState == .idle }
+        XCTAssertTrue(engine.placeSuggestions.isEmpty)
+        XCTAssertEqual(output.lines.last, "Did you say Newtown?")
+        engine.keepSuggestedPlace()
+        await eventually { engine.tripPlannerPracticeViewModel != nil }
+        XCTAssertEqual(engine.currentIntent.origin, "Central")
+        XCTAssertEqual(engine.currentIntent.destination, "Newtown")
+        engine.endSession()
+    }
+
+    func testNoExtractedPlaceStillOffersCloseTranscriptMatches() async {
+        let input = ReviewInput()
+        input.outcomes = [.success("to Town Hall"), .success("Holsworth")]
+        let brain = ReviewBrain()
+        brain.placeTransform = { _ in nil }
+        let engine = makeEngine(input: input, brain: brain)
+        engine.beginSession()
+        await eventually { engine.isShowingPlaceSuggestions && engine.plannerState == .idle }
+        XCTAssertEqual(engine.placeSuggestions, ["Holsworthy"])
+        engine.cancelCurrentAction()
+        XCTAssertFalse(engine.isShowingPlaceSuggestions)
+        engine.keepSuggestedPlace()
+        XCTAssertNil(engine.currentIntent.origin)
+    }
+
+    func testModelNilOriginAsksStartingPoint() async {
+        let input = ReviewInput()
+        input.outcomes = [.success("I need to get to Town Hall")]
+        let brain = ReviewBrain()
+        brain.intentTransform = { _ in JourneyIntent(intent: .planJourney, destination: "Town Hall", origin: "Nil", mode: nil) }
+        let output = ReviewOutput()
+        let engine = makeEngine(input: input, output: output,
+                                brain: ResilientTaskPlannerBrain(primary: brain, fallback: KeywordFallbackBrain()))
+        engine.beginSession()
+        await eventually { input.starts == 2 }
+        XCTAssertNil(engine.currentIntent.origin)
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        XCTAssertEqual(output.lines.last, "Where are you starting from?")
+        XCTAssertNil(engine.tripPlannerPracticeViewModel)
+        engine.endSession()
+    }
+
+    func testKeepCannotFillSlotWithModelPlaceholder() async {
+        let input = ReviewInput()
+        input.outcomes = [.success("to Town Hall"), .success(" Nil ")]
+        let engine = makeEngine(input: input)
+        engine.beginSession()
+        await eventually { engine.isShowingPlaceSuggestions && engine.plannerState == .idle }
+        XCTAssertTrue(engine.placeSuggestions.isEmpty)
+        engine.keepSuggestedPlace()
+        await eventually { input.starts == 3 }
+        XCTAssertNil(engine.currentIntent.origin)
+        XCTAssertEqual(engine.currentIntent.destination, "Town Hall")
+        XCTAssertFalse(engine.isShowingPlaceSuggestions)
         engine.endSession()
     }
 
@@ -462,9 +595,14 @@ private final class ReviewBrain: TaskPlannerBrain, @unchecked Sendable {
     var placeCalls = 0
     var wordingCalls = 0
     var onExtract: (() -> Void)?
+    var placeTransform: ((String) -> String?)?
+    var intentTransform: ((String) -> JourneyIntent)?
     func extractIntent(from utterance: String) async throws -> BrainAnswer<JourneyIntent> {
         intentCalls += 1
         onExtract?()
+        if let intentTransform {
+            return BrainAnswer(value: intentTransform(utterance), source: .onDeviceModel)
+        }
         return BrainAnswer(value: JourneyIntent(intent: .planJourney,
                                                destination: utterance.contains("Town Hall") ? "Town Hall" : nil,
                                                origin: utterance.contains("from Central") ? "Central" : nil, mode: nil),
@@ -472,6 +610,9 @@ private final class ReviewBrain: TaskPlannerBrain, @unchecked Sendable {
     }
     func extractPlace(from answer: String, for slot: MissingSlot) async throws -> BrainAnswer<String?> {
         placeCalls += 1
+        if let placeTransform {
+            return BrainAnswer(value: placeTransform(answer), source: .onDeviceModel)
+        }
         return BrainAnswer(value: answer, source: .keywordFallback)
     }
     func clarifyingQuestion(for missing: MissingSlot, currentIntent: JourneyIntent) async throws -> BrainAnswer<String> {

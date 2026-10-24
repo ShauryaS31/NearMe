@@ -24,7 +24,8 @@ final class TaskPlannerEngine: ObservableObject {
     @Published private(set) var sttMilliseconds: Int?
     @Published private(set) var firstAudioMilliseconds: Int?
     private var speechEndedAt: TimeInterval?
-    private var suggestionSlot: MissingSlot?
+    @Published private var suggestionSlot: MissingSlot?
+    private var suggestionPlace: String?
     private var spokenInput = false
     private var consecutiveInputFailures = 0
     private static let inputFailureLimit = 2
@@ -32,8 +33,12 @@ final class TaskPlannerEngine: ObservableObject {
     private let permissionCheck: (() async -> Bool)?
 
     var suggestionQuestion: String {
-        "Did you mean \(placeSuggestions.joined(separator: " or "))?"
+        placeSuggestions.isEmpty
+            ? "Did you say \(suggestionTranscript)?"
+            : "Did you mean \(placeSuggestions.joined(separator: " or "))?"
     }
+
+    var isShowingPlaceSuggestions: Bool { suggestionSlot != nil }
 
     var timingBadge: String {
         let stt = sttMilliseconds.map { "STT \($0) ms" } ?? "STT pending"
@@ -85,6 +90,7 @@ final class TaskPlannerEngine: ObservableObject {
 
     /// User tapped the orb from an idle state to speak again.
     func userTappedToTalk() {
+        if let suggestionSlot { pendingClarification = suggestionSlot }
         consecutiveInputFailures = 0
         sessionGeneration += 1
         voiceInput.stopListening()
@@ -318,15 +324,16 @@ final class TaskPlannerEngine: ObservableObject {
 
         do {
             if let missing = pendingClarification {
-                if spokenInput, needsSuggestion(transcript) {
-                    await suggest(transcript, for: missing, generation: generation)
-                    return
-                }
                 let answer = try await brain.extractPlace(from: transcript, for: missing)
                 guard isCurrent(generation) else { return }
                 latestBrainSource = answer.source
                 latestBrainLatencyMilliseconds = answer.latencyMilliseconds
-                guard let place = answer.value?.trimmingCharacters(in: .whitespacesAndNewlines), !place.isEmpty else {
+                let extractedPlace = PlaceNormalization.normalize(answer.value)
+                if spokenInput, needsSuggestion(extractedPlace) {
+                    await suggest(transcript, extractedPlace: extractedPlace, for: missing, generation: generation)
+                    return
+                }
+                guard let place = extractedPlace else {
                     clarificationFailures += 1
                     let question: String
                     if clarificationFailures == 1 {
@@ -353,7 +360,7 @@ final class TaskPlannerEngine: ObservableObject {
             guard isCurrent(generation) else { return }
             latestBrainSource = answer.source
             latestBrainLatencyMilliseconds = answer.latencyMilliseconds
-            let extracted = answer.value
+            let extracted = answer.value.normalizingPlaces()
 
             guard extracted.kind == .planJourney else {
                 await speak("I can help you use a trip planner practice app. Try saying, \"I need to get to Town Hall\".", generation: generation)
@@ -442,14 +449,17 @@ final class TaskPlannerEngine: ObservableObject {
         voiceOutput.stop()
     }
 
-    private func needsSuggestion(_ text: String) -> Bool {
-        (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold || !PracticeVocabulary.containsPlace(text)
+    private func needsSuggestion(_ extractedPlace: String?) -> Bool {
+        (voiceInput.lastTurn.confidence ?? 1) < PracticeVocabulary.confidenceThreshold || extractedPlace == nil
     }
 
-    private func suggest(_ place: String, for slot: MissingSlot, generation: Int) async {
+    private func suggest(_ transcript: String, extractedPlace: String?, for slot: MissingSlot, generation: Int) async {
         suggestionSlot = slot
-        suggestionTranscript = place
-        placeSuggestions = PracticeVocabulary.closestPlaces(to: place)
+        suggestionTranscript = transcript
+        // Keep the extracted words exactly; with no extraction, keep the cleaned transcript.
+        suggestionPlace = PlaceNormalization.normalize(extractedPlace)
+            ?? PlaceNormalization.normalize(transcript.trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters)))
+        placeSuggestions = PracticeVocabulary.closestPlaces(to: extractedPlace ?? transcript)
         latestBrainSource = .template
         await speak(suggestionQuestion, generation: generation)
         guard isCurrent(generation), suggestionSlot != nil else { return }
@@ -457,15 +467,24 @@ final class TaskPlannerEngine: ObservableObject {
     }
 
     func chooseSuggestedPlace(_ place: String) {
-        guard let slot = suggestionSlot, placeSuggestions.contains(place) else { return }
+        guard placeSuggestions.contains(place) else { return }
+        acceptSuggestedPlace(place)
+    }
+
+    func keepSuggestedPlace() {
+        guard suggestionSlot != nil else { return }
+        acceptSuggestedPlace(suggestionPlace)
+    }
+
+    private func acceptSuggestedPlace(_ place: String?) {
+        guard let slot = suggestionSlot else { return }
         sessionGeneration += 1
         voiceOutput.stop()
         currentIntent.intent = .planJourney
-        currentIntent = currentIntent.filling(slot, with: place)
+        currentIntent = currentIntent.filling(slot, with: PlaceNormalization.normalize(place) ?? "")
         pendingClarification = nil
         clarificationFailures = 0
-        placeSuggestions = []
-        suggestionSlot = nil
+        clearSuggestions()
         let generation = sessionGeneration
         Task {
             await proceedAfterIntentUpdate(generation: generation)
@@ -484,6 +503,7 @@ final class TaskPlannerEngine: ObservableObject {
         placeSuggestions = []
         suggestionSlot = nil
         suggestionTranscript = ""
+        suggestionPlace = nil
     }
 
     private func clearTurn() {

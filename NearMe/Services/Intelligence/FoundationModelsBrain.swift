@@ -32,7 +32,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
                 generating: JourneyIntent.self,
                 options: GenerationOptions(sampling: .greedy, maximumResponseTokens: 120)
             )
-            return response.content
+            return response.content.normalizingPlaces()
         }
     }
 
@@ -49,8 +49,7 @@ final class FoundationModelsBrain: TaskPlannerBrain, @unchecked Sendable {
                 to: answer, generating: PlaceAnswer.self,
                 options: GenerationOptions(sampling: .greedy, maximumResponseTokens: 40)
             )
-            let place = response.content.place?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return place?.isEmpty == false ? place : nil
+            return PlaceNormalization.normalize(response.content.place)
         }
     }
 

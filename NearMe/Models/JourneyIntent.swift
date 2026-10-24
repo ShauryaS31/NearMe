@@ -73,21 +73,28 @@ extension JourneyIntent {
     /// The first slot (in the order NearMe asks about them) that's still
     /// empty, or `nil` if the intent is fully specified.
     var firstMissingSlot: MissingSlot? {
-        if origin == nil || origin?.trimmingCharacters(in: .whitespaces).isEmpty == true {
+        if PlaceNormalization.normalize(origin) == nil {
             return .origin
         }
-        if destination == nil || destination?.trimmingCharacters(in: .whitespaces).isEmpty == true {
+        if PlaceNormalization.normalize(destination) == nil {
             return .destination
         }
         return nil
     }
 
     func filling(_ slot: MissingSlot, with value: String) -> JourneyIntent {
-        var copy = self
+        var copy = normalizingPlaces()
         switch slot {
-        case .origin: copy.origin = value
-        case .destination: copy.destination = value
+        case .origin: copy.origin = PlaceNormalization.normalize(value)
+        case .destination: copy.destination = PlaceNormalization.normalize(value)
         }
+        return copy
+    }
+
+    func normalizingPlaces() -> JourneyIntent {
+        var copy = self
+        copy.origin = PlaceNormalization.normalize(origin)
+        copy.destination = PlaceNormalization.normalize(destination)
         return copy
     }
 }

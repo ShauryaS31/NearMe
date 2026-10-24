@@ -7,6 +7,7 @@ nonisolated enum PracticeVocabulary {
                          "Bondi Junction", "Strathfield", "Chatswood"]
     static let phrases = places + ["help", "practice", "type instead"]
     static let confidenceThreshold = 0.5
+    static let editDistanceThreshold = 3
 
     static func containsPlace(_ text: String) -> Bool {
         let words = " " + normalized(text) + " "
@@ -15,7 +16,9 @@ nonisolated enum PracticeVocabulary {
 
     /// Compare word windows so sentence filler does not dominate the place score.
     static func closestPlaces(to text: String) -> [String] {
-        let words = normalized(text).split(separator: " ").map(String.init)
+        guard let place = PlaceNormalization.normalize(text) else { return [] }
+        let words = normalized(place).split(separator: " ").map(String.init)
+        guard !words.isEmpty else { return [] }
         func score(_ place: String) -> Int {
             let target = normalized(place)
             let count = target.split(separator: " ").count
@@ -29,10 +32,10 @@ nonisolated enum PracticeVocabulary {
             }
             return scores.min() ?? target.count * 4
         }
-        return Array(places.sorted {
-            let a = score($0), b = score($1)
-            return a == b ? $0 < $1 : a < b
-        }.prefix(2))
+        return places.map { (place: $0, score: score($0)) }
+            .filter { $0.score <= editDistanceThreshold * 4 }
+            .sorted { $0.score == $1.score ? $0.place < $1.place : $0.score < $1.score }
+            .prefix(2).map { $0.place }
     }
 
     private static func normalized(_ text: String) -> String {
