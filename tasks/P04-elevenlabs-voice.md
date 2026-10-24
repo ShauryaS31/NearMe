@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | in_progress |
+| Status | changes_requested |
 | Window | Sat 24 Oct |
 | Depends on | P03 |
 | Assignee | codex |
@@ -56,7 +56,7 @@ AGENTS.md; docs/SPEC.md section 4; docs/design/HIG-NOTES.md rules 2, 7, 14. File
 bash scripts/mac-run.sh test --current
 bash scripts/mac-run.sh quick
 ```
-Mac checks: voice input still works with the key present (on-device; no ElevenLabs speech-to-text in the planner or voice logs); steps spoken in the ElevenLabs voice (needs `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in Secrets.xcconfig); a second run of the same flow starts speaking faster (cache); Wi-Fi off gives the system voice with no hang; the largest text size is usable on the practice screens.
+Mac checks (also on a real iPhone): live partial transcript while speaking, "Got it" right after speech ends, under 2 s to first audio (Debug badge timings); "Did you mean" offers 2 places for a misheard name; voice input still works with the key present (on-device; no ElevenLabs speech-to-text in the planner or voice logs); steps spoken in the ElevenLabs voice (needs `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID` in Secrets.xcconfig); a second run of the same flow starts speaking faster (cache); Wi-Fi off gives the system voice with no hang; the largest text size is usable on the practice screens.
 
 <!-- Dev Reports and Reviews appended below. -->
 
@@ -97,3 +97,24 @@ Mac checks: voice input still works with the key present (on-device; no ElevenLa
   7. For the setting without P05 UI, pause the app in Xcode and run `expr -l Swift -- UserDefaults.standard.set(false, forKey: "naturalVoiceEnabled")` in the debug console. Resume and repeat a cached flow; confirm system voice, `natural voice off` and no new ElevenLabs requests/prefetch. Set the same key back to `true` afterward. The fake tests cover HTTP 401/500, invalid audio and delayed responses without needing real credentials for those failure cases.
   8. Set Settings > Accessibility > Display & Text Size > Larger Text to its largest accessibility size, enable Bold Text, and traverse every practice screen. Confirm the full caption, field/button labels, Search and speech/session controls can all be reached by scrolling. Check portrait/landscape, light/dark, VoiceOver focus and keyboard focus after Type instead.
 - Not done / risks / questions: No P05 toggle UI, planner changes, merges or other task work. Swift API availability/type checking, audio routing on hardware, installed-asset behavior, runtime tests and visual accessibility checks remain unverified until the Mac gate. Asset downloads require connectivity, but transcription never uploads recorded speech. The existing screen-guidance service has its own unrelated Journey Planner match string and was left outside scope. Apple API signatures were checked against [SpeechAnalyzer](https://developer.apple.com/documentation/speech/speechanalyzer), [SpeechTranscriber](https://developer.apple.com/documentation/speech/speechtranscriber) and [AssetInventory](https://developer.apple.com/documentation/speech/assetinventory); implementation was written in this task, without copying repository code from external sources.
+
+## Review (round 1)
+- Date: 2026-10-24 16:19 AEDT
+- Verdict: CHANGES (static review; Mac compile is the gate). No definite compile errors found; Speech/SpeechAnalyzer API names, delegate isolation, protocol defaults, imports and Logger privacy checked. Passed: 2.5 s cut-off with no double playback, stop and continuations, prefetch, natural voice off makes no network call, cache key/limits/atomic writes, strictly on-device input with no server fallback, captions from shared PracticeLabels, practice screens without fixed sizes, no secrets.
+
+### Fixes (address every one)
+1. TaskPlannerEngine.swift:121-129: the on-device speech check (which can download the speech model) runs before the greeting, so first launch is silent until the download ends. Speak the greeting first (system voice is fine); check capability just before the first listen; start any asset download without blocking speech and show "Getting speech ready..." while it runs.
+2. TaskPlannerEngine.swift:222: every listening error switches to typing for good. Switch to typing only for unsupported locale and recognizer unavailable; for no speech or the analyzer timeout, say the retry line and listen again.
+3. VoiceAudioPlayer.swift:21 and ElevenLabsVoiceOutput.swift:176-181: an audio-session configure error is treated as a decode failure and deletes a valid cached mp3. Configure the session outside the decode try; delete the cache entry only on a real decode error. Use `AVAudioPlayer(data:fileTypeHint: AVFileType.mp3.rawValue)`.
+4. SessionContainerView.swift:34: practice "Stop" calls cancelCurrentAction and ends the practice. Stop must only stop speech at once and keep the user on the current step (HIG rule 14). Cancel and End session keep their current behaviour.
+5. Unsupported locale: speak the greeting (system voice) before switching to typing, so those users are not met with silence.
+6. Speed: cache the on-device capability result for the session (do not build a transcriber and query the asset inventory before every listen); remove the duplicate en-AU in the router locale list; a cache hit plays without the 2.5 s cut-off; `converter.primeMethod = .none`; mark the NWPathMonitor handler closure `@Sendable`; if `SpeechTranscriber.isAvailable` does not exist, drop that condition. Fix the flaky test ElevenLabsVoiceOutputTests.swift:99-112 (fresh output with the default deadline for the cache-hit assertion).
+
+### Owner additions after a real-phone test (voice felt laggy and misunderstood requests)
+7. Streaming on-device recognition with SpeechAnalyzer (volatile results on): show the live partial transcript while the user speaks; end of speech after 0.8 s of silence (one constant); show the final transcript before thinking starts. The older SFSpeechRecognizer path, where used, also streams partials and uses the same silence rule.
+8. Vocabulary bias: one constant list `PracticeVocabulary` with the practice places (Central, Town Hall, Parramatta, Holsworthy, Circular Quay, Bondi Junction, Strathfield, Chatswood) and app words (help, practice, type instead). Feed it to the recognizer: `AnalysisContext` contextual strings for SpeechAnalyzer (set on the analyzer before start) and `contextualStrings` on SFSpeechAudioBufferRecognitionRequest. The same place list is used by fix 11.
+9. Fewer model calls: keep the model only for understanding the trip (intent extraction and place cleanup). The follow-up question and the confirmation line become short fixed templates (no model call), for example "Where are you starting from?", "Where would you like to go?", "Great, let's practise planning a trip from <origin> to <destination>." No invented facts. The Debug badge shows "Template" for those lines. Target: under 2 s from end of speech to NearMe starting to speak.
+10. Immediate feedback: as soon as speech ends, show "Got it: <transcript>" and a thinking indicator (respect Reduce Motion: static symbol). Start speaking the first line as soon as it exists (do not wait for prefetch or other work).
+11. "Did you mean": when the recognizer's confidence is low (average segment or attribute confidence below 0.5, one constant; request confidence attributes from SpeechTranscriber) or the transcript contains no place from `PracticeVocabulary` while a place is expected, show the transcript and ask "Did you mean ...?" with the 2 closest places (case-insensitive edit distance plus prefix match, pure function, tested) as tappable buttons (44 x 44 pt), plus "Neither, say it again". A tap fills the slot exactly like a spoken answer.
+12. Timings per turn: speech end to final transcript, model ms (per call), first audio (end of speech to the first audible line, ElevenLabs or system), logged with Logger category "voice" and shown in the Debug badge, for example "STT 300 ms, model 900 ms, first audio 1.6 s".
+13. Tests (default run, fakes only): silence end-of-speech rule with a fake clock, vocabulary list passed to both recognizer paths, templates used for question and confirmation (no model call), "Did you mean" ranking (for example "Holsworth" gives Holsworthy first; "Town Hal" gives Town Hall first), no-speech does not switch to typing, Stop keeps the step.
