@@ -33,8 +33,8 @@ final class VoiceConnectivity {
 
 @MainActor
 final class ElevenLabsVoiceOutput: VoiceOutputService {
-    static let playableAudioDeadline: TimeInterval = 2.5
-    static let modelID = "eleven_flash_v2_5"
+    nonisolated static let playableAudioDeadline: TimeInterval = 2.5
+    nonisolated static let modelID = "eleven_flash_v2_5"
     private let key: String
     private let voiceID: String
     private let settings: VoiceSettings
@@ -58,19 +58,20 @@ final class ElevenLabsVoiceOutput: VoiceOutputService {
 
     private enum AudioOutcome { case ready(String), fallback(String), stopped }
 
-    init(key: String = APIKeys.elevenLabsAPIKey, voiceID: String = APIKeys.elevenLabsVoiceID,
-         settings: VoiceSettings = VoiceSettings(), session: VoiceHTTPSession = URLSession.shared,
-         cache: VoiceAudioCache = VoiceAudioCache(), player: VoiceAudioPlaying = VoiceAudioPlayer(),
-         fallback: VoiceOutputService = SystemVoiceOutputService(), isOffline: (() -> Bool)? = nil,
-         deadline: TimeInterval = ElevenLabsVoiceOutput.playableAudioDeadline) {
-        self.key = key
-        self.voiceID = voiceID
-        self.settings = settings
+    // Defaults are built in the body: default arguments are evaluated outside the main actor.
+    init(key: String? = nil, voiceID: String? = nil,
+         settings: VoiceSettings? = nil, session: VoiceHTTPSession = URLSession.shared,
+         cache: VoiceAudioCache? = nil, player: VoiceAudioPlaying? = nil,
+         fallback: VoiceOutputService? = nil, isOffline: (() -> Bool)? = nil,
+         deadline: TimeInterval? = nil) {
+        self.key = key ?? APIKeys.elevenLabsAPIKey
+        self.voiceID = voiceID ?? APIKeys.elevenLabsVoiceID
+        self.settings = settings ?? VoiceSettings()
         self.session = session
-        self.cache = cache
-        self.player = player
-        self.fallback = fallback
-        self.deadline = deadline
+        self.cache = cache ?? VoiceAudioCache()
+        self.player = player ?? VoiceAudioPlayer()
+        self.fallback = fallback ?? SystemVoiceOutputService()
+        self.deadline = deadline ?? Self.playableAudioDeadline
         if let isOffline {
             self.isOffline = isOffline
         } else {

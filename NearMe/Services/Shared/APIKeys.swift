@@ -2,7 +2,7 @@
 
 import Foundation
 
-enum APIKeys {
+nonisolated enum APIKeys {
     /// The build fills this Info.plist value from the optional Secrets.xcconfig.
     /// Empty or unresolved build settings select the system voice.
     static let elevenLabsAPIKey: String =

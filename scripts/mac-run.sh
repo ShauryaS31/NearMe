@@ -42,6 +42,12 @@ if [[ "$mode" == "report" ]]; then
 fi
 
 if [[ "$mode" == "quick" ]]; then current=1; fi
+# The Mac never edits code, so local changes to NearMe/Info.plist come from build
+# tooling. Restore the committed copy so they cannot block the pull.
+if [[ "$current" == 0 ]] && ! git diff --quiet -- NearMe/Info.plist; then
+  echo "Restoring NearMe/Info.plist (changed locally by build tooling)."
+  git checkout -- NearMe/Info.plist
+fi
 if [[ "$current" == 0 ]]; then git checkout main && git pull --ff-only; fi
 [[ -f Secrets.xcconfig ]] || echo "No Secrets.xcconfig: ElevenLabs key is empty, so speech falls back to on-device Apple speech."
 command -v xcodegen >/dev/null || { echo "Install XcodeGen first: brew install xcodegen"; exit 1; }
