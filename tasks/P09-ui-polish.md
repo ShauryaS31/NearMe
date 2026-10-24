@@ -480,3 +480,15 @@ Exact command: `git diff --stat main`. Output captured before appending this rep
 ```
 
 This comparison includes the prior P09 lane. The merge-round HEAD comparison changes only the seven files listed in this report; the protected-path comparison is empty.
+
+## Owner revision (replaces the Home redesign) - 2026-10-24 19:40 AEDT
+Branch task/P09-merged now also includes main up to ce0e619 (P07e, P13 spike, P12 revert); conflicts in CoachView.swift and VoiceSessionView.swift resolved to P09's structure. P13b merges to main before this branch. No behaviour changes beyond navigation.
+
+1. Remove the "What do you need help with?" home page entirely (HelpHomeView as a separate page). After onboarding "start" and on every later app launch, go straight to the orb voice screen (the purple listening screen); that screen IS home. Deep links (nearme://coach) and the coach, practice and opening screens keep working as today.
+2. Idle state of that screen: the orb, one line "Tap and tell me what you need help with", and a small hint "Try: 'Help me play a song on YouTube'". Listening state: the orb animates and ONE label "Listening... tap when you're done". Remove the duplicate "LISTENING...." caption and any second "Listening..." line.
+3. Secondary actions live in a "More" menu at the top right (SF Symbol ellipsis.circle, label "More", 44 x 44 pt): "Let NearMe see my screen" (opens the existing broadcast picker sheet from the P13 spike), "Practice mode", "Type instead", "Settings" (a simple sheet; it can hold the existing toggles or "Coming soon" for anything not built), "Show debug info" (DEBUG builds only). Keep "Type instead" also as one quiet text button under the orb. During a coach guide the dock's More menu also has "Let NearMe see my screen".
+4. "Cancel" appears only while listening; when idle there is no bottom button.
+5. Purple theme everywhere, from docs/ui-mockups/purple-v2/AGENT-HANDOFF.md (read-only): plum #291B43, violet #6E45BC, lavender #D9C8F2, pale lavender #F0EAF8, as named Theme tokens with accessible Dark Mode variants (text on violet meets 4.5:1). Set the app's accent (AccentColor asset and the SwiftUI tint) to violet so no default blue remains, including the More menu, Type instead, toggles, links and system pickers. Reading surfaces stay semantic system backgrounds.
+6. Keep P07e behaviour: an empty typed answer to "Which song would you like to play?" is allowed (isAwaitingSong), wherever typing lives.
+7. Tests: launch goes to the orb screen (no separate home page); idle shows the one line and hint and no bottom button; listening shows exactly one listening label and Cancel; More menu items present (debug item only in DEBUG); accent is violet.
+Swift 6.4 rules: default arguments must not construct NearMe or test types or read MainActor statics; split long chains over tuples into typed steps; keep SwiftUI bodies small; use resolved stored properties, not optional init parameters.
